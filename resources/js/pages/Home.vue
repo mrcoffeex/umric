@@ -1,0 +1,543 @@
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3'
+import { ref, onMounted } from 'vue'
+import NeuCard from '@/components/NeuCard.vue'
+import NeuButton from '@/components/NeuButton.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
+import { login, register, dashboard } from '@/routes'
+import { create as papersCreate } from '@/routes/papers'
+
+interface Props {
+  canRegister: boolean
+  featuredPapers?: Array<{
+    id: number
+    title: string
+    description: string
+    status: string
+    category: { name: string }
+    tracking_id: string
+  }>
+  categories?: Array<{ id: number; name: string }>
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  canRegister: true,
+})
+
+const isDark = ref(false)
+const trackingId = ref('')
+const trackingError = ref('')
+const isSearching = ref(false)
+const mobileMenuOpen = ref(false)
+const contactForm = ref({ name: '', email: '', message: '' })
+const contactSuccess = ref(false)
+
+onMounted(() => {
+  const saved = localStorage.getItem('darkMode')
+  if (saved) isDark.value = saved === 'true'
+  else isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
+  applyTheme()
+})
+
+const applyTheme = () => {
+  if (isDark.value) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+  localStorage.setItem('darkMode', isDark.value.toString())
+}
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value
+  applyTheme()
+}
+
+const searchPaper = async () => {
+  if (!trackingId.value.trim()) {
+    trackingError.value = 'Please enter a tracking ID'
+    return
+  }
+  isSearching.value = true
+  trackingError.value = ''
+  try {
+    const response = await fetch(`/track/${encodeURIComponent(trackingId.value.trim())}`)
+    if (response.ok) {
+      window.location.href = `/track/${encodeURIComponent(trackingId.value.trim())}`
+    } else {
+      trackingError.value = 'Paper not found. Please check the tracking ID.'
+    }
+  } catch {
+    trackingError.value = 'Error searching for paper. Please try again.'
+  } finally {
+    isSearching.value = false
+  }
+}
+
+const handleKeyPress = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') searchPaper()
+}
+
+const submitContact = () => {
+  contactSuccess.value = true
+  contactForm.value = { name: '', email: '', message: '' }
+  setTimeout(() => { contactSuccess.value = false }, 4000)
+}
+
+const scrollTo = (id: string) => {
+  mobileMenuOpen.value = false
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+</script>
+
+<template>
+  <Head title="UMRIC - Research Paper Tracking & Management">
+    <meta name="description" content="Track, manage, and collaborate on research papers with real-time status updates." />
+  </Head>
+
+  <div
+    :class="{
+      'min-h-screen transition-colors duration-300': true,
+      'dark bg-gray-900 text-white': isDark,
+      'bg-stone-50 text-gray-900': !isDark,
+    }"
+  >
+    <!-- ======== NAVIGATION ======== -->
+    <nav class="sticky top-0 z-50 backdrop-blur-md border-b" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <NeuCard :is-dark="isDark" class="!rounded-none !rounded-b-2xl" padding="0">
+        <div class="max-w-7xl mx-auto px-6 py-3 flex justify-between items-center">
+          <Link href="/" class="text-2xl font-extrabold flex items-center gap-2">
+            <span class="text-orange-500">🔬</span>
+            <span class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent">UMRIC</span>
+          </Link>
+
+          <!-- Desktop links -->
+          <div class="hidden md:flex items-center gap-6 text-sm font-medium">
+            <button @click="scrollTo('hero')" class="hover:text-orange-500 dark:hover:text-orange-400 transition">Home</button>
+            <button @click="scrollTo('research')" class="hover:text-orange-500 dark:hover:text-orange-400 transition">Research</button>
+            <button @click="scrollTo('about')" class="hover:text-orange-500 dark:hover:text-orange-400 transition">About</button>
+            <button @click="scrollTo('docs')" class="hover:text-orange-500 dark:hover:text-orange-400 transition">Docs</button>
+            <button @click="scrollTo('contact')" class="hover:text-orange-500 dark:hover:text-orange-400 transition">Contact</button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition text-lg">
+              {{ isDark ? '☀️' : '🌙' }}
+            </button>
+            <Link v-if="!$page.props.auth.user" :href="login.url()" class="hidden md:block">
+              <NeuButton :is-dark="isDark" variant="secondary" size="sm">Login</NeuButton>
+            </Link>
+            <Link v-if="!$page.props.auth.user && canRegister" :href="register.url()" class="hidden md:block">
+              <NeuButton :is-dark="isDark" variant="success" size="sm">Register</NeuButton>
+            </Link>
+            <Link v-if="$page.props.auth.user" :href="dashboard.url()" class="hidden md:block">
+              <NeuButton :is-dark="isDark" variant="primary" size="sm">Dashboard</NeuButton>
+            </Link>
+            <!-- Mobile menu toggle -->
+            <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition">
+              {{ mobileMenuOpen ? '✕' : '☰' }}
+            </button>
+          </div>
+        </div>
+        <!-- Mobile menu -->
+        <div v-if="mobileMenuOpen" class="md:hidden px-6 pb-4 space-y-2 text-sm font-medium">
+          <button @click="scrollTo('hero')" class="block w-full text-left py-2 hover:text-orange-500 transition">Home</button>
+          <button @click="scrollTo('research')" class="block w-full text-left py-2 hover:text-orange-500 transition">Research</button>
+          <button @click="scrollTo('about')" class="block w-full text-left py-2 hover:text-orange-500 transition">About</button>
+          <button @click="scrollTo('docs')" class="block w-full text-left py-2 hover:text-orange-500 transition">Docs</button>
+          <button @click="scrollTo('contact')" class="block w-full text-left py-2 hover:text-orange-500 transition">Contact</button>
+          <div class="flex gap-2 pt-2">
+            <Link v-if="!$page.props.auth.user" :href="login.url()">
+              <NeuButton :is-dark="isDark" variant="secondary" size="sm">Login</NeuButton>
+            </Link>
+            <Link v-if="!$page.props.auth.user && canRegister" :href="register.url()">
+              <NeuButton :is-dark="isDark" variant="success" size="sm">Register</NeuButton>
+            </Link>
+          </div>
+        </div>
+      </NeuCard>
+    </nav>
+
+    <!-- ======== HERO SECTION (with Tracking) ======== -->
+    <section id="hero" class="pt-16 md:pt-28 pb-20 px-6">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-14">
+          <div class="inline-block px-4 py-1.5 rounded-full text-sm font-semibold mb-6" :class="isDark ? 'bg-teal-900/40 text-teal-300' : 'bg-teal-100 text-teal-700'">
+            University Research Management
+          </div>
+          <h1 class="text-5xl md:text-7xl font-black mb-6 leading-tight">
+            <span class="bg-gradient-to-r from-orange-500 via-orange-400 to-teal-500 dark:from-orange-400 dark:via-orange-300 dark:to-teal-400 bg-clip-text text-transparent">
+              Track Your Research
+            </span>
+          </h1>
+          <p class="text-lg md:text-xl max-w-2xl mx-auto leading-relaxed" :class="isDark ? 'text-gray-400' : 'text-gray-600'">
+            Real-time paper tracking, management, and collaboration platform for academics and researchers.
+          </p>
+        </div>
+
+        <!-- Tracking Widget -->
+        <div class="max-w-2xl mx-auto">
+          <NeuCard :is-dark="isDark" padding="2rem">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="text-2xl">🔍</span>
+              <div>
+                <h2 class="text-xl font-bold">Track a Paper</h2>
+                <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">Enter a tracking ID to see real-time status updates</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <input
+                v-model="trackingId"
+                @keypress="handleKeyPress"
+                type="text"
+                placeholder="e.g. RP-XXXXXXXX"
+                class="flex-1 px-4 py-3 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm"
+                :class="isDark ? 'bg-gray-800 text-white placeholder-gray-500' : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'"
+              />
+              <NeuButton :is-dark="isDark" variant="success" :disabled="isSearching" @click="searchPaper">
+                {{ isSearching ? '...' : 'Track' }}
+              </NeuButton>
+            </div>
+            <p v-if="trackingError" class="text-red-500 text-sm mt-2">{{ trackingError }}</p>
+            <p class="text-xs mt-3" :class="isDark ? 'text-gray-500' : 'text-gray-400'">
+              🔓 No login required — public tracking is anonymous.
+            </p>
+          </NeuCard>
+        </div>
+
+        <!-- Quick stats row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-14 max-w-4xl mx-auto">
+          <NeuCard :is-dark="isDark" padding="1rem" class="text-center">
+            <div class="text-2xl font-black text-orange-500">1 000+</div>
+            <p class="text-xs mt-1" :class="isDark ? 'text-gray-400' : 'text-gray-500'">Papers Tracked</p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" padding="1rem" class="text-center">
+            <div class="text-2xl font-black text-teal-500">500+</div>
+            <p class="text-xs mt-1" :class="isDark ? 'text-gray-400' : 'text-gray-500'">Researchers</p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" padding="1rem" class="text-center">
+            <div class="text-2xl font-black text-orange-500">150+</div>
+            <p class="text-xs mt-1" :class="isDark ? 'text-gray-400' : 'text-gray-500'">Universities</p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" padding="1rem" class="text-center">
+            <div class="text-2xl font-black text-teal-500">99.9%</div>
+            <p class="text-xs mt-1" :class="isDark ? 'text-gray-400' : 'text-gray-500'">Uptime</p>
+          </NeuCard>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======== RESEARCH SECTION ======== -->
+    <section id="research" class="py-20 px-6 border-t" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-14">
+          <h2 class="text-4xl font-black mb-3">
+            <span class="bg-gradient-to-r from-teal-500 to-orange-500 bg-clip-text text-transparent">Featured Research</span>
+          </h2>
+          <p class="max-w-lg mx-auto" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+            Browse recently published papers from our community of researchers.
+          </p>
+        </div>
+
+        <div v-if="props.featuredPapers && props.featuredPapers.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            v-for="paper in props.featuredPapers.slice(0, 6)"
+            :key="paper.id"
+            :href="`/track/${paper.tracking_id}`"
+            class="group no-underline"
+          >
+            <NeuCard :is-dark="isDark" class="h-full hover:shadow-lg transition-all cursor-pointer">
+              <StatusBadge :status="paper.status" />
+              <h3 class="text-lg font-bold mt-4 mb-2 line-clamp-2 group-hover:text-orange-500 transition">
+                {{ paper.title }}
+              </h3>
+              <p class="text-sm line-clamp-2 mb-4" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+                {{ paper.description }}
+              </p>
+              <div class="flex items-center justify-between pt-3 border-t" :class="isDark ? 'border-gray-700' : 'border-stone-200'">
+                <span class="text-xs px-2 py-0.5 rounded-full font-medium" :class="isDark ? 'bg-teal-900/40 text-teal-300' : 'bg-teal-100 text-teal-700'">
+                  {{ paper.category.name }}
+                </span>
+                <code class="text-xs font-mono text-orange-500">{{ paper.tracking_id }}</code>
+              </div>
+            </NeuCard>
+          </Link>
+        </div>
+
+        <div v-else class="text-center py-12">
+          <NeuCard :is-dark="isDark" class="max-w-sm mx-auto">
+            <p class="text-4xl mb-4">📄</p>
+            <p class="font-semibold mb-2">No published papers yet</p>
+            <p class="text-sm mb-4" :class="isDark ? 'text-gray-400' : 'text-gray-500'">Be the first to submit your research!</p>
+            <Link v-if="$page.props.auth.user" :href="papersCreate.url()">
+              <NeuButton :is-dark="isDark" variant="success" full-width>Submit Paper</NeuButton>
+            </Link>
+            <Link v-else :href="register.url()">
+              <NeuButton :is-dark="isDark" variant="success" full-width>Create Account</NeuButton>
+            </Link>
+          </NeuCard>
+        </div>
+
+        <!-- Categories -->
+        <div v-if="props.categories && props.categories.length > 0" class="mt-14">
+          <h3 class="text-center font-bold text-lg mb-6" :class="isDark ? 'text-gray-300' : 'text-gray-700'">Research Categories</h3>
+          <div class="flex flex-wrap justify-center gap-3">
+            <NeuCard
+              v-for="cat in props.categories"
+              :key="cat.id"
+              :is-dark="isDark"
+              padding="0.5rem 1rem"
+              class="text-sm font-medium hover:shadow-md transition-all cursor-default"
+            >
+              {{ cat.name }}
+            </NeuCard>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======== ABOUT SECTION ======== -->
+    <section id="about" class="py-20 px-6 border-t" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-14">
+          <h2 class="text-4xl font-black mb-3">
+            <span class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent">Why UMRIC?</span>
+          </h2>
+          <p class="max-w-lg mx-auto" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+            A purpose-built platform for university research management.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <NeuCard :is-dark="isDark" class="text-center">
+            <div class="text-4xl mb-4">📊</div>
+            <h3 class="text-lg font-bold mb-2">Real-time Tracking</h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              Follow your paper through every stage — from submission to publication — with instant status updates.
+            </p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="text-center">
+            <div class="text-4xl mb-4">👥</div>
+            <h3 class="text-lg font-bold mb-2">Multi-Author Collaboration</h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              Add co-authors, manage contributions, and keep everyone in the loop throughout the process.
+            </p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="text-center">
+            <div class="text-4xl mb-4">📁</div>
+            <h3 class="text-lg font-bold mb-2">File Management</h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              Upload PDFs, manage revisions, and keep all your research documents organized in one place.
+            </p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="text-center">
+            <div class="text-4xl mb-4">📝</div>
+            <h3 class="text-lg font-bold mb-2">Citations & Metadata</h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              Track publications, DOIs, and citations. Export metadata in multiple academic formats.
+            </p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="text-center">
+            <div class="text-4xl mb-4">🔓</div>
+            <h3 class="text-lg font-bold mb-2">Public Tracking</h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              Share a tracking link with anyone — no login required to check a paper's progress.
+            </p>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="text-center">
+            <div class="text-4xl mb-4">🔐</div>
+            <h3 class="text-lg font-bold mb-2">Secure & Private</h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              Two-factor authentication, role-based access, and encrypted storage keep your research safe.
+            </p>
+          </NeuCard>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======== DOCS SECTION ======== -->
+    <section id="docs" class="py-20 px-6 border-t" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-14">
+          <h2 class="text-4xl font-black mb-3">
+            <span class="bg-gradient-to-r from-teal-500 to-orange-500 bg-clip-text text-transparent">Getting Started</span>
+          </h2>
+          <p class="max-w-lg mx-auto" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+            Three simple steps to start managing your research.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <NeuCard :is-dark="isDark" class="relative">
+            <div class="absolute -top-4 -left-2 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-lg bg-gradient-to-br from-orange-500 to-orange-600 shadow-lg">1</div>
+            <div class="pt-4">
+              <h3 class="text-lg font-bold mb-2">Create an Account</h3>
+              <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+                Sign up with your university email. Enable two-factor auth for extra security.
+              </p>
+            </div>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="relative">
+            <div class="absolute -top-4 -left-2 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-lg bg-gradient-to-br from-teal-500 to-teal-600 shadow-lg">2</div>
+            <div class="pt-4">
+              <h3 class="text-lg font-bold mb-2">Submit Your Paper</h3>
+              <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+                Fill in the details, add co-authors, upload your PDF, and get a unique tracking ID.
+              </p>
+            </div>
+          </NeuCard>
+          <NeuCard :is-dark="isDark" class="relative">
+            <div class="absolute -top-4 -left-2 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow-lg">3</div>
+            <div class="pt-4">
+              <h3 class="text-lg font-bold mb-2">Track Progress</h3>
+              <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+                Monitor status changes in real-time. Share the public tracking link with collaborators.
+              </p>
+            </div>
+          </NeuCard>
+        </div>
+
+        <div class="mt-12 text-center">
+          <NeuCard :is-dark="isDark" padding="1.5rem 2rem" class="inline-block">
+            <p class="text-sm font-medium mb-1">API & Integrations</p>
+            <p class="text-xs" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              REST API available for programmatic access. Full documentation coming soon.
+            </p>
+          </NeuCard>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======== CONTACT SECTION ======== -->
+    <section id="contact" class="py-20 px-6 border-t" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <div class="max-w-3xl mx-auto">
+        <div class="text-center mb-14">
+          <h2 class="text-4xl font-black mb-3">
+            <span class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent">Get in Touch</span>
+          </h2>
+          <p class="max-w-lg mx-auto" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+            Questions, feedback, or partnership inquiries? We'd love to hear from you.
+          </p>
+        </div>
+
+        <NeuCard :is-dark="isDark" padding="2rem">
+          <div v-if="contactSuccess" class="text-center py-8">
+            <div class="text-4xl mb-3">✅</div>
+            <p class="font-bold text-lg">Message Sent!</p>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">We'll get back to you as soon as possible.</p>
+          </div>
+          <form v-else @submit.prevent="submitContact" class="space-y-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-1">Name</label>
+                <input
+                  v-model="contactForm.name"
+                  type="text"
+                  required
+                  placeholder="Your name"
+                  class="w-full px-4 py-3 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm"
+                  :class="isDark ? 'bg-gray-800 text-white placeholder-gray-500' : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <input
+                  v-model="contactForm.email"
+                  type="email"
+                  required
+                  placeholder="you@university.edu"
+                  class="w-full px-4 py-3 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm"
+                  :class="isDark ? 'bg-gray-800 text-white placeholder-gray-500' : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'"
+                />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1">Message</label>
+              <textarea
+                v-model="contactForm.message"
+                required
+                rows="4"
+                placeholder="How can we help?"
+                class="w-full px-4 py-3 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-teal-400 text-sm resize-none"
+                :class="isDark ? 'bg-gray-800 text-white placeholder-gray-500' : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'"
+              ></textarea>
+            </div>
+            <div class="text-right">
+              <NeuButton :is-dark="isDark" variant="success">Send Message</NeuButton>
+            </div>
+          </form>
+        </NeuCard>
+      </div>
+    </section>
+
+    <!-- ======== LOGIN CTA ======== -->
+    <section id="login" class="py-20 px-6 border-t" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <div class="max-w-4xl mx-auto text-center">
+        <NeuCard :is-dark="isDark" padding="3rem">
+          <h2 class="text-3xl md:text-4xl font-black mb-4">
+            Ready to Start?
+          </h2>
+          <p class="text-lg mb-8 max-w-xl mx-auto" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+            Join researchers across 150+ universities managing their work with UMRIC.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link v-if="!$page.props.auth.user" :href="register.url()">
+              <NeuButton :is-dark="isDark" variant="success" size="lg">Create Free Account</NeuButton>
+            </Link>
+            <Link v-if="!$page.props.auth.user" :href="login.url()">
+              <NeuButton :is-dark="isDark" variant="secondary" size="lg">Sign In</NeuButton>
+            </Link>
+            <Link v-if="$page.props.auth.user" :href="dashboard.url()">
+              <NeuButton :is-dark="isDark" variant="primary" size="lg">Go to Dashboard</NeuButton>
+            </Link>
+          </div>
+        </NeuCard>
+      </div>
+    </section>
+
+    <!-- ======== FOOTER ======== -->
+    <footer class="py-10 px-6 border-t" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+      <div class="max-w-6xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div>
+            <h3 class="font-extrabold text-lg mb-3">
+              <span class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent">UMRIC</span>
+            </h3>
+            <p class="text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              University research paper tracking with neumorphic design.
+            </p>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-3">Platform</h4>
+            <ul class="space-y-2 text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              <li><button @click="scrollTo('research')" class="hover:text-orange-500 transition">Research</button></li>
+              <li><button @click="scrollTo('about')" class="hover:text-orange-500 transition">Features</button></li>
+              <li><button @click="scrollTo('docs')" class="hover:text-orange-500 transition">Docs</button></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-3">University</h4>
+            <ul class="space-y-2 text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              <li><button @click="scrollTo('about')" class="hover:text-orange-500 transition">About</button></li>
+              <li><button @click="scrollTo('contact')" class="hover:text-orange-500 transition">Contact</button></li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold mb-3">Legal</h4>
+            <ul class="space-y-2 text-sm" :class="isDark ? 'text-gray-400' : 'text-gray-500'">
+              <li><a href="#" class="hover:text-orange-500 transition">Privacy</a></li>
+              <li><a href="#" class="hover:text-orange-500 transition">Terms</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4" :class="isDark ? 'border-gray-800' : 'border-stone-200'">
+          <p class="text-xs" :class="isDark ? 'text-gray-500' : 'text-gray-400'">&copy; 2026 UMRIC. All rights reserved.</p>
+          <div class="flex gap-4 text-xs" :class="isDark ? 'text-gray-500' : 'text-gray-400'">
+            <a href="#" class="hover:text-orange-500 transition">Twitter</a>
+            <a href="#" class="hover:text-orange-500 transition">GitHub</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+</template>

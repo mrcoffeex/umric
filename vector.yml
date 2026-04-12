@@ -1,0 +1,14 @@
+sinks:
+  console:
+    type: console
+    inputs:
+      - source
+    encoding:
+      codec: json
+
+sources:
+  source:
+    type: file
+    include:
+      - /var/log/*.log
+    start_at_beginning: false

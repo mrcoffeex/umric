@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: supabase_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: laravel_db
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - supabase
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rest:
+    image: postgrest/postgrest:latest
+    container_name: supabase_rest
+    environment:
+      PGRST_DB_URI: postgresql://postgres:postgres123@postgres:5432/laravel_db
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - supabase
+
+volumes:
+  postgres_data:
+
+networks:
+  supabase:
+    driver: bridge
