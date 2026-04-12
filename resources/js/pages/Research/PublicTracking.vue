@@ -35,7 +35,7 @@
                         <p
                             class="mb-6 line-clamp-3 text-lg text-gray-600 dark:text-gray-400"
                         >
-                            {{ paper.description }}
+                            {{ paper.abstract }}
                         </p>
 
                         <div class="flex flex-wrap gap-4">
@@ -348,7 +348,7 @@ interface TrackingRecord {
 interface Paper {
     id: number;
     title: string;
-    description: string;
+    abstract: string;
     status: string;
     tracking_id: string;
     created_at: string;

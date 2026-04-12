@@ -17,8 +17,11 @@ class ResearchPaper extends Model
     protected $fillable = [
         'user_id',
         'category_id',
+        'sdg_id',
+        'agenda_id',
         'title',
-        'description',
+        'abstract',
+        'proponents',
         'tracking_id',
         'status',
         'submission_date',
@@ -30,6 +33,7 @@ class ResearchPaper extends Model
     protected $casts = [
         'submission_date' => 'date',
         'publication_date' => 'date',
+        'proponents' => 'array',
         'views' => 'integer',
     ];
 
@@ -55,6 +59,16 @@ class ResearchPaper extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function sdg(): BelongsTo
+    {
+        return $this->belongsTo(Sdg::class);
+    }
+
+    public function agenda(): BelongsTo
+    {
+        return $this->belongsTo(Agenda::class);
     }
 
     public function authors(): BelongsToMany

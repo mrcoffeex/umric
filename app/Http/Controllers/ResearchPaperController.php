@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateResearchPaperRequest;
 use App\Models\Category;
 use App\Models\ResearchPaper;
 use App\Models\User;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -19,9 +20,20 @@ class ResearchPaperController extends Controller
      */
     public function index()
     {
+        $user = Auth::user();
+        $role = $user?->role() ?? 'student';
+        $papersQuery = ResearchPaper::with(['category', 'authors'])->latest();
+
+        if (! $user?->isAdmin() && ! $user?->isStaff()) {
+            $papersQuery->where('user_id', Auth::id());
+        }
+
         return Inertia::render('Research/Index', [
-            'papers' => ResearchPaper::with(['category', 'authors'])->latest()->get(),
+            'papers' => $papersQuery->get(),
             'categories' => Category::all(),
+            'sdgs' => \App\Models\Sdg::query()->get(),
+            'agendas' => \App\Models\Agenda::query()->get(),
+            'role' => $role,
         ]);
     }
 
@@ -32,6 +44,8 @@ class ResearchPaperController extends Controller
     {
         return Inertia::render('Research/Create', [
             'categories' => Category::all(),
+            'sdgs' => \App\Models\Sdg::all(),
+            'agendas' => \App\Models\Agenda::all(),
         ]);
     }
 
@@ -41,12 +55,16 @@ class ResearchPaperController extends Controller
     public function store(StoreResearchPaperRequest $request)
     {
         $tracking_id = 'RP-'.strtoupper(Str::random(8));
+        $user = Auth::user();
 
         $paper = ResearchPaper::create([
             'title' => $request->title,
-            'description' => $request->description,
+            'abstract' => $request->abstract,
             'category_id' => $request->category_id,
-            'status' => $request->status ?? 'submitted',
+            'sdg_id' => $request->sdg_id,
+            'agenda_id' => $request->agenda_id,
+            'proponents' => $request->proponents,
+            'status' => $user?->isStudent() ? 'submitted' : ($request->status ?? 'submitted'),
             'tracking_id' => $tracking_id,
             'user_id' => Auth::id(),
             'keywords' => $request->keywords,
@@ -96,6 +114,8 @@ class ResearchPaperController extends Controller
      */
     public function show(ResearchPaper $paper)
     {
+        Gate::authorize('view', $paper);
+
         $paper->load([
             'category',
             'authors',
@@ -117,9 +137,13 @@ class ResearchPaperController extends Controller
      */
     public function edit(ResearchPaper $paper)
     {
+        Gate::authorize('update', $paper);
+
         return Inertia::render('Research/Edit', [
-            'paper' => $paper->load('category', 'authors'),
+            'paper' => $paper->load('category', 'authors', 'sdg', 'agenda'),
             'categories' => Category::all(),
+            'sdgs' => \App\Models\Sdg::all(),
+            'agendas' => \App\Models\Agenda::all(),
         ]);
     }
 
@@ -128,7 +152,32 @@ class ResearchPaperController extends Controller
      */
     public function update(UpdateResearchPaperRequest $request, ResearchPaper $paper)
     {
-        $paper->update($request->validated());
+        $validated = $request->validated();
+
+        $paper->update(Arr::only($validated, [
+            'title',
+            'abstract',
+            'category_id',
+            'sdg_id',
+            'agenda_id',
+            'status',
+            'keywords',
+            'proponents',
+        ]));
+
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $path = $file->store('research-papers', 'public');
+
+            $paper->files()->create([
+                'file_name' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'file_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+                'file_category' => 'paper',
+                'disk' => 'public',
+            ]);
+        }
 
         return redirect()->route('papers.show', $paper)->with('success', 'Paper updated successfully');
     }

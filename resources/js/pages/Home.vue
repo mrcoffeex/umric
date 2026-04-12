@@ -239,35 +239,35 @@ const scrollTo = (id: string) => {
                 <!-- Mobile menu -->
                 <div
                     v-if="mobileMenuOpen"
-                    class="space-y-2 px-6 pb-4 text-sm font-medium md:hidden"
+                    class="space-y-2 px-4 pb-4 text-sm font-medium sm:px-6 md:hidden"
                 >
                     <button
                         @click="scrollTo('hero')"
-                        class="block w-full py-2 text-left transition hover:text-orange-500"
+                        class="block w-full py-3 text-left transition hover:text-orange-500"
                     >
                         Home
                     </button>
                     <button
                         @click="scrollTo('research')"
-                        class="block w-full py-2 text-left transition hover:text-orange-500"
+                        class="block w-full py-3 text-left transition hover:text-orange-500"
                     >
                         Research
                     </button>
                     <button
                         @click="scrollTo('about')"
-                        class="block w-full py-2 text-left transition hover:text-orange-500"
+                        class="block w-full py-3 text-left transition hover:text-orange-500"
                     >
                         About
                     </button>
                     <button
                         @click="scrollTo('docs')"
-                        class="block w-full py-2 text-left transition hover:text-orange-500"
+                        class="block w-full py-3 text-left transition hover:text-orange-500"
                     >
                         Docs
                     </button>
                     <button
                         @click="scrollTo('contact')"
-                        class="block w-full py-2 text-left transition hover:text-orange-500"
+                        class="block w-full py-3 text-left transition hover:text-orange-500"
                     >
                         Contact
                     </button>
@@ -297,7 +297,7 @@ const scrollTo = (id: string) => {
         </nav>
 
         <!-- ======== HERO SECTION (with Tracking) ======== -->
-        <section id="hero" class="px-6 pt-16 pb-20 md:pt-28">
+        <section id="hero" class="px-4 pt-16 pb-20 sm:px-6 md:pt-28">
             <div class="mx-auto max-w-6xl">
                 <div class="mb-14 text-center">
                     <div
@@ -311,7 +311,7 @@ const scrollTo = (id: string) => {
                         University Research Management
                     </div>
                     <h1
-                        class="mb-6 text-5xl leading-tight font-black md:text-7xl"
+                        class="mb-6 text-4xl leading-tight font-black sm:text-5xl md:text-7xl"
                     >
                         <span
                             class="bg-gradient-to-r from-orange-500 via-orange-400 to-teal-500 bg-clip-text text-transparent dark:from-orange-400 dark:via-orange-300 dark:to-teal-400"
@@ -456,7 +456,7 @@ const scrollTo = (id: string) => {
         <!-- ======== RESEARCH SECTION ======== -->
         <section
             id="research"
-            class="border-t px-6 py-20"
+            class="border-t px-4 py-20 sm:px-6"
             :class="isDark ? 'border-gray-800' : 'border-stone-200'"
         >
             <div class="mx-auto max-w-6xl">
@@ -596,7 +596,7 @@ const scrollTo = (id: string) => {
         <!-- ======== ABOUT SECTION ======== -->
         <section
             id="about"
-            class="border-t px-6 py-20"
+            class="border-t px-4 py-20 sm:px-6"
             :class="isDark ? 'border-gray-800' : 'border-stone-200'"
         >
             <div class="mx-auto max-w-6xl">
@@ -697,7 +697,7 @@ const scrollTo = (id: string) => {
         <!-- ======== DOCS SECTION ======== -->
         <section
             id="docs"
-            class="border-t px-6 py-20"
+            class="border-t px-4 py-20 sm:px-6"
             :class="isDark ? 'border-gray-800' : 'border-stone-200'"
         >
             <div class="mx-auto max-w-5xl">
@@ -806,7 +806,7 @@ const scrollTo = (id: string) => {
         <!-- ======== CONTACT SECTION ======== -->
         <section
             id="contact"
-            class="border-t px-6 py-20"
+            class="border-t px-4 py-20 sm:px-6"
             :class="isDark ? 'border-gray-800' : 'border-stone-200'"
         >
             <div class="mx-auto max-w-3xl">
@@ -908,7 +908,7 @@ const scrollTo = (id: string) => {
         <!-- ======== LOGIN CTA ======== -->
         <section
             id="login"
-            class="border-t px-6 py-20"
+            class="border-t px-4 py-20 sm:px-6"
             :class="isDark ? 'border-gray-800' : 'border-stone-200'"
         >
             <div class="mx-auto max-w-4xl text-center">
@@ -961,7 +961,7 @@ const scrollTo = (id: string) => {
 
         <!-- ======== FOOTER ======== -->
         <footer
-            class="border-t px-6 py-10"
+            class="border-t px-4 py-10 sm:px-6"
             :class="isDark ? 'border-gray-800' : 'border-stone-200'"
         >
             <div class="mx-auto max-w-6xl">

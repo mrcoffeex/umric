@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\AgendaController;
 use App\Http\Controllers\Admin\ApproveUserController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\SchoolClassController;
+use App\Http\Controllers\Admin\SdgController;
+use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\CategoryController;
@@ -39,6 +43,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('can:accessAdmin,App\Models\User')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('departments', DepartmentController::class)->except(['create', 'edit', 'show']);
         Route::resource('programs', ProgramController::class)->except(['create', 'edit', 'show', 'index']);
+        Route::resource('subjects', SubjectController::class)->except(['create', 'edit', 'show']);
+        Route::resource('classes', SchoolClassController::class)->except(['create', 'edit', 'show']);
+        Route::resource('sdgs', SdgController::class)->except(['create', 'edit', 'show']);
+        Route::resource('agendas', AgendaController::class)->except(['create', 'edit', 'show']);
         Route::resource('users', UserController::class)->except(['create', 'edit', 'show', 'store']);
 
         Route::post('users/{user}/approve', [ApproveUserController::class, 'approve'])->name('users.approve');

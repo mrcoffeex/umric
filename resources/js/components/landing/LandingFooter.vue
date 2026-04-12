@@ -22,7 +22,9 @@ const footerLinks = {
 </script>
 
 <template>
-    <footer class="bg-slate-950 px-5 pt-16 pb-8 text-slate-400">
+    <footer
+        class="bg-slate-100 px-5 pt-16 pb-8 text-slate-600 dark:bg-slate-950 dark:text-slate-400"
+    >
         <div class="mx-auto max-w-7xl">
             <!-- Top grid -->
             <div
@@ -43,7 +45,9 @@ const footerLinks = {
                             >UMRIC</span
                         >
                     </button>
-                    <p class="max-w-xs text-sm leading-relaxed text-slate-500">
+                    <p
+                        class="max-w-xs text-sm leading-relaxed text-slate-500 dark:text-slate-500"
+                    >
                         Official research paper tracking system of UM Digos
                         College &mdash; from title proposal to publication.
                     </p>
@@ -58,7 +62,7 @@ const footerLinks = {
                             :key="social.label"
                             :href="social.href"
                             :aria-label="social.label"
-                            class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800/80 text-slate-400 transition-all duration-200 hover:border-orange-600/40 hover:bg-orange-950/30 hover:text-orange-400"
+                            class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-600 transition-all duration-200 hover:border-orange-300 hover:bg-orange-100 hover:text-orange-500 dark:border-slate-700/60 dark:bg-slate-800/80 dark:text-slate-400 dark:hover:border-orange-600/40 dark:hover:bg-orange-950/30 dark:hover:text-orange-400"
                         >
                             <component :is="social.icon" class="h-4 w-4" />
                         </a>
@@ -67,7 +71,9 @@ const footerLinks = {
 
                 <!-- Link columns -->
                 <div v-for="(links, group) in footerLinks" :key="group">
-                    <h4 class="mb-4 text-sm font-semibold text-slate-300">
+                    <h4
+                        class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300"
+                    >
                         {{ group }}
                     </h4>
                     <ul class="space-y-3">
@@ -75,14 +81,14 @@ const footerLinks = {
                             <button
                                 v-if="'section' in link"
                                 @click="scrollTo(link.section)"
-                                class="text-sm text-slate-500 transition-colors hover:text-orange-400"
+                                class="text-sm text-slate-500 transition-colors hover:text-orange-500 dark:hover:text-orange-400"
                             >
                                 {{ link.label }}
                             </button>
                             <a
                                 v-else
                                 :href="link.href"
-                                class="text-sm text-slate-500 transition-colors hover:text-orange-400"
+                                class="text-sm text-slate-500 transition-colors hover:text-orange-500 dark:hover:text-orange-400"
                             >
                                 {{ link.label }}
                             </a>
@@ -93,13 +99,15 @@ const footerLinks = {
 
             <!-- Bottom bar -->
             <div
-                class="flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-8 sm:flex-row"
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-8 sm:flex-row dark:border-slate-800/80"
             >
-                <p class="text-xs text-slate-600">
+                <p class="text-xs text-slate-500 dark:text-slate-600">
                     &copy; {{ new Date().getFullYear() }} UMRIC. All rights
                     reserved.
                 </p>
-                <div class="flex items-center gap-1.5 text-xs text-slate-600">
+                <div
+                    class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-600"
+                >
                     Made with
                     <span class="text-orange-500">♥</span>
                     for researchers worldwide

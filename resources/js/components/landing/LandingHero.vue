@@ -62,7 +62,7 @@ const stats = [
 <template>
     <section
         id="hero"
-        class="relative flex min-h-screen flex-col justify-center overflow-hidden px-5 pt-30 pb-16 sm:px-8 lg:px-12"
+        class="relative flex min-h-screen flex-col justify-center overflow-hidden px-4 pt-30 pb-16 sm:px-6 lg:px-8"
     >
         <!-- Animated gradient background -->
         <div class="absolute inset-0 -z-10">
@@ -113,7 +113,7 @@ const stats = [
                 <div class="text-center lg:text-left">
                     <!-- Headline -->
                     <h1
-                        class="mb-6 text-5xl leading-[1.05] font-black tracking-tight sm:text-6xl lg:text-7xl"
+                        class="mb-6 text-4xl leading-[1.05] font-black tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
                     >
                         <span class="text-slate-900 dark:text-white"
                             >Your Research,</span
@@ -139,7 +139,7 @@ const stats = [
                         <template v-if="!page.props.auth.user">
                             <Link v-if="canRegister" :href="register.url()">
                                 <button
-                                    class="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:from-orange-600 hover:to-orange-700 hover:shadow-orange-500/50 active:scale-[0.98]"
+                                    class="group flex items-center gap-2 rounded-xl bg-orange-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 hover:shadow-orange-500/50 active:scale-[0.98]"
                                 >
                                     Get Started
                                     <ArrowRight
@@ -151,7 +151,7 @@ const stats = [
                         <template v-else>
                             <Link :href="dashboard.url()">
                                 <button
-                                    class="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-teal-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:shadow-orange-500/50"
+                                    class="group flex items-center gap-2 rounded-xl bg-teal-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:bg-teal-600 hover:shadow-orange-500/50"
                                 >
                                     Go to Dashboard
                                     <ArrowRight
@@ -164,7 +164,7 @@ const stats = [
 
                     <!-- Stats row -->
                     <div
-                        class="mx-auto grid max-w-lg grid-cols-2 gap-4 sm:grid-cols-4 lg:mx-0"
+                        class="mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4 lg:mx-0"
                     >
                         <div
                             v-for="stat in stats"
@@ -403,7 +403,7 @@ const stats = [
                 <button
                     @click="searchPaper"
                     :disabled="isSearching"
-                    class="rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-semibold whitespace-nowrap text-white shadow-md shadow-orange-500/20 transition-all duration-200 hover:scale-[1.02] hover:from-orange-600 hover:to-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    class="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold whitespace-nowrap text-white shadow-md shadow-orange-500/20 transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {{ isSearching ? 'Searching…' : 'Track Paper' }}
                 </button>

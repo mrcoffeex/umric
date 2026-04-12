@@ -9,8 +9,10 @@ use App\Models\Department;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -60,22 +62,32 @@ class ProfileController extends Controller
 
     public function updateProfile(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
         $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'bio' => ['nullable', 'string', 'max:1000'],
             'specialization' => ['nullable', 'string', 'max:255'],
             'institution' => ['nullable', 'string', 'max:255'],
-            'degree' => ['nullable', 'string', 'max:100'],
-            'graduation_year' => ['nullable', 'string', 'max:4'],
             'department_id' => ['nullable', 'integer', 'exists:departments,id'],
             'program_id' => ['nullable', 'integer', 'exists:programs,id'],
         ]);
 
-        $request->user()->profile()->updateOrCreate(
-            ['user_id' => $request->user()->id],
-            $validated,
+        $user->fill(Arr::only($validated, ['name', 'email']));
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        $user->profile()->updateOrCreate(
+            ['user_id' => $user->id],
+            Arr::except($validated, ['name', 'email']),
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Profile details updated.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Profile updated.']);
 
         return to_route('profile.edit');
     }

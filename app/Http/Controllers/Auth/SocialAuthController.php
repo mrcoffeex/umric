@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider;
 
 class SocialAuthController extends Controller
 {
@@ -20,62 +21,78 @@ class SocialAuthController extends Controller
         }
         $request->session()->put('oauth_role', $role);
 
-        return Socialite::driver('google')->redirect();
+        /** @var AbstractProvider $driver */
+        $driver = Socialite::driver('google');
+
+        return $driver->stateless()->redirect();
     }
 
     public function callback(Request $request): RedirectResponse
     {
-        $googleUser = Socialite::driver('google')->user();
+        // Handle Google OAuth errors (user denied, etc.)
+        if ($request->has('error')) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Google sign-in was cancelled or denied.',
+            ]);
+        }
+
+        try {
+            /** @var AbstractProvider $driver */
+            $driver = Socialite::driver('google');
+            $googleUser = $driver->stateless()->user();
+        } catch (\Exception $e) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Google sign-in failed. Please try again.',
+            ]);
+        }
+
         $role = $request->session()->pull('oauth_role', 'student');
 
-        // Restore a previously rejected (soft-deleted) account
+        // Find by google_id or email (including soft-deleted)
         $existing = User::withTrashed()
-            ->where('google_id', $googleUser->getId())
-            ->orWhere('email', $googleUser->getEmail())
+            ->where(function ($query) use ($googleUser) {
+                $query->where('google_id', $googleUser->getId())
+                    ->orWhere('email', $googleUser->getEmail());
+            })
             ->first();
 
-        if ($existing?->trashed()) {
-            $existing->restore();
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restore();
+
+                $profile = $existing->profile()->withTrashed()->first();
+                if ($profile) {
+                    $profile->restore();
+                    $profile->update(['role' => $role, 'approved_at' => null]);
+                } else {
+                    $existing->profile()->create(['role' => $role]);
+                }
+            } elseif (! $existing->profile) {
+                $existing->profile()->create(['role' => $role]);
+            }
+
             $existing->fill([
                 'name' => $googleUser->getName(),
                 'email' => $googleUser->getEmail(),
                 'google_id' => $googleUser->getId(),
-                'email_verified_at' => now(),
             ])->save();
-
-            $profile = $existing->profile()->withTrashed()->first();
-            if ($profile) {
-                $profile->restore();
-                $profile->update(['role' => $role, 'approved_at' => null]);
-            } else {
-                $existing->profile()->create(['role' => $role]);
-            }
 
             Auth::login($existing, true);
 
             return redirect()->intended(route('dashboard'));
         }
 
-        /** @var User $user */
-        $user = User::firstOrCreate(
-            ['google_id' => $googleUser->getId()],
-            [
-                'name' => $googleUser->getName(),
-                'email' => $googleUser->getEmail(),
-                'password' => bcrypt(Str::random(32)),
-                'email_verified_at' => now(),
-            ]
-        );
-
-        // Keep name/email in sync on subsequent logins
-        $user->fill([
+        $user = User::create([
             'name' => $googleUser->getName(),
             'email' => $googleUser->getEmail(),
-        ])->save();
+            'google_id' => $googleUser->getId(),
+            'password' => bcrypt(Str::random(32)),
+        ]);
 
-        if (! $user->profile) {
-            $user->profile()->create(['role' => $role]);
-        }
+        $user->email_verified_at = now();
+        $user->save();
+
+        $user->profile()->create(['role' => $role]);
 
         Auth::login($user, true);
 

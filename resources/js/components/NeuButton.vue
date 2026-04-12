@@ -81,32 +81,35 @@ withDefaults(defineProps<Props>(), {
 
 /* Variants */
 .neu-btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #f97316;
     color: white;
 }
 
 .neu-btn-primary:hover:not(:disabled) {
+    background-color: #ea580c;
     box-shadow:
-        7px 7px 16px rgba(102, 126, 234, 0.3),
+        7px 7px 16px rgba(249, 115, 22, 0.3),
         -7px -7px 16px rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
 }
 
 .neu-btn-secondary {
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    color: #333;
+    background-color: #f8fafc;
+    color: #334155;
 }
 
 .neu-btn-secondary:hover:not(:disabled) {
+    background-color: #e2e8f0;
     transform: translateY(-2px);
 }
 
 .neu-btn-danger {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background-color: #ef4444;
     color: white;
 }
 
 .neu-btn-danger:hover:not(:disabled) {
+    background-color: #dc2626;
     box-shadow:
         7px 7px 16px rgba(245, 87, 108, 0.3),
         -7px -7px 16px rgba(255, 255, 255, 0.5);
@@ -114,11 +117,12 @@ withDefaults(defineProps<Props>(), {
 }
 
 .neu-btn-success {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    background-color: #14b8a6;
     color: white;
 }
 
 .neu-btn-success:hover:not(:disabled) {
+    background-color: #0d9488;
     box-shadow:
         7px 7px 16px rgba(17, 153, 142, 0.3),
         -7px -7px 16px rgba(255, 255, 255, 0.5);

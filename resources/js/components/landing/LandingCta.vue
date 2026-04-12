@@ -54,7 +54,10 @@ const contactInfo = [
 </script>
 
 <template>
-    <section id="contact" class="relative overflow-hidden px-5 py-28">
+    <section
+        id="contact"
+        class="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-28"
+    >
         <!-- Background -->
         <div
             class="absolute inset-0 -z-10 bg-gradient-to-b from-white via-orange-50/30 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950"
@@ -278,7 +281,7 @@ const contactInfo = [
                                     !form.email ||
                                     !form.message
                                 "
-                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-500/25 transition-all duration-200 hover:scale-[1.01] hover:from-orange-600 hover:to-orange-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                                class="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-500/25 transition-all duration-200 hover:scale-[1.01] hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Send class="h-4 w-4" />
                                 {{ submitting ? 'Sending…' : 'Send Message' }}

@@ -20,7 +20,7 @@ class ResearchPaperPolicy
      */
     public function view(User $user, ResearchPaper $researchPaper): bool
     {
-        return true;
+        return $user->isAdmin() || $user->isStaff() || $user->isFaculty() || $user->id === $researchPaper->user_id;
     }
 
     /**

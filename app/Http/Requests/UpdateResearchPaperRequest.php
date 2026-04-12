@@ -25,10 +25,17 @@ class UpdateResearchPaperRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'string', 'max:255'],
-            'description' => ['sometimes', 'string', 'max:2000'],
-            'category_id' => ['sometimes', 'integer', 'exists:categories,id'],
+            'abstract' => ['sometimes', 'string', 'max:5000'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'sdg_id' => ['nullable', 'integer', 'exists:sdgs,id'],
+            'agenda_id' => ['nullable', 'integer', 'exists:agendas,id'],
             'status' => ['sometimes', 'string', 'in:submitted,under_review,approved,presented,published,archived'],
             'keywords' => ['sometimes', 'string', 'max:500'],
+            'authors' => ['sometimes', 'array'],
+            'authors.*' => ['string', 'max:255'],
+            'proponents' => ['nullable', 'array'],
+            'proponents.*' => ['string', 'max:255'],
+            'file' => ['sometimes', 'file', 'mimes:pdf', 'max:50000'],
         ];
     }
 }

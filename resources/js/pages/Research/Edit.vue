@@ -1,219 +1,333 @@
 <template>
-    <div class="flex h-full max-w-3xl flex-1 flex-col gap-6 p-4 md:p-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-black text-slate-900 dark:text-white">
-                    Edit Research Paper
-                </h1>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                    Update your research paper details.
-                </p>
+    <div class="flex h-full flex-1 justify-center bg-gray-50/50 p-4 md:p-6">
+        <div class="w-full max-w-5xl space-y-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <Link :href="index()">
+                        <Button variant="outline" size="sm" class="gap-1.5">
+                            <ArrowLeft class="h-3.5 w-3.5" />
+                            Back
+                        </Button>
+                    </Link>
+                    <h1 class="text-2xl font-bold text-gray-900">
+                        Edit Title Proposal
+                    </h1>
+                </div>
             </div>
-            <Link :href="show(paper.id)">
-                <Button variant="outline" size="sm" class="gap-1.5">
-                    <ArrowLeft class="h-3.5 w-3.5" />
-                    Back
-                </Button>
-            </Link>
-        </div>
 
-        <!-- Main Content -->
-        <form @submit.prevent="submitForm" class="space-y-5">
-            <!-- Title -->
-            <NeuCard>
-                <label
-                    class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300"
-                    >Paper Title <span class="text-orange-500">*</span></label
+            <form @submit.prevent="submit" class="space-y-6">
+                <section
+                    class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
                 >
-                <input
-                    v-model="form.title"
-                    type="text"
-                    placeholder="Enter the title of your research paper"
-                    class="w-full rounded-xl border border-white/50 bg-white/60 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    required
-                />
-                <p v-if="form.errors.title" class="mt-1 text-xs text-red-500">
-                    {{ form.errors.title }}
-                </p>
-            </NeuCard>
-
-            <!-- Description -->
-            <NeuCard>
-                <label
-                    class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300"
-                    >Abstract <span class="text-orange-500">*</span></label
-                >
-                <textarea
-                    v-model="form.description"
-                    placeholder="Brief description of your research"
-                    rows="5"
-                    class="w-full resize-y rounded-xl border border-white/50 bg-white/60 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    required
-                />
-                <p
-                    v-if="form.errors.description"
-                    class="mt-1 text-xs text-red-500"
-                >
-                    {{ form.errors.description }}
-                </p>
-            </NeuCard>
-
-            <!-- Category and Status -->
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <NeuCard>
-                    <label
-                        class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300"
-                        >Category <span class="text-orange-500">*</span></label
+                    <h2
+                        class="mb-4 border-l-4 border-indigo-500 pl-3 text-sm font-semibold tracking-wide text-gray-500 uppercase"
                     >
-                    <select
-                        v-model="form.category_id"
-                        class="w-full rounded-xl border border-white/50 bg-white/60 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                        required
+                        📋 Basic Information
+                    </h2>
+
+                    <div class="space-y-4">
+                        <div>
+                            <Label class="mb-1.5 block text-sm font-medium text-gray-700">
+                                Title
+                            </Label>
+                            <Input
+                                v-model="form.title"
+                                required
+                                placeholder="Enter title proposal"
+                                class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-100"
+                            />
+                            <p v-if="form.errors.title" class="mt-1 text-xs text-red-500">
+                                {{ form.errors.title }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <Label class="mb-1.5 block text-sm font-medium text-gray-700">
+                                Abstract
+                            </Label>
+                            <textarea
+                                v-model="form.abstract"
+                                rows="5"
+                                required
+                                placeholder="Write a concise abstract for this proposal"
+                                class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            />
+                            <p v-if="form.errors.abstract" class="mt-1 text-xs text-red-500">
+                                {{ form.errors.abstract }}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <section
+                        class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
                     >
-                        <option value="">Select a category</option>
-                        <option
-                            v-for="cat in categories"
-                            :key="cat.id"
-                            :value="cat.id"
+                        <h2
+                            class="mb-4 border-l-4 border-indigo-500 pl-3 text-sm font-semibold tracking-wide text-gray-500 uppercase"
                         >
-                            {{ cat.name }}
-                        </option>
-                    </select>
-                    <p
-                        v-if="form.errors.category_id"
-                        class="mt-1 text-xs text-red-500"
+                            🎯 SDG
+                        </h2>
+                        <Label class="mb-1.5 block text-sm font-medium text-gray-700">
+                            Sustainable Development Goal (SDG)
+                        </Label>
+                        <select
+                            v-model="form.sdg_id"
+                            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        >
+                            <option value="">Select SDG (optional)</option>
+                            <option v-for="sdg in sdgs" :key="sdg.id" :value="sdg.id">
+                                {{ formatSdg(sdg) }}
+                            </option>
+                        </select>
+                        <p v-if="form.errors.sdg_id" class="mt-1 text-xs text-red-500">
+                            {{ form.errors.sdg_id }}
+                        </p>
+                    </section>
+
+                    <section
+                        class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
                     >
-                        {{ form.errors.category_id }}
+                        <h2
+                            class="mb-4 border-l-4 border-indigo-500 pl-3 text-sm font-semibold tracking-wide text-gray-500 uppercase"
+                        >
+                            📌 Agenda
+                        </h2>
+                        <Label class="mb-1.5 block text-sm font-medium text-gray-700">
+                            Research Agenda
+                        </Label>
+                        <select
+                            v-model="form.agenda_id"
+                            class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                        >
+                            <option value="">Select agenda (optional)</option>
+                            <option
+                                v-for="agenda in agendas"
+                                :key="agenda.id"
+                                :value="agenda.id"
+                            >
+                                {{ agenda.name }}
+                            </option>
+                        </select>
+                        <p v-if="form.errors.agenda_id" class="mt-1 text-xs text-red-500">
+                            {{ form.errors.agenda_id }}
+                        </p>
+                    </section>
+                </div>
+
+                <section
+                    class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
+                >
+                    <h2
+                        class="mb-4 border-l-4 border-indigo-500 pl-3 text-sm font-semibold tracking-wide text-gray-500 uppercase"
+                    >
+                        👥 Proponents / Researchers
+                    </h2>
+
+                    <div class="space-y-2">
+                        <div
+                            v-for="(_, index) in form.proponents"
+                            :key="index"
+                            class="flex items-center gap-2"
+                        >
+                            <Input
+                                v-model="form.proponents[index]"
+                                placeholder="Enter proponent name"
+                                class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-100"
+                            />
+                            <button
+                                type="button"
+                                :disabled="form.proponents.length === 1"
+                                class="h-10 w-10 text-gray-400 transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                @click="removeProponent(index)"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    </div>
+                    <p v-if="form.errors.proponents" class="mt-1 text-xs text-red-500">
+                        {{ form.errors.proponents }}
                     </p>
-                </NeuCard>
+                    <button
+                        type="button"
+                        class="mt-3 flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                        @click="addProponent"
+                    >
+                        <Plus class="h-4 w-4" />
+                        Add Proponent
+                    </button>
+                </section>
 
-                <NeuCard>
-                    <label
-                        class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300"
-                        >Status</label
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <section
+                        class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
                     >
-                    <select
-                        v-model="form.status"
-                        class="w-full rounded-xl border border-white/50 bg-white/60 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                    >
-                        <option
-                            v-for="status in statuses"
-                            :key="status"
-                            :value="status"
+                        <h2
+                            class="mb-4 border-l-4 border-indigo-500 pl-3 text-sm font-semibold tracking-wide text-gray-500 uppercase"
                         >
-                            {{ formatStatus(status) }}
-                        </option>
-                    </select>
-                </NeuCard>
-            </div>
+                            🏷️ Keywords
+                        </h2>
+                        <Label class="mb-1.5 block text-sm font-medium text-gray-700">
+                            Keywords
+                        </Label>
+                        <Input
+                            v-model="form.keywords"
+                            placeholder="e.g. machine learning, AI, neural networks"
+                            class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm transition focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-100"
+                        />
+                        <p class="mt-1 text-xs text-gray-500">
+                            Separate each keyword with commas.
+                        </p>
+                        <p v-if="form.errors.keywords" class="mt-1 text-xs text-red-500">
+                            {{ form.errors.keywords }}
+                        </p>
+                    </section>
 
-            <!-- Keywords -->
-            <NeuCard>
-                <label
-                    class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300"
-                    >Keywords</label
-                >
-                <input
-                    v-model="form.keywords"
-                    type="text"
-                    placeholder="Separate keywords with commas"
-                    class="w-full rounded-xl border border-white/50 bg-white/60 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800"
-                />
-                <p class="mt-1 text-xs text-muted-foreground">
-                    Example: machine learning, AI, neural networks
-                </p>
-            </NeuCard>
+                    <section
+                        class="rounded-xl border border-gray-100 bg-white p-6 shadow-sm"
+                    >
+                        <h2
+                            class="mb-4 border-l-4 border-indigo-500 pl-3 text-sm font-semibold tracking-wide text-gray-500 uppercase"
+                        >
+                            📄 File Upload
+                        </h2>
+                        <Label class="mb-1.5 block text-sm font-medium text-gray-700">
+                            Research File
+                        </Label>
+                        <input
+                            ref="fileInput"
+                            type="file"
+                            class="hidden"
+                            accept=".pdf,.doc,.docx"
+                            @change="handleFileChange"
+                        />
+                        <div
+                            class="cursor-pointer rounded-xl border-2 border-dashed border-gray-200 p-8 text-center transition-colors hover:border-indigo-400 hover:bg-indigo-50/30"
+                            @click="openFilePicker"
+                            @dragover.prevent
+                            @drop.prevent="handleFileDrop"
+                        >
+                            <Upload class="mx-auto mb-2 h-8 w-8 text-gray-400" />
+                            <p class="text-sm font-medium text-gray-700">
+                                {{
+                                    fileName ||
+                                    'Drag and drop a new file here, or click to browse'
+                                }}
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500">PDF, DOC, DOCX</p>
+                        </div>
+                        <p v-if="form.errors.file" class="mt-1 text-xs text-red-500">
+                            {{ form.errors.file }}
+                        </p>
+                    </section>
+                </div>
 
-            <!-- Action Buttons -->
-            <div class="flex justify-end gap-3">
-                <Link :href="show(paper.id)">
-                    <Button type="button" variant="outline">Cancel</Button>
-                </Link>
-                <Button
-                    type="submit"
-                    :disabled="form.processing"
-                    class="border-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 disabled:opacity-60"
-                >
-                    {{ form.processing ? 'Saving…' : 'Save Changes' }}
-                </Button>
-            </div>
-        </form>
+                <div class="flex items-center justify-end gap-3">
+                    <Link :href="index()">
+                        <Button type="button" variant="outline">Cancel</Button>
+                    </Link>
+                    <Button
+                        type="submit"
+                        :disabled="form.processing"
+                        class="rounded-lg bg-indigo-600 px-6 py-2 font-medium text-white transition hover:bg-indigo-700"
+                    >
+                        {{ form.processing ? 'Updating…' : 'Update Proposal' }}
+                    </Button>
+                </div>
+            </form>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { useForm, Link } from '@inertiajs/vue3';
-import { ArrowLeft } from 'lucide-vue-next';
-import NeuCard from '@/components/NeuCard.vue';
+import { Link, useForm } from '@inertiajs/vue3';
+import { ArrowLeft, Plus, Upload } from 'lucide-vue-next';
+import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
-import { index, show, update } from '@/routes/papers';
-
-interface Category {
-    id: number;
-    name: string;
-}
-
-interface Paper {
-    id: number;
-    title: string;
-    description: string;
-    category_id: number;
-    status: string;
-    keywords?: string;
-}
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { index, update } from '@/routes/papers';
 
 interface Props {
-    paper: Paper;
-    categories: Category[];
+    paper: {
+        id: number;
+        title: string;
+        abstract?: string | null;
+        sdg_id?: number | null;
+        agenda_id?: number | null;
+        proponents?: string[] | null;
+        keywords?: string | null;
+    };
+    sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
+    agendas: Array<{ id: number; name: string }>;
 }
 
 const props = defineProps<Props>();
+const paper = props.paper;
+const { sdgs, agendas } = props;
 
 defineOptions({
     layout: {
         breadcrumbs: [
             { title: 'Research Papers', href: index() },
-            { title: 'Edit Paper' },
+            { title: 'Edit Title Proposal' },
         ],
     },
 });
 
-const statuses = [
-    'submitted',
-    'under_review',
-    'approved',
-    'presented',
-    'published',
-    'archived',
-];
+const fileInput = ref<HTMLInputElement | null>(null);
+const fileName = ref('');
 
 const form = useForm({
-    title: props.paper.title,
-    description: props.paper.description,
-    category_id: props.paper.category_id,
-    status: props.paper.status,
-    keywords: props.paper.keywords || '',
+    title: paper.title,
+    abstract: paper.abstract ?? '',
+    sdg_id: paper.sdg_id ?? '',
+    agenda_id: paper.agenda_id ?? '',
+    proponents: paper.proponents?.length ? paper.proponents : [''],
+    keywords: paper.keywords ?? '',
+    file: null as File | null,
 });
 
-const formatStatus = (status: string) => {
-    const map: Record<string, string> = {
-        submitted: 'Submitted',
-        under_review: 'Under Review',
-        approved: 'Approved',
-        presented: 'Presented',
-        published: 'Published',
-        archived: 'Archived',
-    };
+function formatSdg(sdg: { id: number; name: string; number?: number }) {
+    return sdg.number ? `SDG ${sdg.number}: ${sdg.name}` : sdg.name;
+}
 
-    return map[status] || status;
-};
+function addProponent() {
+    form.proponents.push('');
+}
 
-const submitForm = () => {
-    form.put(update.url(props.paper.id), {
-        onSuccess: () => {
-            // Inertia handles redirect via server response
-        },
+function removeProponent(index: number) {
+    if (form.proponents.length > 1) {
+        form.proponents.splice(index, 1);
+    }
+}
+
+function assignFile(file?: File) {
+    if (!file) {
+        return;
+    }
+
+    form.file = file;
+    fileName.value = file.name;
+}
+
+function handleFileChange(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    assignFile(file);
+}
+
+function handleFileDrop(event: DragEvent) {
+    const file = event.dataTransfer?.files?.[0];
+    assignFile(file);
+}
+
+function openFilePicker() {
+    fileInput.value?.click();
+}
+
+function submit() {
+    form.put(update.url(paper.id), {
+        forceFormData: true,
     });
-};
+}
 </script>

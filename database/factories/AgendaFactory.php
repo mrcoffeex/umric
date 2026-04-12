@@ -1,0 +1,27 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Agenda;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Agenda>
+ */
+class AgendaFactory extends Factory
+{
+    /**
+     * Define the model's default state.
+     *
+     * @return array<string, mixed>
+     */
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->unique()->words(3, true),
+            'code' => strtoupper(fake()->unique()->bothify('AGD###')),
+            'description' => fake()->optional()->sentence(),
+            'is_active' => true,
+        ];
+    }
+}

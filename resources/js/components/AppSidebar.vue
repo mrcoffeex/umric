@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    BookMarked,
     BookOpen,
     Building2,
+    GraduationCap,
     LayoutGrid,
     ScrollText,
+    Target,
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -29,24 +32,26 @@ const page = usePage();
 const user = computed(() => page.props.auth.user as { role?: string } | null);
 const role = computed(() => user.value?.role ?? '');
 const isAdmin = computed(() => ['admin', 'staff'].includes(role.value));
-const canViewAcademic = computed(() =>
-    ['admin', 'staff', 'faculty'].includes(role.value),
-);
 
-const mainNavItems: NavItem[] = [
+const mainNavItems = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
-    { title: 'Research Papers', href: '/papers', icon: ScrollText },
-];
+    {
+        title: role.value === 'student' ? 'My Proposals' : 'Research Papers',
+        href: '/papers',
+        icon: ScrollText,
+    },
+]);
 
-const academicNavItems: NavItem[] = [
+const adminNavItems: NavItem[] = [
     {
         title: 'Departments & Programs',
         href: admin.departments.index(),
         icon: Building2,
     },
-];
-
-const adminNavItems: NavItem[] = [
+    { title: 'Subjects', href: admin.subjects.index(), icon: BookOpen },
+    { title: 'Classes', href: admin.classes.index(), icon: GraduationCap },
+    { title: 'SDGs', href: admin.sdgs.index.url(), icon: Target },
+    { title: 'Agendas', href: admin.agendas.index.url(), icon: BookMarked },
     { title: 'Users', href: admin.users.index(), icon: Users },
 ];
 
@@ -75,11 +80,6 @@ const footerNavItems: NavItem[] = [
 
         <SidebarContent>
             <NavMain :items="mainNavItems" label="Platform" />
-            <NavMain
-                v-if="canViewAcademic"
-                :items="academicNavItems"
-                label="Academic"
-            />
             <NavMain
                 v-if="isAdmin"
                 :items="adminNavItems"

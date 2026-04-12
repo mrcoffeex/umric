@@ -57,7 +57,7 @@ const navLinks = [
         ]"
     >
         <div
-            class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5"
+            class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 sm:px-6"
         >
             <!-- Logo -->
             <button
@@ -117,7 +117,7 @@ const navLinks = [
                         class="hidden md:block"
                     >
                         <button
-                            class="rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 transition-all duration-200 hover:scale-[1.02] hover:from-orange-600 hover:to-orange-700 hover:shadow-orange-500/40"
+                            class="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 hover:shadow-orange-500/40"
                         >
                             Get Started
                         </button>
@@ -126,7 +126,7 @@ const navLinks = [
                 <template v-else>
                     <Link :href="dashboard.url()" class="hidden md:block">
                         <button
-                            class="rounded-lg bg-gradient-to-r from-orange-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
+                            class="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 hover:shadow-lg"
                         >
                             Dashboard →
                         </button>
@@ -155,21 +155,21 @@ const navLinks = [
         >
             <div
                 v-if="mobileOpen"
-                class="space-y-1 border-t border-slate-200/60 bg-white/95 px-5 py-4 backdrop-blur-xl lg:hidden dark:border-slate-800/60 dark:bg-slate-950/95"
+                class="space-y-1 border-t border-slate-200/60 bg-white/95 px-4 py-4 backdrop-blur-xl sm:px-6 lg:hidden dark:border-slate-800/60 dark:bg-slate-950/95"
             >
                 <button
                     v-for="link in navLinks"
                     :key="link.id"
                     @click="scrollTo(link.id)"
-                    class="block w-full rounded-lg px-4 py-2.5 text-left text-sm font-medium text-slate-600 transition hover:bg-orange-50 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-orange-950/30"
+                    class="block w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-600 transition hover:bg-orange-50 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-orange-950/30"
                 >
                     {{ link.label }}
                 </button>
                 <div
-                    class="flex gap-2 border-t border-slate-200/60 pt-3 dark:border-slate-800/60"
+                    class="flex flex-col gap-2 border-t border-slate-200/60 pt-3 dark:border-slate-800/60"
                 >
                     <template v-if="!page.props.auth.user">
-                        <Link :href="login.url()" class="flex-1">
+                        <Link :href="login.url()" class="w-full">
                             <button
                                 class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                             >
@@ -179,19 +179,19 @@ const navLinks = [
                         <Link
                             v-if="canRegister"
                             :href="register.url()"
-                            class="flex-1"
+                            class="w-full"
                         >
                             <button
-                                class="w-full rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 transition"
+                                class="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600"
                             >
                                 Get Started
                             </button>
                         </Link>
                     </template>
                     <template v-else>
-                        <Link :href="dashboard.url()" class="flex-1">
+                        <Link :href="dashboard.url()" class="w-full">
                             <button
-                                class="w-full rounded-lg bg-gradient-to-r from-orange-500 to-teal-500 px-4 py-2 text-sm font-semibold text-white transition"
+                                class="w-full rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-600"
                             >
                                 Dashboard →
                             </button>

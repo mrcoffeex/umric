@@ -4,10 +4,10 @@
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-2xl font-black text-slate-900 dark:text-white">
-                    Research Papers
+                    {{ pageTitle }}
                 </h1>
                 <p class="mt-0.5 text-sm text-muted-foreground">
-                    Browse and manage research submissions.
+                    {{ pageSubtitle }}
                 </p>
             </div>
             <Link :href="create()">
@@ -15,7 +15,7 @@
                     class="flex items-center gap-2 border-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow shadow-orange-500/25 hover:from-orange-600 hover:to-orange-700"
                 >
                     <Plus class="h-4 w-4" />
-                    New Paper
+                    {{ createLabel }}
                 </Button>
             </Link>
         </div>
@@ -29,7 +29,7 @@
                 <input
                     v-model="search"
                     type="text"
-                    placeholder="Search by title or description…"
+                    placeholder="Search by title or abstract…"
                     class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-slate-800 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-sidebar-border dark:bg-sidebar dark:text-slate-200"
                 />
             </div>
@@ -82,7 +82,7 @@
                         <p
                             class="line-clamp-2 flex-1 text-sm text-slate-600 dark:text-slate-400"
                         >
-                            {{ paper.description }}
+                            {{ paper.abstract }}
                         </p>
                         <div
                             class="flex items-center justify-between border-t border-white/30 pt-3 dark:border-white/10"
@@ -111,20 +111,20 @@
             <h3
                 class="mb-1 text-lg font-bold text-slate-700 dark:text-slate-300"
             >
-                No papers found
+                {{ emptyStateTitle }}
             </h3>
             <p class="mb-5 text-sm text-muted-foreground">
                 {{
                     search || selectedStatus || selectedCategory
                         ? 'Try adjusting your filters.'
-                        : 'Submit your first research paper.'
+                        : emptyStateBody
                 }}
             </p>
             <Link :href="create()">
                 <Button
                     class="border-0 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700"
                 >
-                    Submit First Paper
+                    {{ emptyStateActionLabel }}
                 </Button>
             </Link>
         </div>
@@ -143,7 +143,7 @@ import { create, index, show } from '@/routes/papers';
 interface Paper {
     id: number;
     title: string;
-    description: string;
+    abstract: string;
     status: string;
     tracking_id: string;
     created_at: string;
@@ -159,6 +159,7 @@ interface Category {
 interface Props {
     papers: Paper[];
     categories: Category[];
+    role: string;
 }
 
 const props = defineProps<Props>();
@@ -172,13 +173,36 @@ defineOptions({
 const search = ref('');
 const selectedStatus = ref('');
 const selectedCategory = ref<number | ''>('');
+const isStudent = computed(() => props.role === 'student');
+const pageTitle = computed(() =>
+    isStudent.value ? 'My Title Proposals' : 'Research Papers',
+);
+const pageSubtitle = computed(() =>
+    isStudent.value
+        ? 'Track and manage your submitted title proposals.'
+        : 'Browse and manage research submissions.',
+);
+const createLabel = computed(() =>
+    isStudent.value ? 'New Title Proposal' : 'New Paper',
+);
+const emptyStateTitle = computed(() =>
+    isStudent.value ? 'No proposals yet' : 'No papers found',
+);
+const emptyStateBody = computed(() =>
+    isStudent.value
+        ? 'Start by submitting your first title proposal.'
+        : 'Submit your first research paper.',
+);
+const emptyStateActionLabel = computed(() =>
+    isStudent.value ? 'Create Title Proposal' : 'Submit First Paper',
+);
 
 const filteredPapers = computed(() => {
     return props.papers.filter((paper) => {
         const matchesSearch =
             search.value === '' ||
             paper.title.toLowerCase().includes(search.value.toLowerCase()) ||
-            paper.description
+            paper.abstract
                 ?.toLowerCase()
                 .includes(search.value.toLowerCase());
 

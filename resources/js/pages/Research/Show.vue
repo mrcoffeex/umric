@@ -52,7 +52,7 @@
                     <p
                         class="text-sm leading-relaxed text-slate-700 dark:text-slate-300"
                     >
-                        {{ paper.description }}
+                        {{ paper.abstract }}
                     </p>
                 </NeuCard>
 
@@ -200,17 +200,32 @@
                     </div>
                 </NeuCard>
 
-                <!-- Category -->
+                <!-- Classification -->
                 <NeuCard>
                     <h3
                         class="mb-3 text-xs font-bold tracking-wider text-muted-foreground uppercase"
                     >
-                        Category
+                        Classification
                     </h3>
-                    <div
-                        class="rounded-lg bg-orange-100 px-3 py-2 text-sm font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300"
-                    >
-                        {{ paper.category?.name || 'Uncategorized' }}
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-muted-foreground">Category</span>
+                            <span class="font-medium text-slate-800 dark:text-slate-200">
+                                {{ paper.category?.name || 'Uncategorized' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-muted-foreground">SDG</span>
+                            <span class="font-medium text-slate-800 dark:text-slate-200">
+                                {{ paper.sdg?.name || '—' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-muted-foreground">Agenda</span>
+                            <span class="font-medium text-slate-800 dark:text-slate-200">
+                                {{ paper.agenda?.name || '—' }}
+                            </span>
+                        </div>
                     </div>
                 </NeuCard>
 
@@ -330,6 +345,16 @@ interface Category {
     name: string;
 }
 
+interface Sdg {
+    id: number;
+    name: string;
+}
+
+interface Agenda {
+    id: number;
+    name: string;
+}
+
 interface TrackingRecord {
     id: number;
     status: string;
@@ -340,13 +365,15 @@ interface TrackingRecord {
 interface Paper {
     id: number;
     title: string;
-    description: string;
+    abstract: string;
     status: string;
     tracking_id: string;
     created_at: string;
     progress?: number;
     keywords?: string;
     category?: Category;
+    sdg?: Sdg;
+    agenda?: Agenda;
     authors?: Author[];
     publication?: Publication[];
     citations?: Citation[];
