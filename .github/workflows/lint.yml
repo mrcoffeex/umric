@@ -41,7 +41,7 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
-          php artisan wayfinder:generate
+          php artisan wayfinder:generate --with-form
 
       - name: Check PHP code style (Pint)
         run: composer lint:check
