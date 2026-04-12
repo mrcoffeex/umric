@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import LandingNavbar from '@/components/landing/LandingNavbar.vue';
-import LandingHero from '@/components/landing/LandingHero.vue';
-import LandingFeatures from '@/components/landing/LandingFeatures.vue';
-import LandingShowcase from '@/components/landing/LandingShowcase.vue';
-import LandingHowItWorks from '@/components/landing/LandingHowItWorks.vue';
-import LandingTestimonials from '@/components/landing/LandingTestimonials.vue';
-import LandingCta from '@/components/landing/LandingCta.vue';
-import LandingFooter from '@/components/landing/LandingFooter.vue';
 import { onMounted } from 'vue';
+import LandingCta from '@/components/landing/LandingCta.vue';
+import LandingFeatures from '@/components/landing/LandingFeatures.vue';
+import LandingFooter from '@/components/landing/LandingFooter.vue';
+import LandingHero from '@/components/landing/LandingHero.vue';
+import LandingHowItWorks from '@/components/landing/LandingHowItWorks.vue';
+import LandingNavbar from '@/components/landing/LandingNavbar.vue';
+import LandingShowcase from '@/components/landing/LandingShowcase.vue';
+import LandingTestimonials from '@/components/landing/LandingTestimonials.vue';
 import { useAppearance } from '@/composables/useAppearance';
 
 interface Props {
@@ -36,6 +36,7 @@ onMounted(() => {
         | 'dark'
         | 'system'
         | null;
+
     if (stored) {
         updateAppearance(stored);
     }

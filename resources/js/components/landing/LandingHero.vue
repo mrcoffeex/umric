@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Search, Zap, ChevronDown } from 'lucide-vue-next';
-import { login, register, dashboard } from '@/routes';
+import { ref } from 'vue';
+import { register, dashboard } from '@/routes';
 
 defineProps<{
     canRegister: boolean;
@@ -22,14 +22,18 @@ const page = usePage();
 async function searchPaper() {
     if (!trackingId.value.trim()) {
         trackingError.value = 'Please enter a tracking ID';
+
         return;
     }
+
     isSearching.value = true;
     trackingError.value = '';
+
     try {
         const response = await fetch(
             `/track/${encodeURIComponent(trackingId.value.trim())}`,
         );
+
         if (response.ok) {
             window.location.href = `/track/${encodeURIComponent(trackingId.value.trim())}`;
         } else {

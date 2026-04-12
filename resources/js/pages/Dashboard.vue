@@ -67,16 +67,26 @@ const statusLabel = (s: string) =>
     s.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const pageTitle = computed(() => {
-    if (props.role === 'faculty') return 'Research Overview';
-    if (props.role === 'staff' || props.role === 'admin')
-        return 'System Overview';
+    if (props.role === 'faculty') {
+return 'Research Overview';
+}
+
+    if (props.role === 'staff' || props.role === 'admin') {
+return 'System Overview';
+}
+
     return 'Overview';
 });
 
 const pageSubtitle = computed(() => {
-    if (props.role === 'faculty') return 'Papers you submitted or co-authored.';
-    if (props.role === 'staff' || props.role === 'admin')
-        return 'System-wide research activity.';
+    if (props.role === 'faculty') {
+return 'Papers you submitted or co-authored.';
+}
+
+    if (props.role === 'staff' || props.role === 'admin') {
+return 'System-wide research activity.';
+}
+
     return 'Your research activity at a glance.';
 });
 

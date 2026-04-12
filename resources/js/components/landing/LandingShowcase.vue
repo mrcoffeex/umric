@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useScrollReveal } from '@/composables/useScrollReveal';
 import { TrendingUp, FileText, Users, Bell } from 'lucide-vue-next';
+import { useScrollReveal } from '@/composables/useScrollReveal';
 
 const { target: sectionRef, isVisible } = useScrollReveal(0.1);
 

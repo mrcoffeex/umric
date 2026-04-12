@@ -289,13 +289,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { Button } from '@/components/ui/button';
+import { computed, ref } from 'vue';
 import NeuCard from '@/components/NeuCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TrackingTimeline from '@/components/TrackingTimeline.vue';
-import { edit, index, show, publicTracking } from '@/routes/papers';
+import { Button } from '@/components/ui/button';
+import { edit, index, publicTracking } from '@/routes/papers';
 
 interface Author {
     id: number;
@@ -387,10 +387,14 @@ const formatDate = (date: string) => {
 };
 
 const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) {
+return '0 Bytes';
+}
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
+
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 };
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { FlaskConical, Sun, Moon, Monitor, Menu, X } from 'lucide-vue-next';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { login, register, dashboard } from '@/routes';
 
@@ -12,9 +12,13 @@ const scrolled = ref(false);
 const mobileOpen = ref(false);
 
 function cycleTheme() {
-    if (appearance.value === 'light') updateAppearance('dark');
-    else if (appearance.value === 'dark') updateAppearance('system');
-    else updateAppearance('light');
+    if (appearance.value === 'light') {
+updateAppearance('dark');
+} else if (appearance.value === 'dark') {
+updateAppearance('system');
+} else {
+updateAppearance('light');
+}
 }
 
 function scrollTo(id: string) {

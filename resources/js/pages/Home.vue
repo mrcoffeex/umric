@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ref, onMounted } from 'vue';
-import NeuCard from '@/components/NeuCard.vue';
 import NeuButton from '@/components/NeuButton.vue';
+import NeuCard from '@/components/NeuCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { login, register, dashboard } from '@/routes';
 import { create as papersCreate } from '@/routes/papers';
@@ -34,11 +34,15 @@ const contactSuccess = ref(false);
 
 onMounted(() => {
     const saved = localStorage.getItem('darkMode');
-    if (saved) isDark.value = saved === 'true';
-    else
-        isDark.value = window.matchMedia(
+
+    if (saved) {
+isDark.value = saved === 'true';
+} else {
+isDark.value = window.matchMedia(
             '(prefers-color-scheme: dark)',
         ).matches;
+}
+
     applyTheme();
 });
 
@@ -48,6 +52,7 @@ const applyTheme = () => {
     } else {
         document.documentElement.classList.remove('dark');
     }
+
     localStorage.setItem('darkMode', isDark.value.toString());
 };
 
@@ -59,14 +64,18 @@ const toggleTheme = () => {
 const searchPaper = async () => {
     if (!trackingId.value.trim()) {
         trackingError.value = 'Please enter a tracking ID';
+
         return;
     }
+
     isSearching.value = true;
     trackingError.value = '';
+
     try {
         const response = await fetch(
             `/track/${encodeURIComponent(trackingId.value.trim())}`,
         );
+
         if (response.ok) {
             window.location.href = `/track/${encodeURIComponent(trackingId.value.trim())}`;
         } else {
@@ -81,7 +90,9 @@ const searchPaper = async () => {
 };
 
 const handleKeyPress = (e: KeyboardEvent) => {
-    if (e.key === 'Enter') searchPaper();
+    if (e.key === 'Enter') {
+searchPaper();
+}
 };
 
 const submitContact = () => {

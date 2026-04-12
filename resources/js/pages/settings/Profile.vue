@@ -74,7 +74,11 @@ function pickAvatar() {
 
 function onAvatarChange(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+
+    if (!file) {
+return;
+}
+
     avatarPreview.value = URL.createObjectURL(file);
     avatarForm.avatar = file;
     avatarForm.post(avatarRoute.url(), {
@@ -86,7 +90,10 @@ function onAvatarChange(e: Event) {
 }
 
 function onRemoveAvatar() {
-    if (!confirm('Remove your profile photo?')) return;
+    if (!confirm('Remove your profile photo?')) {
+return;
+}
+
     removingAvatar.value = true;
     useForm({}).delete(removeAvatar(), {
         onFinish: () => {
@@ -103,9 +110,11 @@ const filteredPrograms = computed(() => {
     if (!selectedDept.value) {
         return [];
     }
+
     const dept = props.departments.find(
         (d) => d.id === Number(selectedDept.value),
     );
+
     return dept?.programs ?? [];
 });
 

@@ -147,7 +147,7 @@ import { useForm, Link } from '@inertiajs/vue3';
 import { ArrowLeft } from 'lucide-vue-next';
 import NeuCard from '@/components/NeuCard.vue';
 import { Button } from '@/components/ui/button';
-import { edit, index, show, update } from '@/routes/papers';
+import { index, show, update } from '@/routes/papers';
 
 interface Category {
     id: number;
@@ -205,6 +205,7 @@ const formatStatus = (status: string) => {
         published: 'Published',
         archived: 'Archived',
     };
+
     return map[status] || status;
 };
 

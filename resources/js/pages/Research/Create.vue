@@ -212,9 +212,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Upload } from 'lucide-vue-next';
+import { ref } from 'vue';
 import NeuCard from '@/components/NeuCard.vue';
 import { Button } from '@/components/ui/button';
 import { create, index, store } from '@/routes/papers';
@@ -228,7 +228,7 @@ interface Props {
     categories: Category[];
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 defineOptions({
     layout: {
@@ -254,9 +254,11 @@ const form = useForm({
 
 function handleFile(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
+
     if (!file) {
         return;
     }
+
     form.file = file;
     fileName.value = file.name;
 }

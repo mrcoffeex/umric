@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
 import { Check, Zap, Building2, Sparkles } from 'lucide-vue-next';
 import { useScrollReveal } from '@/composables/useScrollReveal';
-import { Link } from '@inertiajs/vue3';
 import { register, login } from '@/routes';
 
 defineProps<{ canRegister: boolean }>();

@@ -3,12 +3,8 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     BookOpen,
     Building2,
-    FolderGit2,
-    GraduationCap,
     LayoutGrid,
     ScrollText,
-    Settings,
-    Shield,
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';

@@ -132,9 +132,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { FileText, Plus, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import NeuCard from '@/components/NeuCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import { Button } from '@/components/ui/button';

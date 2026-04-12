@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import {
     Mail,
     MapPin,
@@ -8,6 +7,7 @@ import {
     MessageSquare,
     CheckCircle,
 } from 'lucide-vue-next';
+import { ref } from 'vue';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 
 const { target: sectionRef, isVisible } = useScrollReveal(0.1);
@@ -17,7 +17,10 @@ const submitted = ref(false);
 const submitting = ref(false);
 
 async function handleSubmit() {
-    if (!form.value.name || !form.value.email || !form.value.message) return;
+    if (!form.value.name || !form.value.email || !form.value.message) {
+return;
+}
+
     submitting.value = true;
     // Simulate async send
     await new Promise((r) => setTimeout(r, 900));

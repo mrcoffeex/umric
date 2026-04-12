@@ -366,7 +366,7 @@ interface Props {
     paper: Paper;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 const isDark = ref(false);
 
 const formatDate = (date: string) => {
@@ -378,10 +378,14 @@ const formatDate = (date: string) => {
 };
 
 const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) {
+return '0 Bytes';
+}
+
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
+
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 };
 </script>

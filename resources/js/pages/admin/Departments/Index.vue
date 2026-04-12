@@ -54,8 +54,12 @@ function isExpanded(id: number) {
 }
 function toggleExpand(id: number) {
     const idx = expanded.value.indexOf(id);
-    if (idx === -1) expanded.value.push(id);
-    else expanded.value.splice(idx, 1);
+
+    if (idx === -1) {
+expanded.value.push(id);
+} else {
+expanded.value.splice(idx, 1);
+}
 }
 
 // Department form
@@ -105,8 +109,10 @@ function deleteDept(dept: Department) {
         !confirm(
             `Delete "${dept.name}"? All its programs will also be removed.`,
         )
-    )
-        return;
+    ) {
+return;
+}
+
     useForm({}).delete(admin.departments.destroy(dept.id));
 }
 
@@ -159,7 +165,10 @@ function submitProg() {
 }
 
 function deleteProg(prog: Program) {
-    if (!confirm(`Delete program "${prog.name}"?`)) return;
+    if (!confirm(`Delete program "${prog.name}"?`)) {
+return;
+}
+
     useForm({}).delete(admin.programs.destroy(prog.id));
 }
 </script>
