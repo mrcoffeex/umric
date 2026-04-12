@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Category;
 use App\Models\ResearchPaper;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,11 +20,11 @@ class ResearchPaperFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => \App\Models\User::factory(),
-            'category_id' => \App\Models\Category::factory(),
+            'user_id' => User::factory(),
+            'category_id' => Category::factory(),
             'title' => $this->faker->words(8, true),
             'description' => $this->faker->paragraphs(3, true),
-            'tracking_id' => 'RP-' . strtoupper($this->faker->randomLetter() . $this->faker->randomLetter() . $this->faker->numberBetween(100000, 999999)),
+            'tracking_id' => 'RP-'.strtoupper($this->faker->randomLetter().$this->faker->randomLetter().$this->faker->numberBetween(100000, 999999)),
             'status' => $this->faker->randomElement(['submitted', 'under_review', 'approved', 'presented', 'published']),
             'submission_date' => $this->faker->dateTimeBetween('-1 year'),
             'publication_date' => $this->faker->optional()->dateTime(),

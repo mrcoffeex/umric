@@ -26,10 +26,10 @@ class DepartmentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'code'        => ['required', 'string', 'max:20', 'unique:departments,code'],
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'string', 'max:20', 'unique:departments,code'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'is_active'   => ['boolean'],
+            'is_active' => ['boolean'],
         ]);
 
         Department::create($validated);
@@ -42,10 +42,10 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department): RedirectResponse
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'code'        => ['required', 'string', 'max:20', 'unique:departments,code,' . $department->id],
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'string', 'max:20', 'unique:departments,code,'.$department->id],
             'description' => ['nullable', 'string', 'max:1000'],
-            'is_active'   => ['boolean'],
+            'is_active' => ['boolean'],
         ]);
 
         $department->update($validated);

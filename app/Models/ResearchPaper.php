@@ -5,8 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -39,7 +39,7 @@ class ResearchPaper extends Model
 
         static::creating(function ($paper) {
             if (empty($paper->tracking_id)) {
-                $paper->tracking_id = 'RP-' . strtoupper(Str::random(8));
+                $paper->tracking_id = 'RP-'.strtoupper(Str::random(8));
             }
             if (empty($paper->submission_date)) {
                 $paper->submission_date = now();
@@ -107,6 +107,7 @@ class ResearchPaper extends Model
     public function getProgressAttribute(): int
     {
         $stages = ['submitted' => 0, 'under_review' => 25, 'approved' => 50, 'presented' => 75, 'published' => 100, 'archived' => 100];
+
         return $stages[$this->status] ?? 0;
     }
 }

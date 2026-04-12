@@ -6,6 +6,7 @@ use App\Http\Requests\StoreResearchPaperRequest;
 use App\Http\Requests\UpdateResearchPaperRequest;
 use App\Models\Category;
 use App\Models\ResearchPaper;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -39,7 +40,7 @@ class ResearchPaperController extends Controller
      */
     public function store(StoreResearchPaperRequest $request)
     {
-        $tracking_id = 'RP-' . strtoupper(Str::random(8));
+        $tracking_id = 'RP-'.strtoupper(Str::random(8));
 
         $paper = ResearchPaper::create([
             'title' => $request->title,
@@ -54,9 +55,9 @@ class ResearchPaperController extends Controller
         // Add authors
         if ($request->has('authors')) {
             foreach ($request->authors as $index => $author) {
-                if (!empty($author)) {
-                    $authorUser = \App\Models\User::firstOrCreate(
-                        ['email' => strtolower(str_replace(' ', '.', $author)) . '@research.local'],
+                if (! empty($author)) {
+                    $authorUser = User::firstOrCreate(
+                        ['email' => strtolower(str_replace(' ', '.', $author)).'@research.local'],
                         ['name' => $author, 'password' => bcrypt(Str::random())]
                     );
                     $paper->authors()->attach($authorUser->id, ['author_order' => $index + 1]);

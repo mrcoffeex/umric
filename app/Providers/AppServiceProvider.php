@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +31,7 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configureGates(): void
     {
-        Gate::define('accessAdmin', fn (\App\Models\User $user): bool => $user->hasRole('admin', 'staff'));
+        Gate::define('accessAdmin', fn (User $user): bool => $user->hasRole('admin', 'staff'));
     }
 
     /**

@@ -14,10 +14,10 @@ class ProgramController extends Controller
     {
         $validated = $request->validate([
             'department_id' => ['required', 'integer', 'exists:departments,id'],
-            'name'          => ['required', 'string', 'max:255'],
-            'code'          => ['required', 'string', 'max:20', 'unique:programs,code'],
-            'description'   => ['nullable', 'string', 'max:1000'],
-            'is_active'     => ['boolean'],
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'string', 'max:20', 'unique:programs,code'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'is_active' => ['boolean'],
         ]);
 
         Program::create($validated);
@@ -30,10 +30,10 @@ class ProgramController extends Controller
     public function update(Request $request, Program $program): RedirectResponse
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'code'        => ['required', 'string', 'max:20', 'unique:programs,code,'.$program->id],
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'string', 'max:20', 'unique:programs,code,'.$program->id],
             'description' => ['nullable', 'string', 'max:1000'],
-            'is_active'   => ['boolean'],
+            'is_active' => ['boolean'],
         ]);
 
         $program->update($validated);

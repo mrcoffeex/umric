@@ -88,7 +88,7 @@ class DepartmentSeeder extends Seeder
                     ['code' => 'DOED-EM',  'name' => 'Doctor of Education - Educational Management'],
                     ['code' => 'DBA',      'name' => 'Doctor in Business Administration'],
                     ['code' => 'MAED-EM',  'name' => 'Master of Arts in Education - Educational Management'],
-                    ['code' => 'MAED-MATH','name' => 'Master of Arts in Education - Mathematics'],
+                    ['code' => 'MAED-MATH', 'name' => 'Master of Arts in Education - Mathematics'],
                     ['code' => 'MAED-SCI', 'name' => 'Master of Arts in Education - Science'],
                     ['code' => 'MAED-ENG', 'name' => 'Master of Arts in Education - English'],
                     ['code' => 'MAED-FIL', 'name' => 'Master of Arts in Education - Filipino'],
@@ -122,4 +122,3 @@ class DepartmentSeeder extends Seeder
         }
     }
 }
-

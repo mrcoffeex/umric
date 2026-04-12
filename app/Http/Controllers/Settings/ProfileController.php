@@ -18,26 +18,26 @@ class ProfileController extends Controller
 {
     public function edit(Request $request): Response
     {
-        $user    = $request->user();
+        $user = $request->user();
         $profile = $user->profile;
 
         return Inertia::render('settings/Profile', [
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
-            'status'          => $request->session()->get('status'),
-            'departments'     => Department::select('id', 'name')
+            'status' => $request->session()->get('status'),
+            'departments' => Department::select('id', 'name')
                 ->with('programs:id,name,department_id')
                 ->orderBy('name')
                 ->get(),
-            'profile'         => $profile ? [
-                'role'          => $profile->role,
+            'profile' => $profile ? [
+                'role' => $profile->role,
                 'department_id' => $profile->department_id,
-                'program_id'    => $profile->program_id,
-                'specialization'=> $profile->specialization,
-                'institution'   => $profile->institution,
-                'degree'        => $profile->degree,
-                'graduation_year'=> $profile->graduation_year,
-                'bio'           => $profile->bio,
-                'avatar_url'    => $profile->avatarUrl(),
+                'program_id' => $profile->program_id,
+                'specialization' => $profile->specialization,
+                'institution' => $profile->institution,
+                'degree' => $profile->degree,
+                'graduation_year' => $profile->graduation_year,
+                'bio' => $profile->bio,
+                'avatar_url' => $profile->avatarUrl(),
             ] : null,
         ]);
     }
@@ -61,13 +61,13 @@ class ProfileController extends Controller
     public function updateProfile(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'bio'             => ['nullable', 'string', 'max:1000'],
-            'specialization'  => ['nullable', 'string', 'max:255'],
-            'institution'     => ['nullable', 'string', 'max:255'],
-            'degree'          => ['nullable', 'string', 'max:100'],
+            'bio' => ['nullable', 'string', 'max:1000'],
+            'specialization' => ['nullable', 'string', 'max:255'],
+            'institution' => ['nullable', 'string', 'max:255'],
+            'degree' => ['nullable', 'string', 'max:100'],
             'graduation_year' => ['nullable', 'string', 'max:4'],
-            'department_id'   => ['nullable', 'integer', 'exists:departments,id'],
-            'program_id'      => ['nullable', 'integer', 'exists:programs,id'],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'program_id' => ['nullable', 'integer', 'exists:programs,id'],
         ]);
 
         $request->user()->profile()->updateOrCreate(
@@ -86,7 +86,7 @@ class ProfileController extends Controller
             'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
-        $user    = $request->user();
+        $user = $request->user();
         $profile = $user->profile()->firstOrCreate(['user_id' => $user->id]);
 
         // Delete old avatar
@@ -99,7 +99,7 @@ class ProfileController extends Controller
 
         $profile->update([
             'profile_photo' => $path,
-            'avatar_disk'   => $disk,
+            'avatar_disk' => $disk,
         ]);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Avatar updated.']);
