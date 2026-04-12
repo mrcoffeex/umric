@@ -54,7 +54,12 @@ const role = computed(() => (page.props.auth.user as any).role ?? 'student');
 
 // Initials fallback
 function initials(name: string) {
-    return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
+    return name
+        .split(' ')
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase();
 }
 
 // Avatar
@@ -74,7 +79,9 @@ function onAvatarChange(e: Event) {
     avatarForm.avatar = file;
     avatarForm.post(avatarRoute.url(), {
         forceFormData: true,
-        onError: () => { avatarPreview.value = props.profile?.avatar_url ?? null; },
+        onError: () => {
+            avatarPreview.value = props.profile?.avatar_url ?? null;
+        },
     });
 }
 
@@ -93,8 +100,12 @@ function onRemoveAvatar() {
 const selectedDept = ref<number | ''>(props.profile?.department_id ?? '');
 
 const filteredPrograms = computed(() => {
-    if (!selectedDept.value) { return []; }
-    const dept = props.departments.find((d) => d.id === Number(selectedDept.value));
+    if (!selectedDept.value) {
+        return [];
+    }
+    const dept = props.departments.find(
+        (d) => d.id === Number(selectedDept.value),
+    );
     return dept?.programs ?? [];
 });
 
@@ -119,23 +130,35 @@ function submitDetails() {
     <h1 class="sr-only">Profile settings</h1>
 
     <div class="flex flex-col space-y-10">
-
         <!-- Avatar -->
         <div>
-            <Heading variant="small" title="Profile photo" description="Upload a photo to personalize your account." />
+            <Heading
+                variant="small"
+                title="Profile photo"
+                description="Upload a photo to personalize your account."
+            />
             <div class="mt-4 flex items-center gap-5">
-                <div class="relative group">
-                    <div class="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-orange-400 to-teal-400 flex items-center justify-center ring-2 ring-orange-200 dark:ring-orange-800/50">
-                        <img v-if="avatarPreview" :src="avatarPreview" alt="Avatar" class="w-full h-full object-cover" />
-                        <span v-else class="text-2xl font-bold text-white">{{ initials(user.name) }}</span>
+                <div class="group relative">
+                    <div
+                        class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-teal-400 ring-2 ring-orange-200 dark:ring-orange-800/50"
+                    >
+                        <img
+                            v-if="avatarPreview"
+                            :src="avatarPreview"
+                            alt="Avatar"
+                            class="h-full w-full object-cover"
+                        />
+                        <span v-else class="text-2xl font-bold text-white">{{
+                            initials(user.name)
+                        }}</span>
                     </div>
                     <button
                         type="button"
                         @click="pickAvatar"
-                        class="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        class="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 transition-opacity group-hover:opacity-100"
                         :disabled="avatarForm.processing"
                     >
-                        <Camera class="w-5 h-5 text-white" />
+                        <Camera class="h-5 w-5 text-white" />
                     </button>
                 </div>
                 <div class="flex flex-col gap-2">
@@ -147,7 +170,11 @@ function submitDetails() {
                             @click="pickAvatar"
                             :disabled="avatarForm.processing"
                         >
-                            {{ avatarForm.processing ? 'Uploading…' : 'Upload photo' }}
+                            {{
+                                avatarForm.processing
+                                    ? 'Uploading…'
+                                    : 'Upload photo'
+                            }}
                         </Button>
                         <Button
                             v-if="avatarPreview"
@@ -158,11 +185,18 @@ function submitDetails() {
                             @click="onRemoveAvatar"
                             :disabled="removingAvatar"
                         >
-                            <Trash2 class="w-3.5 h-3.5" />
+                            <Trash2 class="h-3.5 w-3.5" />
                         </Button>
                     </div>
-                    <p class="text-xs text-muted-foreground">JPEG, PNG or WebP · max 2 MB</p>
-                    <p v-if="avatarForm.errors.avatar" class="text-xs text-red-500">{{ avatarForm.errors.avatar }}</p>
+                    <p class="text-xs text-muted-foreground">
+                        JPEG, PNG or WebP · max 2 MB
+                    </p>
+                    <p
+                        v-if="avatarForm.errors.avatar"
+                        class="text-xs text-red-500"
+                    >
+                        {{ avatarForm.errors.avatar }}
+                    </p>
                 </div>
                 <input
                     ref="avatarInput"
@@ -232,12 +266,17 @@ function submitDetails() {
                         v-if="status === 'verification-link-sent'"
                         class="mt-2 text-sm font-medium text-green-600"
                     >
-                        A new verification link has been sent to your email address.
+                        A new verification link has been sent to your email
+                        address.
                     </div>
                 </div>
 
                 <div class="flex items-center gap-4">
-                    <Button :disabled="processing" data-test="update-profile-button">Save</Button>
+                    <Button
+                        :disabled="processing"
+                        data-test="update-profile-button"
+                        >Save</Button
+                    >
                 </div>
             </Form>
         </div>
@@ -246,25 +285,51 @@ function submitDetails() {
         <div>
             <Heading
                 variant="small"
-                :title="role === 'student' || role === 'faculty' ? 'Academic Information' : 'Professional Information'"
-                :description="role === 'student' ? 'Your department, program, and academic details.' : role === 'faculty' ? 'Your department affiliation and research focus.' : 'Your professional details and research focus.'"
+                :title="
+                    role === 'student' || role === 'faculty'
+                        ? 'Academic Information'
+                        : 'Professional Information'
+                "
+                :description="
+                    role === 'student'
+                        ? 'Your department, program, and academic details.'
+                        : role === 'faculty'
+                          ? 'Your department affiliation and research focus.'
+                          : 'Your professional details and research focus.'
+                "
             />
 
             <form @submit.prevent="submitDetails" class="mt-4 space-y-5">
                 <!-- Department + Program: student & faculty only -->
-                <div v-if="role === 'student' || role === 'faculty'" class="grid sm:grid-cols-2 gap-4">
+                <div
+                    v-if="role === 'student' || role === 'faculty'"
+                    class="grid gap-4 sm:grid-cols-2"
+                >
                     <div class="grid gap-2">
                         <Label for="department_id">Department</Label>
                         <select
                             id="department_id"
                             v-model="selectedDept"
-                            @change="detailsForm.department_id = selectedDept as number | ''; detailsForm.program_id = '';"
-                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            @change="
+                                detailsForm.department_id = selectedDept as
+                                    | number
+                                    | '';
+                                detailsForm.program_id = '';
+                            "
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none"
                         >
                             <option value="">Select department…</option>
-                            <option v-for="dept in departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
+                            <option
+                                v-for="dept in departments"
+                                :key="dept.id"
+                                :value="dept.id"
+                            >
+                                {{ dept.name }}
+                            </option>
                         </select>
-                        <InputError :message="detailsForm.errors.department_id" />
+                        <InputError
+                            :message="detailsForm.errors.department_id"
+                        />
                     </div>
                     <div v-if="role === 'student'" class="grid gap-2">
                         <Label for="program_id">Program</Label>
@@ -272,39 +337,78 @@ function submitDetails() {
                             id="program_id"
                             v-model="detailsForm.program_id"
                             :disabled="!selectedDept"
-                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <option value="">{{ selectedDept ? 'Select program…' : 'Select a department first' }}</option>
-                            <option v-for="prog in filteredPrograms" :key="prog.id" :value="prog.id">{{ prog.name }}</option>
+                            <option value="">
+                                {{
+                                    selectedDept
+                                        ? 'Select program…'
+                                        : 'Select a department first'
+                                }}
+                            </option>
+                            <option
+                                v-for="prog in filteredPrograms"
+                                :key="prog.id"
+                                :value="prog.id"
+                            >
+                                {{ prog.name }}
+                            </option>
                         </select>
                         <InputError :message="detailsForm.errors.program_id" />
                     </div>
                 </div>
 
                 <!-- Degree + Graduation Year: student only -->
-                <div v-if="role === 'student'" class="grid sm:grid-cols-2 gap-4">
+                <div
+                    v-if="role === 'student'"
+                    class="grid gap-4 sm:grid-cols-2"
+                >
                     <div class="grid gap-2">
                         <Label for="degree">Degree</Label>
-                        <Input id="degree" v-model="detailsForm.degree" placeholder="e.g. BSIT" />
+                        <Input
+                            id="degree"
+                            v-model="detailsForm.degree"
+                            placeholder="e.g. BSIT"
+                        />
                         <InputError :message="detailsForm.errors.degree" />
                     </div>
                     <div class="grid gap-2">
                         <Label for="graduation_year">Graduation Year</Label>
-                        <Input id="graduation_year" v-model="detailsForm.graduation_year" placeholder="e.g. 2025" maxlength="4" />
-                        <InputError :message="detailsForm.errors.graduation_year" />
+                        <Input
+                            id="graduation_year"
+                            v-model="detailsForm.graduation_year"
+                            placeholder="e.g. 2025"
+                            maxlength="4"
+                        />
+                        <InputError
+                            :message="detailsForm.errors.graduation_year"
+                        />
                     </div>
                 </div>
 
                 <!-- Specialization + Institution: faculty & staff/admin -->
-                <div v-if="role !== 'student'" class="grid sm:grid-cols-2 gap-4">
+                <div
+                    v-if="role !== 'student'"
+                    class="grid gap-4 sm:grid-cols-2"
+                >
                     <div class="grid gap-2">
                         <Label for="specialization">Specialization</Label>
-                        <Input id="specialization" v-model="detailsForm.specialization" placeholder="e.g. Machine Learning" />
-                        <InputError :message="detailsForm.errors.specialization" />
+                        <Input
+                            id="specialization"
+                            v-model="detailsForm.specialization"
+                            placeholder="e.g. Machine Learning"
+                        />
+                        <InputError
+                            :message="detailsForm.errors.specialization"
+                        />
                     </div>
                     <div class="grid gap-2">
                         <Label for="institution">Institution</Label>
-                        <Input id="institution" v-model="detailsForm.institution" placeholder="e.g. UM Digos College" />
+                        <Input
+                            id="institution"
+                            v-model="detailsForm.institution"
+                            placeholder="e.g. UM Digos College"
+                        />
                         <InputError :message="detailsForm.errors.institution" />
                     </div>
                 </div>
@@ -318,19 +422,20 @@ function submitDetails() {
                         rows="3"
                         maxlength="1000"
                         placeholder="Tell us a bit about yourself…"
-                        class="w-full mt-1 px-3 py-2 rounded-md text-sm bg-background border border-input text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 resize-none"
+                        class="mt-1 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring focus:ring-offset-0 focus:outline-none"
                     />
                     <InputError :message="detailsForm.errors.bio" />
                 </div>
 
                 <div class="flex items-center gap-4">
                     <Button type="submit" :disabled="detailsForm.processing">
-                        {{ detailsForm.processing ? 'Saving…' : 'Save details' }}
+                        {{
+                            detailsForm.processing ? 'Saving…' : 'Save details'
+                        }}
                     </Button>
                 </div>
             </form>
         </div>
-
     </div>
 
     <DeleteUser />

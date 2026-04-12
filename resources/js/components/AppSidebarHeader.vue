@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Monitor, Moon, Sun } from 'lucide-vue-next'
+import { Monitor, Moon, Sun } from 'lucide-vue-next';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAppearance } from '@/composables/useAppearance';
@@ -14,13 +14,13 @@ withDefaults(
     },
 );
 
-const { appearance, updateAppearance } = useAppearance()
+const { appearance, updateAppearance } = useAppearance();
 
 const options = [
-    { value: 'light',  icon: Sun,     label: 'Light' },
-    { value: 'dark',   icon: Moon,    label: 'Dark' },
+    { value: 'light', icon: Sun, label: 'Light' },
+    { value: 'dark', icon: Moon, label: 'Dark' },
     { value: 'system', icon: Monitor, label: 'System' },
-] as const
+] as const;
 </script>
 
 <template>
@@ -35,7 +35,9 @@ const options = [
         </div>
 
         <!-- Theme toggle — segmented pill -->
-        <div class="flex items-center gap-0.5 rounded-xl bg-slate-100 dark:bg-slate-800 p-1">
+        <div
+            class="flex items-center gap-0.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800"
+        >
             <button
                 v-for="opt in options"
                 :key="opt.value"
@@ -44,8 +46,8 @@ const options = [
                 :class="[
                     'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-all',
                     appearance === opt.value
-                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
+                        ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white'
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200',
                 ]"
             >
                 <component :is="opt.icon" class="size-3.5 shrink-0" />

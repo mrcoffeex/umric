@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { FlaskConical, Twitter, Github, Mail } from 'lucide-vue-next'
+import { FlaskConical, Twitter, Github, Mail } from 'lucide-vue-next';
 
 function scrollTo(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
 
 const footerLinks = {
@@ -11,39 +11,44 @@ const footerLinks = {
         { label: 'Showcase', section: 'showcase' },
         { label: 'How It Works', section: 'how-it-works' },
     ],
-    Reviews: [
-        { label: 'Research Reviews', section: 'testimonials' },
-    ],
-    Contact: [
-        { label: 'Contact Us', section: 'contact' },
-    ],
+    Reviews: [{ label: 'Research Reviews', section: 'testimonials' }],
+    Contact: [{ label: 'Contact Us', section: 'contact' }],
     Legal: [
         { label: 'Privacy Policy', href: '#' },
         { label: 'Terms of Service', href: '#' },
         { label: 'Cookie Policy', href: '#' },
     ],
-}
+};
 </script>
 
 <template>
-    <footer class="bg-slate-950 text-slate-400 pt-16 pb-8 px-5">
-        <div class="max-w-7xl mx-auto">
+    <footer class="bg-slate-950 px-5 pt-16 pb-8 text-slate-400">
+        <div class="mx-auto max-w-7xl">
             <!-- Top grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-10 mb-12">
+            <div
+                class="mb-12 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-5"
+            >
                 <!-- Brand column -->
                 <div class="lg:col-span-2">
-                    <button @click="scrollTo('hero')" class="flex items-center gap-2 mb-4 group">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-                            <FlaskConical class="w-4 h-4 text-white" />
+                    <button
+                        @click="scrollTo('hero')"
+                        class="group mb-4 flex items-center gap-2"
+                    >
+                        <div
+                            class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow-md transition-transform group-hover:scale-105"
+                        >
+                            <FlaskConical class="h-4 w-4 text-white" />
                         </div>
-                        <span class="text-xl font-black text-gradient">UMRIC</span>
+                        <span class="text-gradient text-xl font-black"
+                            >UMRIC</span
+                        >
                     </button>
-                    <p class="text-sm leading-relaxed text-slate-500 max-w-xs">
-                        Official research paper tracking system of UM Digos College &mdash;
-                        from title proposal to publication.
+                    <p class="max-w-xs text-sm leading-relaxed text-slate-500">
+                        Official research paper tracking system of UM Digos
+                        College &mdash; from title proposal to publication.
                     </p>
                     <!-- Social -->
-                    <div class="flex gap-3 mt-6">
+                    <div class="mt-6 flex gap-3">
                         <a
                             v-for="social in [
                                 { icon: Twitter, label: 'Twitter', href: '#' },
@@ -53,29 +58,31 @@ const footerLinks = {
                             :key="social.label"
                             :href="social.href"
                             :aria-label="social.label"
-                            class="w-9 h-9 rounded-lg bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400 hover:text-orange-400 hover:border-orange-600/40 hover:bg-orange-950/30 transition-all duration-200"
+                            class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700/60 bg-slate-800/80 text-slate-400 transition-all duration-200 hover:border-orange-600/40 hover:bg-orange-950/30 hover:text-orange-400"
                         >
-                            <component :is="social.icon" class="w-4 h-4" />
+                            <component :is="social.icon" class="h-4 w-4" />
                         </a>
                     </div>
                 </div>
 
                 <!-- Link columns -->
                 <div v-for="(links, group) in footerLinks" :key="group">
-                    <h4 class="text-sm font-semibold text-slate-300 mb-4">{{ group }}</h4>
+                    <h4 class="mb-4 text-sm font-semibold text-slate-300">
+                        {{ group }}
+                    </h4>
                     <ul class="space-y-3">
                         <li v-for="link in links" :key="link.label">
                             <button
                                 v-if="'section' in link"
                                 @click="scrollTo(link.section)"
-                                class="text-sm text-slate-500 hover:text-orange-400 transition-colors"
+                                class="text-sm text-slate-500 transition-colors hover:text-orange-400"
                             >
                                 {{ link.label }}
                             </button>
                             <a
                                 v-else
                                 :href="link.href"
-                                class="text-sm text-slate-500 hover:text-orange-400 transition-colors"
+                                class="text-sm text-slate-500 transition-colors hover:text-orange-400"
                             >
                                 {{ link.label }}
                             </a>
@@ -85,9 +92,12 @@ const footerLinks = {
             </div>
 
             <!-- Bottom bar -->
-            <div class="border-t border-slate-800/80 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div
+                class="flex flex-col items-center justify-between gap-4 border-t border-slate-800/80 pt-8 sm:flex-row"
+            >
                 <p class="text-xs text-slate-600">
-                    &copy; {{ new Date().getFullYear() }} UMRIC. All rights reserved.
+                    &copy; {{ new Date().getFullYear() }} UMRIC. All rights
+                    reserved.
                 </p>
                 <div class="flex items-center gap-1.5 text-xs text-slate-600">
                     Made with
