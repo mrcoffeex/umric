@@ -33,8 +33,9 @@ class StoreResearchPaperRequest extends FormRequest
             'keywords' => ['sometimes', 'string', 'max:500'],
             'authors' => ['sometimes', 'array'],
             'authors.*' => ['string', 'max:255'],
-            'proponents' => ['nullable', 'array'],
-            'proponents.*' => ['string', 'max:255'],
+            'proponents' => ['required', 'array', 'min:1', 'max:3'],
+            'proponents.*.id' => ['required', 'integer', 'exists:users,id'],
+            'proponents.*.name' => ['required', 'string', 'max:255'],
             'file' => ['sometimes', 'file', 'mimes:pdf', 'max:50000'],
         ];
     }

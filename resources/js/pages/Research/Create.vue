@@ -125,33 +125,81 @@
                     </h2>
 
                     <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <div class="flex h-10 flex-1 items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-foreground">
+                                <span
+                                    class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
+                                >You</span>
+                                {{ form.proponents[0]?.name }}
+                            </div>
+                        </div>
+
                         <div
-                            v-for="(_, index) in form.proponents"
-                            :key="index"
-                            class="flex items-center gap-2"
+                            v-for="(proponent, idx) in form.proponents.slice(1)"
+                            :key="idx + 1"
+                            class="relative flex items-center gap-2"
                         >
-                            <Input
-                                v-model="form.proponents[index]"
-                                placeholder="Enter proponent name"
-                                class="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-100 dark:focus-visible:ring-orange-500/20"
-                            />
+                            <template v-if="activeSearchSlot !== idx + 1">
+                                <div
+                                    class="flex h-10 flex-1 cursor-pointer items-center rounded-lg border border-input bg-background px-3 py-2 text-sm transition hover:border-orange-400"
+                                    @click="openSearch(idx + 1)"
+                                >
+                                    <span v-if="proponent.id" class="text-foreground">{{ proponent.name }}</span>
+                                    <span v-else class="text-muted-foreground">Click to search for a student...</span>
+                                </div>
+                            </template>
+
+                            <template v-else>
+                                <div class="relative flex-1">
+                                    <Input
+                                        :value="searchQuery"
+                                        autofocus
+                                        placeholder="Type name or email..."
+                                        class="h-10 w-full border-orange-400 bg-background focus-visible:border-orange-500 focus-visible:ring-orange-100 dark:focus-visible:ring-orange-500/20"
+                                        @input="onSearchInput(($event.target as HTMLInputElement).value)"
+                                        @keydown.escape="closeSearch"
+                                    />
+                                    <ul
+                                        v-if="searchResults.length"
+                                        class="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-border bg-card shadow-lg"
+                                    >
+                                        <li
+                                            v-for="result in searchResults"
+                                            :key="result.id"
+                                            class="cursor-pointer px-3 py-2 text-sm text-foreground hover:bg-muted"
+                                            @mousedown.prevent="selectProponent(idx + 1, result)"
+                                        >
+                                            {{ result.name }}
+                                        </li>
+                                    </ul>
+                                    <div
+                                        v-else-if="searchQuery.trim().length >= 2"
+                                        class="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground shadow-lg"
+                                    >
+                                        No students found.
+                                    </div>
+                                </div>
+                            </template>
+
                             <button
                                 type="button"
-                                :disabled="form.proponents.length === 1"
-                                class="h-10 w-10 text-muted-foreground transition hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                                @click="removeProponent(index)"
+                                class="h-10 w-10 text-muted-foreground transition hover:text-red-500"
+                                @click="removeProponent(idx + 1)"
                             >
                                 ×
                             </button>
                         </div>
                     </div>
+
                     <p v-if="form.errors.proponents" class="mt-1 text-xs text-red-500">
                         {{ form.errors.proponents }}
                     </p>
+
                     <button
+                        v-if="canAddProponent"
                         type="button"
                         class="mt-3 flex items-center gap-1 text-sm font-medium text-orange-500 hover:text-orange-600"
-                        @click="addProponent"
+                        @click="addProponentSlot"
                     >
                         <Plus class="h-4 w-4" />
                         Add Proponent
@@ -238,18 +286,21 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Plus } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { create, index, store } from '@/routes/papers';
+import { search as searchProponents } from '@/routes/papers/proponents';
 
 interface Props {
     sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
     agendas: Array<{ id: number; name: string }>;
+    auth_user: { id: number; name: string };
 }
 
-const { sdgs, agendas } = defineProps<Props>();
+const props = defineProps<Props>();
+const { sdgs, agendas } = props;
 
 defineOptions({
     layout: {
@@ -268,23 +319,80 @@ const form = useForm({
     abstract: '',
     sdg_id: '' as string | number,
     agenda_id: '' as string | number,
-    proponents: [''] as string[],
+    proponents: [{ id: props.auth_user.id, name: props.auth_user.name }] as Array<{ id: number; name: string }>,
     keywords: '',
     file: null as File | null,
 });
+
+interface SearchResult {
+    id: number;
+    name: string;
+}
+
+const activeSearchSlot = ref<number | null>(null);
+const searchQuery = ref('');
+const searchResults = ref<SearchResult[]>([]);
+let searchDebounce: ReturnType<typeof setTimeout>;
+
+const canAddProponent = computed(() => form.proponents.length < 3);
 
 function formatSdg(sdg: { id: number; name: string; number?: number }) {
     return sdg.number ? `SDG ${sdg.number}: ${sdg.name}` : sdg.name;
 }
 
-function addProponent() {
-    form.proponents.push('');
+function openSearch(slotIndex: number) {
+    activeSearchSlot.value = slotIndex;
+    searchQuery.value = '';
+    searchResults.value = [];
+}
+
+function closeSearch() {
+    activeSearchSlot.value = null;
+    searchQuery.value = '';
+    searchResults.value = [];
+}
+
+function addProponentSlot() {
+    if (form.proponents.length >= 3) {
+        return;
+    }
+
+    form.proponents.push({ id: 0, name: '' });
+    openSearch(form.proponents.length - 1);
 }
 
 function removeProponent(index: number) {
-    if (form.proponents.length > 1) {
-        form.proponents.splice(index, 1);
+    form.proponents.splice(index, 1);
+    closeSearch();
+}
+
+async function onSearchInput(value: string) {
+    searchQuery.value = value;
+    clearTimeout(searchDebounce);
+
+    if (value.trim().length < 2) {
+        searchResults.value = [];
+        return;
     }
+
+    searchDebounce = setTimeout(async () => {
+        try {
+            const res = await fetch(searchProponents.url({ query: { q: value.trim() } }), {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+            const data: SearchResult[] = await res.json();
+            const selectedIds = form.proponents.map((proponent) => proponent.id).filter((id) => id !== 0);
+            searchResults.value = data.filter((user) => !selectedIds.includes(user.id));
+        } catch {
+            searchResults.value = [];
+        }
+    }, 300);
+}
+
+function selectProponent(slot: number, result: SearchResult) {
+    form.proponents[slot] = { id: result.id, name: result.name };
+    closeSearch();
 }
 
 function assignFile(file?: File) {

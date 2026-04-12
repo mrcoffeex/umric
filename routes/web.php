@@ -33,6 +33,8 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
+    Route::get('papers/proponents/search', [ResearchPaperController::class, 'searchProponents'])
+        ->name('papers.proponents.search');
     Route::resource('papers', ResearchPaperController::class);
     Route::resource('categories', CategoryController::class);
 

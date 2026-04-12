@@ -34,8 +34,9 @@ test('authenticated users can store a research paper', function () {
     $this->actingAs($user)
         ->post(route('papers.store'), [
             'title' => 'Test Research Paper',
-            'description' => 'A detailed description of the test research paper.',
+            'abstract' => 'A detailed abstract of the test research paper.',
             'category_id' => $category->id,
+            'proponents' => [['id' => $user->id, 'name' => $user->name]],
         ])
         ->assertRedirect();
 
@@ -55,8 +56,10 @@ test('paper store validates required fields', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->post(route('papers.store'), [])
-        ->assertSessionHasErrors(['title', 'description', 'category_id']);
+        ->post(route('papers.store'), [
+            'proponents' => [['id' => $user->id, 'name' => $user->name]],
+        ])
+        ->assertSessionHasErrors(['title', 'abstract']);
 });
 
 test('authenticated users can view their paper', function () {
