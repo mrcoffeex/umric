@@ -18,8 +18,8 @@ const submitting = ref(false);
 
 async function handleSubmit() {
     if (!form.value.name || !form.value.email || !form.value.message) {
-return;
-}
+        return;
+    }
 
     submitting.value = true;
     // Simulate async send

@@ -64,7 +64,7 @@ const stages = [
     'archived',
 ];
 
-const stageLabels = {
+const stageLabels: Record<string, string> = {
     submitted: 'Submitted',
     under_review: 'Under Review',
     approved: 'Approved',

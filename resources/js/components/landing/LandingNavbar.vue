@@ -13,12 +13,12 @@ const mobileOpen = ref(false);
 
 function cycleTheme() {
     if (appearance.value === 'light') {
-updateAppearance('dark');
-} else if (appearance.value === 'dark') {
-updateAppearance('system');
-} else {
-updateAppearance('light');
-}
+        updateAppearance('dark');
+    } else if (appearance.value === 'dark') {
+        updateAppearance('system');
+    } else {
+        updateAppearance('light');
+    }
 }
 
 function scrollTo(id: string) {

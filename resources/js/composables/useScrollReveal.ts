@@ -1,6 +1,6 @@
 import { useIntersectionObserver } from '@vueuse/core';
-import { ref  } from 'vue';
-import type {Ref} from 'vue';
+import { ref } from 'vue';
+import type { Ref } from 'vue';
 
 export function useScrollReveal(threshold = 0.15): {
     target: Ref<HTMLElement | null>;

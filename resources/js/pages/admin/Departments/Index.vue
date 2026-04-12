@@ -56,10 +56,10 @@ function toggleExpand(id: number) {
     const idx = expanded.value.indexOf(id);
 
     if (idx === -1) {
-expanded.value.push(id);
-} else {
-expanded.value.splice(idx, 1);
-}
+        expanded.value.push(id);
+    } else {
+        expanded.value.splice(idx, 1);
+    }
 }
 
 // Department form
@@ -89,13 +89,13 @@ function openEditDept(dept: Department) {
 
 function submitDept() {
     if (editingDept.value) {
-        deptForm.patch(admin.departments.update(editingDept.value.id), {
+        deptForm.patch(admin.departments.update.url(editingDept.value.id), {
             onSuccess: () => {
                 showDeptForm.value = false;
             },
         });
     } else {
-        deptForm.post(admin.departments.store(), {
+        deptForm.post(admin.departments.store.url(), {
             onSuccess: () => {
                 showDeptForm.value = false;
                 deptForm.reset();
@@ -110,10 +110,10 @@ function deleteDept(dept: Department) {
             `Delete "${dept.name}"? All its programs will also be removed.`,
         )
     ) {
-return;
-}
+        return;
+    }
 
-    useForm({}).delete(admin.departments.destroy(dept.id));
+    useForm({}).delete(admin.departments.destroy.url(dept.id));
 }
 
 // Program form
@@ -149,13 +149,13 @@ function openEditProg(prog: Program, deptId: number) {
 
 function submitProg() {
     if (editingProg.value) {
-        progForm.patch(admin.programs.update(editingProg.value.id), {
+        progForm.patch(admin.programs.update.url(editingProg.value.id), {
             onSuccess: () => {
                 showProgForm.value = false;
             },
         });
     } else {
-        progForm.post(admin.programs.store(), {
+        progForm.post(admin.programs.store.url(), {
             onSuccess: () => {
                 showProgForm.value = false;
                 progForm.reset();
@@ -166,10 +166,10 @@ function submitProg() {
 
 function deleteProg(prog: Program) {
     if (!confirm(`Delete program "${prog.name}"?`)) {
-return;
-}
+        return;
+    }
 
-    useForm({}).delete(admin.programs.destroy(prog.id));
+    useForm({}).delete(admin.programs.destroy.url(prog.id));
 }
 </script>
 

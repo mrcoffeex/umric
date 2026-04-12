@@ -99,8 +99,8 @@ function openRole(u: UserRow) {
 
 function submitRole() {
     if (!roleTarget.value) {
-return;
-}
+        return;
+    }
 
     roleForm.patch(admin.users.update.url(roleTarget.value.id), {
         onSuccess: () => {
@@ -120,8 +120,8 @@ function openBlock(u: UserRow) {
 
 function doBlock() {
     if (!blockTarget.value) {
-return;
-}
+        return;
+    }
 
     useForm({}).post(admin.users.block.url(blockTarget.value.id), {
         onSuccess: () => {
@@ -142,8 +142,8 @@ function openDelete(u: UserRow) {
 
 function confirmDelete() {
     if (!deleting.value) {
-return;
-}
+        return;
+    }
 
     useForm({}).delete(admin.users.destroy.url(deleting.value.id), {
         onSuccess: () => {
@@ -179,8 +179,8 @@ function confirmReject(u: UserRow) {
 
 function doApprove() {
     if (!actioning.value) {
-return;
-}
+        return;
+    }
 
     useForm({}).post(admin.users.approve.url(actioning.value.id), {
         onSuccess: () => {
@@ -192,8 +192,8 @@ return;
 
 function doReject() {
     if (!actioning.value) {
-return;
-}
+        return;
+    }
 
     useForm({}).delete(admin.users.destroy.url(actioning.value.id), {
         onSuccess: () => {

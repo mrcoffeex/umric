@@ -68,24 +68,24 @@ const statusLabel = (s: string) =>
 
 const pageTitle = computed(() => {
     if (props.role === 'faculty') {
-return 'Research Overview';
-}
+        return 'Research Overview';
+    }
 
     if (props.role === 'staff' || props.role === 'admin') {
-return 'System Overview';
-}
+        return 'System Overview';
+    }
 
     return 'Overview';
 });
 
 const pageSubtitle = computed(() => {
     if (props.role === 'faculty') {
-return 'Papers you submitted or co-authored.';
-}
+        return 'Papers you submitted or co-authored.';
+    }
 
     if (props.role === 'staff' || props.role === 'admin') {
-return 'System-wide research activity.';
-}
+        return 'System-wide research activity.';
+    }
 
     return 'Your research activity at a glance.';
 });

@@ -76,8 +76,8 @@ function onAvatarChange(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
 
     if (!file) {
-return;
-}
+        return;
+    }
 
     avatarPreview.value = URL.createObjectURL(file);
     avatarForm.avatar = file;
@@ -91,11 +91,11 @@ return;
 
 function onRemoveAvatar() {
     if (!confirm('Remove your profile photo?')) {
-return;
-}
+        return;
+    }
 
     removingAvatar.value = true;
-    useForm({}).delete(removeAvatar(), {
+    useForm({}).delete(removeAvatar.url(), {
         onFinish: () => {
             removingAvatar.value = false;
             avatarPreview.value = null;

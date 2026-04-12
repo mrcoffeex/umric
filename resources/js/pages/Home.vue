@@ -36,12 +36,12 @@ onMounted(() => {
     const saved = localStorage.getItem('darkMode');
 
     if (saved) {
-isDark.value = saved === 'true';
-} else {
-isDark.value = window.matchMedia(
+        isDark.value = saved === 'true';
+    } else {
+        isDark.value = window.matchMedia(
             '(prefers-color-scheme: dark)',
         ).matches;
-}
+    }
 
     applyTheme();
 });
@@ -91,8 +91,8 @@ const searchPaper = async () => {
 
 const handleKeyPress = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
-searchPaper();
-}
+        searchPaper();
+    }
 };
 
 const submitContact = () => {
