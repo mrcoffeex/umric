@@ -1,45 +1,3 @@
-<template>
-    <div class="tracking-timeline">
-        <div class="timeline-track">
-            <div
-                class="timeline-progress"
-                :style="{ width: progressPercent + '%' }"
-            ></div>
-            <div
-                v-for="(stage, index) in stages"
-                :key="stage"
-                class="timeline-dot"
-                :class="{
-                    completed: index < currentStageIndex,
-                    current: index === currentStageIndex,
-                }"
-            >
-                <span class="stage-label">{{ stageLabels[stage] }}</span>
-            </div>
-        </div>
-        <div class="timeline-history">
-            <div
-                v-for="record in tracking"
-                :key="record.id"
-                class="history-item"
-            >
-                <div class="history-dot"></div>
-                <div class="history-content">
-                    <div class="history-title">
-                        {{ stageLabels[record.status] }}
-                    </div>
-                    <div class="history-date">
-                        {{ formatDate(record.created_at) }}
-                    </div>
-                    <div v-if="record.notes" class="history-notes">
-                        {{ record.notes }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue';
 
@@ -62,7 +20,7 @@ const stages = [
     'presented',
     'published',
     'archived',
-];
+] as const;
 
 const stageLabels: Record<string, string> = {
     submitted: 'Submitted',
@@ -73,11 +31,16 @@ const stageLabels: Record<string, string> = {
     archived: 'Archived',
 };
 
-const currentStageIndex = computed(() => stages.indexOf(props.currentStatus));
+const stageIcons: Record<string, string> = {
+    submitted: '📥',
+    under_review: '🔍',
+    approved: '✅',
+    presented: '🎤',
+    published: '📚',
+    archived: '🗄️',
+};
 
-const progressPercent = computed(
-    () => ((currentStageIndex.value + 1) / stages.length) * 100,
-);
+const currentStageIndex = computed(() => stages.indexOf(props.currentStatus as typeof stages[number]));
 
 const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -90,169 +53,91 @@ const formatDate = (date: string) => {
 };
 </script>
 
-<style scoped>
-.tracking-timeline {
-    space-y: 2rem;
-}
+<template>
+    <div class="space-y-6">
+        <!-- Step progress bar -->
+        <div class="space-y-3">
+            <!-- Labels row -->
+            <div class="grid grid-cols-6 gap-1">
+                <div
+                    v-for="(stage, index) in stages"
+                    :key="stage"
+                    class="flex flex-col items-center gap-1.5"
+                >
+                    <!-- Circle dot -->
+                    <div
+                        class="flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
+                        :class="{
+                            'border-orange-500 bg-orange-500 text-white': index === currentStageIndex,
+                            'border-emerald-500 bg-emerald-500 text-white': index < currentStageIndex,
+                            'border-border bg-background text-muted-foreground': index > currentStageIndex,
+                        }"
+                    >
+                        <svg v-if="index < currentStageIndex" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span v-else>{{ index + 1 }}</span>
+                    </div>
+                    <!-- Label -->
+                    <span
+                        class="text-center text-[10px] font-medium leading-tight"
+                        :class="{
+                            'text-orange-600 dark:text-orange-400': index === currentStageIndex,
+                            'text-emerald-600 dark:text-emerald-400': index < currentStageIndex,
+                            'text-muted-foreground': index > currentStageIndex,
+                        }"
+                    >
+                        {{ stageLabels[stage] }}
+                    </span>
+                </div>
+            </div>
 
-.timeline-track {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 3rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    border-radius: 20px;
-    box-shadow:
-        5px 5px 12px rgba(0, 0, 0, 0.1),
-        -5px -5px 12px rgba(255, 255, 255, 0.7);
-}
+            <!-- Progress track -->
+            <div class="relative mx-4 h-1.5 rounded-full bg-border">
+                <div
+                    class="h-1.5 rounded-full bg-orange-500 transition-all duration-500"
+                    :style="{ width: `${Math.max(0, (currentStageIndex / (stages.length - 1)) * 100)}%` }"
+                />
+            </div>
+        </div>
 
-.timeline-progress {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    height: 4px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    border-radius: 2px;
-    transition: width 0.5s ease;
-    width: 0;
-}
+        <!-- History log -->
+        <div v-if="tracking.length > 0" class="space-y-2">
+            <p class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">History</p>
+            <div>
+                <div
+                    v-for="(record, idx) in tracking"
+                    :key="record.id"
+                    class="flex gap-3"
+                >
+                    <!-- Left: dot + connecting line -->
+                    <div class="flex flex-col items-center">
+                        <div class="mt-3 h-3 w-3 shrink-0 rounded-full border-2 border-orange-500 bg-background" />
+                        <div
+                            v-if="idx < tracking.length - 1"
+                            class="w-0.5 flex-1 bg-border"
+                        />
+                    </div>
+                    <!-- Right: content card -->
+                    <div class="flex-1 pb-4 last:pb-0">
+                        <div class="rounded-lg border border-border bg-muted/40 px-4 py-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-semibold text-foreground">
+                                    {{ stageLabels[record.status] ?? record.status }}
+                                </span>
+                                <span class="text-xs text-muted-foreground">{{ formatDate(record.created_at) }}</span>
+                            </div>
+                            <p v-if="record.notes" class="mt-1 text-xs italic text-muted-foreground">
+                                {{ record.notes }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-.timeline-dot {
-    position: relative;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.timeline-dot::before {
-    content: '';
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: white;
-    border: 3px solid #e5e7eb;
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.1),
-        -0 -2px 8px rgba(255, 255, 255, 0.7);
-    transition: all 0.3s ease;
-}
-
-.timeline-dot.completed::before {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #667eea;
-    box-shadow:
-        0 4px 12px rgba(102, 126, 234, 0.3),
-        -0 -4px 12px rgba(255, 255, 255, 0.7);
-}
-
-.timeline-dot.current::before {
-    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-    border-color: #f59e0b;
-    box-shadow:
-        0 4px 12px rgba(245, 158, 11, 0.3),
-        -0 -4px 12px rgba(255, 255, 255, 0.7);
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.stage-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #4b5563;
-    text-align: center;
-    max-width: 80px;
-}
-
-.timeline-history {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.history-item {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    border-radius: 16px;
-    box-shadow:
-        3px 3px 8px rgba(0, 0, 0, 0.1),
-        -3px -3px 8px rgba(255, 255, 255, 0.7);
-}
-
-.history-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    margin-top: 0.25rem;
-    flex-shrink: 0;
-}
-
-.history-content {
-    flex: 1;
-}
-
-.history-title {
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 0.25rem;
-}
-
-.history-date {
-    font-size: 0.875rem;
-    color: #6b7280;
-}
-
-.history-notes {
-    margin-top: 0.5rem;
-    font-size: 0.875rem;
-    color: #4b5563;
-    font-style: italic;
-}
-
-@media (prefers-color-scheme: dark) {
-    .timeline-track {
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-        box-shadow:
-            5px 5px 12px rgba(0, 0, 0, 0.3),
-            -5px -5px 12px rgba(255, 255, 255, 0.1);
-    }
-
-    .stage-label {
-        color: #cbd5e0;
-    }
-
-    .history-item {
-        background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-        box-shadow:
-            3px 3px 8px rgba(0, 0, 0, 0.3),
-            -3px -3px 8px rgba(255, 255, 255, 0.1);
-    }
-
-    .history-title {
-        color: #e2e8f0;
-    }
-
-    .history-date {
-        color: #a0aec0;
-    }
-
-    .history-notes {
-        color: #cbd5e0;
-    }
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.6;
-    }
-}
-</style>
+        <div v-else class="rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted-foreground">
+            No tracking history yet.
+        </div>
+    </div>
+</template>

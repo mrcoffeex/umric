@@ -25,11 +25,16 @@ class ResearchPaperController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $role = $user?->role() ?? 'student';
+        $profile = $user?->profile;
+        $role = $profile?->role ?? 'student';
         $papersQuery = ResearchPaper::with(['category', 'authors'])->latest();
 
-        if (! $user?->isAdmin() && ! $user?->isStaff()) {
-            $papersQuery->where('user_id', Auth::id());
+        if ($profile?->role !== 'admin' && $profile?->role !== 'staff') {
+            $papersQuery->where(function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->orWhereRaw('proponents::jsonb @> ?', [json_encode([['id' => (string) $user->id]])])
+                    ->orWhereRaw('proponents::jsonb @> ?', [json_encode([['id' => $user->id]])]);
+            });
         }
 
         return Inertia::render('Research/Index', [
@@ -59,7 +64,10 @@ class ResearchPaperController extends Controller
         $query = $request->string('q')->trim();
 
         $users = User::query()
-            ->whereHas('profile', fn ($q) => $q->where('role', 'student'))
+            ->where(function ($q) {
+                $q->whereDoesntHave('profile')
+                    ->orWhereHas('profile', fn ($q2) => $q2->where('role', 'student'));
+            })
             ->whereNull('blocked_at')
             ->where(function ($q) use ($query) {
                 $q->where('name', 'ilike', "%{$query}%")
@@ -82,21 +90,22 @@ class ResearchPaperController extends Controller
 
         // Validate first proponent is the authenticated user
         $proponents = $request->input('proponents', []);
-        if (empty($proponents) || ($proponents[0]['id'] ?? null) !== $request->user()->id) {
+        if (empty($proponents) || (int) ($proponents[0]['id'] ?? 0) !== $request->user()->id) {
             return back()->withErrors(['proponents' => 'You must be the first proponent.']);
         }
 
         $tracking_id = 'RP-'.strtoupper(Str::random(8));
         $user = Auth::user();
+        $profile = $user?->profile;
 
         $paper = ResearchPaper::create([
             'title' => $validated['title'],
             'abstract' => $validated['abstract'],
             'category_id' => $validated['category_id'] ?? null,
-            'sdg_id' => $validated['sdg_id'] ?? null,
-            'agenda_id' => $validated['agenda_id'] ?? null,
+            'sdg_ids' => array_map('intval', $validated['sdg_ids'] ?? []),
+            'agenda_ids' => array_map('intval', $validated['agenda_ids'] ?? []),
             'proponents' => $request->proponents,
-            'status' => $user?->isStudent() ? 'submitted' : ($request->status ?? 'submitted'),
+            'status' => $profile?->role === 'student' ? 'submitted' : ($request->status ?? 'submitted'),
             'tracking_id' => $tracking_id,
             'user_id' => Auth::id(),
             'keywords' => $validated['keywords'] ?? null,
@@ -138,7 +147,9 @@ class ResearchPaperController extends Controller
             'status_changed_at' => now(),
         ]);
 
-        return redirect()->route('papers.show', $paper)->with('success', 'Paper submitted successfully');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Paper submitted successfully.']);
+
+        return redirect()->route('papers.show', $paper);
     }
 
     /**
@@ -161,21 +172,24 @@ class ResearchPaperController extends Controller
 
         return Inertia::render('Research/Show', [
             'paper' => $paper,
+            'sdgs' => Sdg::all(),
+            'agendas' => Agenda::all(),
         ]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(ResearchPaper $paper)
+    public function edit(Request $request, ResearchPaper $paper)
     {
         Gate::authorize('update', $paper);
 
         return Inertia::render('Research/Edit', [
-            'paper' => $paper->load('category', 'authors', 'sdg', 'agenda'),
+            'paper' => $paper->load('category', 'authors', 'files'),
             'categories' => Category::all(),
             'sdgs' => Sdg::all(),
             'agendas' => Agenda::all(),
+            'auth_user' => ['id' => $request->user()->id, 'name' => $request->user()->name],
         ]);
     }
 
@@ -186,16 +200,26 @@ class ResearchPaperController extends Controller
     {
         $validated = $request->validated();
 
-        $paper->update(Arr::only($validated, [
+        $data = Arr::only($validated, [
             'title',
             'abstract',
             'category_id',
-            'sdg_id',
-            'agenda_id',
+            'sdg_ids',
+            'agenda_ids',
             'status',
             'keywords',
             'proponents',
-        ]));
+        ]);
+
+        if (isset($data['sdg_ids'])) {
+            $data['sdg_ids'] = array_map('intval', $data['sdg_ids'] ?? []);
+        }
+
+        if (isset($data['agenda_ids'])) {
+            $data['agenda_ids'] = array_map('intval', $data['agenda_ids'] ?? []);
+        }
+
+        $paper->update($data);
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
@@ -211,7 +235,9 @@ class ResearchPaperController extends Controller
             ]);
         }
 
-        return redirect()->route('papers.show', $paper)->with('success', 'Paper updated successfully');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Paper updated successfully.']);
+
+        return redirect()->route('papers.show', $paper);
     }
 
     /**
@@ -222,7 +248,9 @@ class ResearchPaperController extends Controller
         Gate::authorize('delete', $paper);
         $paper->delete();
 
-        return redirect()->route('papers.index')->with('success', 'Paper deleted successfully');
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Paper deleted successfully.']);
+
+        return redirect()->route('papers.index');
     }
 
     /**

@@ -1,3 +1,118 @@
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { FileText, Plus, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import NeuCard from '@/components/NeuCard.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import { Button } from '@/components/ui/button';
+import { create, index, show } from '@/routes/papers';
+
+interface Paper {
+    id: number;
+    title: string;
+    abstract: string;
+    status: string;
+    tracking_id: string;
+    created_at: string;
+    authors_count?: number;
+    category?: { id: number; name: string };
+    sdg_ids?: number[];
+    agenda_ids?: number[];
+}
+
+interface Category {
+    id: number;
+    name: string;
+}
+
+interface Sdg {
+    id: number;
+    name: string;
+    code: string;
+    color?: string;
+}
+
+interface Agenda {
+    id: number;
+    name: string;
+    code: string;
+}
+
+interface Props {
+    papers: Paper[];
+    categories: Category[];
+    sdgs: Sdg[];
+    agendas: Agenda[];
+    role: string;
+}
+
+const props = defineProps<Props>();
+const sdgMap = computed(() => new Map(props.sdgs.map((s) => [s.id, s])));
+const agendaMap = computed(() =>
+    new Map(props.agendas.map((a) => [a.id, a])),
+);
+
+defineOptions({
+    layout: {
+        breadcrumbs: [{ title: 'Research Papers', href: index() }],
+    },
+});
+
+const search = ref('');
+const selectedStatus = ref('');
+const selectedCategory = ref<number | ''>('');
+const isStudent = computed(() => props.role === 'student');
+const pageTitle = computed(() =>
+    isStudent.value ? 'My Title Proposals' : 'Research Papers',
+);
+const pageSubtitle = computed(() =>
+    isStudent.value
+        ? 'Track and manage your submitted title proposals.'
+        : 'Browse and manage research submissions.',
+);
+const createLabel = computed(() =>
+    isStudent.value ? 'New Title Proposal' : 'New Paper',
+);
+const emptyStateTitle = computed(() =>
+    isStudent.value ? 'No proposals yet' : 'No papers found',
+);
+const emptyStateBody = computed(() =>
+    isStudent.value
+        ? 'Start by submitting your first title proposal.'
+        : 'Submit your first research paper.',
+);
+const emptyStateActionLabel = computed(() =>
+    isStudent.value ? 'Create Title Proposal' : 'Submit First Paper',
+);
+
+const filteredPapers = computed(() => {
+    return props.papers.filter((paper) => {
+        const matchesSearch =
+            search.value === '' ||
+            paper.title.toLowerCase().includes(search.value.toLowerCase()) ||
+            paper.abstract?.toLowerCase().includes(search.value.toLowerCase());
+
+        const matchesStatus =
+            selectedStatus.value === '' ||
+            paper.status === selectedStatus.value;
+
+        const matchesCategory =
+            selectedCategory.value === '' ||
+            paper.category?.id === selectedCategory.value;
+
+        return matchesSearch && matchesStatus && matchesCategory;
+    });
+});
+
+const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+</script>
+
 <template>
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
         <!-- Page Header -->
@@ -84,6 +199,36 @@
                         >
                             {{ paper.abstract }}
                         </p>
+                        <!-- SDGs & Agendas -->
+                        <div
+                            v-if="paper.sdg_ids?.length || paper.agenda_ids?.length"
+                            class="flex flex-wrap gap-1"
+                        >
+                            <span
+                                v-for="id in (paper.sdg_ids ?? []).slice(0, 2)"
+                                :key="'sdg-' + id"
+                                class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
+                            >
+                                {{ sdgMap.get(id)?.code ?? ('SDG ' + id) }}
+                            </span>
+                            <span
+                                v-for="id in (paper.agenda_ids ?? []).slice(0, 2)"
+                                :key="'agenda-' + id"
+                                class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
+                            >
+                                {{ agendaMap.get(id)?.code ?? ('Agenda ' + id) }}
+                            </span>
+                            <span
+                                v-if="(paper.sdg_ids?.length ?? 0) + (paper.agenda_ids?.length ?? 0) > 4"
+                                class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                            >
+                                +{{
+                                    (paper.sdg_ids?.length ?? 0) +
+                                    (paper.agenda_ids?.length ?? 0) -
+                                    4
+                                }}
+                            </span>
+                        </div>
                         <div
                             class="flex items-center justify-between border-t border-white/30 pt-3 dark:border-white/10"
                         >
@@ -130,99 +275,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { FileText, Plus, Search } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
-import NeuCard from '@/components/NeuCard.vue';
-import StatusBadge from '@/components/StatusBadge.vue';
-import { Button } from '@/components/ui/button';
-import { create, index, show } from '@/routes/papers';
-
-interface Paper {
-    id: number;
-    title: string;
-    abstract: string;
-    status: string;
-    tracking_id: string;
-    created_at: string;
-    authors_count?: number;
-    category?: { id: number; name: string };
-}
-
-interface Category {
-    id: number;
-    name: string;
-}
-
-interface Props {
-    papers: Paper[];
-    categories: Category[];
-    role: string;
-}
-
-const props = defineProps<Props>();
-
-defineOptions({
-    layout: {
-        breadcrumbs: [{ title: 'Research Papers', href: index() }],
-    },
-});
-
-const search = ref('');
-const selectedStatus = ref('');
-const selectedCategory = ref<number | ''>('');
-const isStudent = computed(() => props.role === 'student');
-const pageTitle = computed(() =>
-    isStudent.value ? 'My Title Proposals' : 'Research Papers',
-);
-const pageSubtitle = computed(() =>
-    isStudent.value
-        ? 'Track and manage your submitted title proposals.'
-        : 'Browse and manage research submissions.',
-);
-const createLabel = computed(() =>
-    isStudent.value ? 'New Title Proposal' : 'New Paper',
-);
-const emptyStateTitle = computed(() =>
-    isStudent.value ? 'No proposals yet' : 'No papers found',
-);
-const emptyStateBody = computed(() =>
-    isStudent.value
-        ? 'Start by submitting your first title proposal.'
-        : 'Submit your first research paper.',
-);
-const emptyStateActionLabel = computed(() =>
-    isStudent.value ? 'Create Title Proposal' : 'Submit First Paper',
-);
-
-const filteredPapers = computed(() => {
-    return props.papers.filter((paper) => {
-        const matchesSearch =
-            search.value === '' ||
-            paper.title.toLowerCase().includes(search.value.toLowerCase()) ||
-            paper.abstract
-                ?.toLowerCase()
-                .includes(search.value.toLowerCase());
-
-        const matchesStatus =
-            selectedStatus.value === '' ||
-            paper.status === selectedStatus.value;
-
-        const matchesCategory =
-            selectedCategory.value === '' ||
-            paper.category?.id === selectedCategory.value;
-
-        return matchesSearch && matchesStatus && matchesCategory;
-    });
-});
-
-const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    });
-};
-</script>

@@ -76,6 +76,59 @@ test('authenticated users can view their paper', function () {
         );
 });
 
+test('proponent can view paper', function () {
+    $owner = User::factory()->create();
+    $proponent = User::factory()->create();
+    $category = Category::factory()->create();
+
+    $paper = ResearchPaper::factory()->recycle([$owner, $category])->create([
+        'proponents' => [
+            ['id' => $proponent->id, 'name' => $proponent->name],
+        ],
+    ]);
+
+    $this->actingAs($proponent)
+        ->get(route('papers.show', $paper))
+        ->assertOk();
+});
+
+test('non-proponent non-owner cannot view paper', function () {
+    $owner = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $category = Category::factory()->create();
+
+    $paper = ResearchPaper::factory()->recycle([$owner, $category])->create([
+        'proponents' => [
+            ['id' => $owner->id, 'name' => $owner->name],
+        ],
+    ]);
+
+    $this->actingAs($otherUser)
+        ->get(route('papers.show', $paper))
+        ->assertForbidden();
+});
+
+test('proponent sees paper in index', function () {
+    $owner = User::factory()->create();
+    $proponent = User::factory()->create();
+    $category = Category::factory()->create();
+
+    $paper = ResearchPaper::factory()->recycle([$owner, $category])->create([
+        'proponents' => [
+            ['id' => $proponent->id, 'name' => $proponent->name],
+        ],
+    ]);
+
+    $this->actingAs($proponent)
+        ->get(route('papers.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Research/Index')
+            ->has('papers', 1)
+            ->where('papers.0.id', $paper->id)
+        );
+});
+
 test('paper owner can update their paper', function () {
     $user = User::factory()->create();
     $category = Category::factory()->create();

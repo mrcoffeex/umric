@@ -1,21 +1,5 @@
-<template>
-    <div
-        class="status-badge"
-        :class="{
-            'status-pulse': props.status === 'under_review',
-            'status-badge-dark': isDark,
-        }"
-        :style="{ color: badgeColor }"
-    >
-        <span class="flex items-center gap-2">
-            <span class="dot" :style="{ backgroundColor: badgeColor }"></span>
-            {{ label }}
-        </span>
-    </div>
-</template>
-
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed } from 'vue';
 
 interface Props {
     status: string;
@@ -23,89 +7,79 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const isDark = ref(false);
+interface StatusConfig {
+    label: string;
+    classes: string;
+    dotClasses: string;
+    pulse: boolean;
+}
 
-let observer: MutationObserver | null = null;
-
-onMounted(() => {
-    isDark.value = document.documentElement.classList.contains('dark');
-    observer = new MutationObserver(() => {
-        isDark.value = document.documentElement.classList.contains('dark');
-    });
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class'],
-    });
-});
-
-onUnmounted(() => {
-    observer?.disconnect();
-});
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-    submitted: { label: 'Submitted', color: '#f97316' },
-    under_review: { label: 'Under Review', color: '#f59e0b' },
-    approved: { label: 'Approved', color: '#14b8a6' },
-    presented: { label: 'Presented', color: '#0891b2' },
-    published: { label: 'Published', color: '#059669' },
-    archived: { label: 'Archived', color: '#6b7280' },
+const statusConfig: Record<string, StatusConfig> = {
+    submitted: {
+        label: 'Submitted',
+        classes:
+            'bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400',
+        dotClasses: 'bg-orange-500 dark:bg-orange-400',
+        pulse: false,
+    },
+    under_review: {
+        label: 'Under Review',
+        classes:
+            'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
+        dotClasses: 'bg-amber-500 dark:bg-amber-400',
+        pulse: true,
+    },
+    approved: {
+        label: 'Approved',
+        classes:
+            'bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400',
+        dotClasses: 'bg-teal-500 dark:bg-teal-400',
+        pulse: false,
+    },
+    presented: {
+        label: 'Presented',
+        classes:
+            'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400',
+        dotClasses: 'bg-cyan-500 dark:bg-cyan-400',
+        pulse: false,
+    },
+    published: {
+        label: 'Published',
+        classes:
+            'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400',
+        dotClasses: 'bg-emerald-500 dark:bg-emerald-400',
+        pulse: false,
+    },
+    archived: {
+        label: 'Archived',
+        classes:
+            'bg-slate-100 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400',
+        dotClasses: 'bg-slate-400 dark:bg-slate-500',
+        pulse: false,
+    },
 };
 
 const config = computed(
-    () =>
-        statusConfig[props.status] ?? { label: props.status, color: '#6b7280' },
+    (): StatusConfig =>
+        statusConfig[props.status] ?? {
+            label: props.status,
+            classes:
+                'bg-slate-100 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400',
+            dotClasses: 'bg-slate-400',
+            pulse: false,
+        },
 );
-const badgeColor = computed(() => config.value.color);
-const label = computed(() => config.value.label);
 </script>
 
-<style scoped>
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    box-shadow:
-        3px 3px 8px rgba(0, 0, 0, 0.1),
-        -3px -3px 8px rgba(255, 255, 255, 0.7);
-}
-
-.dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-.status-pulse .dot {
-    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes pulse {
-    0%,
-    100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-:is(.dark *) .status-badge,
-:is(.dark) .status-badge {
-    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-    box-shadow:
-        3px 3px 8px rgba(0, 0, 0, 0.3),
-        -3px -3px 8px rgba(255, 255, 255, 0.1);
-}
-
-.status-badge-dark {
-    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-    box-shadow:
-        3px 3px 8px rgba(0, 0, 0, 0.3),
-        -3px -3px 8px rgba(255, 255, 255, 0.1);
-}
-</style>
+<template>
+    <span
+        class="inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+        :class="config.classes"
+    >
+        <span
+            class="size-1.5 rounded-full"
+            :class="[config.dotClasses, { 'animate-pulse': config.pulse }]"
+        />
+        {{ config.label }}
+    </span>
+</template>

@@ -1,3 +1,94 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import NeuCard from '@/components/NeuCard.vue';
+import StatusBadge from '@/components/StatusBadge.vue';
+import TrackingTimeline from '@/components/TrackingTimeline.vue';
+
+interface Author {
+    id: number;
+    name: string;
+    pivot?: { author_order?: number };
+}
+
+interface Category {
+    id: number;
+    name: string;
+}
+
+interface File {
+    id: number;
+    file_name: string;
+    file_size: number;
+    file_path: string;
+}
+
+interface Publication {
+    id: number;
+    journal_name: string;
+    doi?: string;
+    publisher?: string;
+    volume?: number;
+    issue?: number;
+}
+
+interface Citation {
+    id: number;
+    citation_text: string;
+    format?: string;
+}
+
+interface TrackingRecord {
+    id: number;
+    status: string;
+    created_at: string;
+    notes?: string;
+}
+
+interface Paper {
+    id: number;
+    title: string;
+    abstract: string;
+    status: string;
+    tracking_id: string;
+    created_at: string;
+    progress?: number;
+    keywords?: string;
+    category?: Category;
+    authors?: Author[];
+    files?: File[];
+    publication?: Publication[];
+    citations?: Citation[];
+    tracking_records?: TrackingRecord[];
+}
+
+interface Props {
+    paper: Paper;
+}
+
+defineProps<Props>();
+const isDark = ref(false);
+
+const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    });
+};
+
+const formatFileSize = (bytes: number) => {
+    if (bytes === 0) {
+        return '0 Bytes';
+    }
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+};
+</script>
+
 <template>
     <div
         :class="{
@@ -298,94 +389,3 @@
         </div>
     </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import NeuCard from '@/components/NeuCard.vue';
-import StatusBadge from '@/components/StatusBadge.vue';
-import TrackingTimeline from '@/components/TrackingTimeline.vue';
-
-interface Author {
-    id: number;
-    name: string;
-    pivot?: { author_order?: number };
-}
-
-interface Category {
-    id: number;
-    name: string;
-}
-
-interface File {
-    id: number;
-    file_name: string;
-    file_size: number;
-    file_path: string;
-}
-
-interface Publication {
-    id: number;
-    journal_name: string;
-    doi?: string;
-    publisher?: string;
-    volume?: number;
-    issue?: number;
-}
-
-interface Citation {
-    id: number;
-    citation_text: string;
-    format?: string;
-}
-
-interface TrackingRecord {
-    id: number;
-    status: string;
-    created_at: string;
-    notes?: string;
-}
-
-interface Paper {
-    id: number;
-    title: string;
-    abstract: string;
-    status: string;
-    tracking_id: string;
-    created_at: string;
-    progress?: number;
-    keywords?: string;
-    category?: Category;
-    authors?: Author[];
-    files?: File[];
-    publication?: Publication[];
-    citations?: Citation[];
-    tracking_records?: TrackingRecord[];
-}
-
-interface Props {
-    paper: Paper;
-}
-
-defineProps<Props>();
-const isDark = ref(false);
-
-const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-    });
-};
-
-const formatFileSize = (bytes: number) => {
-    if (bytes === 0) {
-        return '0 Bytes';
-    }
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-};
-</script>

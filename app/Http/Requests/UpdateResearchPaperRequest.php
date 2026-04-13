@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Auth;
 
 class UpdateResearchPaperRequest extends FormRequest
 {
@@ -13,7 +12,7 @@ class UpdateResearchPaperRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Auth::check() && Auth::id() === $this->route('paper')->user_id;
+        return $this->user()->can('update', $this->route('paper'));
     }
 
     /**
@@ -24,18 +23,19 @@ class UpdateResearchPaperRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['sometimes', 'string', 'max:255'],
-            'abstract' => ['sometimes', 'string', 'max:5000'],
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'abstract' => ['sometimes', 'required', 'string', 'max:5000'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
-            'sdg_id' => ['nullable', 'integer', 'exists:sdgs,id'],
-            'agenda_id' => ['nullable', 'integer', 'exists:agendas,id'],
+            'sdg_ids' => ['sometimes', 'nullable', 'array'],
+            'sdg_ids.*' => ['integer'],
+            'agenda_ids' => ['sometimes', 'nullable', 'array'],
+            'agenda_ids.*' => ['integer'],
             'status' => ['sometimes', 'string', 'in:submitted,under_review,approved,presented,published,archived'],
-            'keywords' => ['sometimes', 'string', 'max:500'],
-            'authors' => ['sometimes', 'array'],
-            'authors.*' => ['string', 'max:255'],
+            'keywords' => ['nullable', 'string', 'max:500'],
             'proponents' => ['nullable', 'array'],
-            'proponents.*' => ['string', 'max:255'],
-            'file' => ['sometimes', 'file', 'mimes:pdf', 'max:50000'],
+            'proponents.*.id' => ['nullable', 'integer'],
+            'proponents.*.name' => ['nullable', 'string', 'max:255'],
+            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:50000'],
         ];
     }
 }
