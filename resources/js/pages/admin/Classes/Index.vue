@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { GraduationCap, Pencil, Plus, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { GraduationCap, Pencil, Plus, Trash2, Search } from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { show as classesShow } from '@/routes/admin/classes';
 import admin from '@/routes/admin';
 
-interface Program {
+interface FacultyUser {
+    id: number;
+    name: string;
+}
+
+interface SubjectItem {
     id: number;
     name: string;
     code: string;
+    program: { id: number; name: string; code: string } | null;
 }
 
 interface SchoolClass {
@@ -21,17 +28,19 @@ interface SchoolClass {
     school_year: string | null;
     semester: number | null;
     term: string | null;
-    year_level: number;
     section: string;
-    program_id: number;
-    program: Program;
+    subjects: SubjectItem[];
+    subject_id: number | null;
+    faculty_id: number | null;
+    faculty: { name: string } | null;
     description: string | null;
     is_active: boolean;
 }
 
 const props = defineProps<{
     classes: SchoolClass[];
-    programs: Program[];
+    facultyUsers: FacultyUser[];
+    subjects: SubjectItem[];
 }>();
 
 defineOptions({
@@ -45,21 +54,72 @@ defineOptions({
 
 const showForm = ref(false);
 const editingClass = ref<SchoolClass | null>(null);
+const classSearch = ref('');
+
+const filteredClasses = computed(() => {
+    const q = classSearch.value.toLowerCase().trim();
+    if (!q) return props.classes;
+    return props.classes.filter(
+        (c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.class_code?.toLowerCase().includes(q) ?? false) ||
+            (c.section?.toLowerCase().includes(q) ?? false) ||
+            c.subjects.some((s) => s.code.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)),
+    );
+});
 
 const form = useForm({
-    program_id: '' as string | number,
+    faculty_id: '' as string | number,
+    subject_id: '' as number | string,
     name: '',
     class_code: '',
     school_year: '',
     semester: '' as string | number,
-    year_level: '' as string | number,
     section: '',
     term: '',
     description: '',
     is_active: true,
 });
 
+const subjectSearch = ref('');
+
+const filteredSubjects = computed(() => {
+    const q = subjectSearch.value.toLowerCase().trim();
+    if (!q) return props.subjects;
+    return props.subjects.filter(
+        (s) =>
+            s.code.toLowerCase().includes(q) ||
+            s.name.toLowerCase().includes(q) ||
+            (s.program?.code.toLowerCase().includes(q) ?? false),
+    );
+});
+
+watch(
+    () => form.subject_id,
+    (id) => {
+        const found = props.subjects.find((s) => s.id === Number(id));
+        if (found) {
+            form.name = found.name;
+            form.class_code = found.code + (form.section ? '-' + form.section : '');
+        } else {
+            form.name = '';
+            form.class_code = '';
+        }
+    },
+);
+
+watch(
+    () => form.section,
+    (section) => {
+        const found = props.subjects.find((s) => s.id === Number(form.subject_id));
+        if (found) {
+            form.class_code = found.code + (section ? '-' + section : '');
+        }
+    },
+);
+
 function openNew() {
+    subjectSearch.value = '';
     editingClass.value = null;
     form.reset();
     form.clearErrors();
@@ -68,13 +128,14 @@ function openNew() {
 }
 
 function openEdit(schoolClass: SchoolClass) {
+    subjectSearch.value = '';
     editingClass.value = schoolClass;
-    form.program_id = schoolClass.program_id;
+    form.faculty_id = schoolClass.faculty_id ?? '';
+    form.subject_id = schoolClass.subject_id ?? '';
     form.name = schoolClass.name;
     form.class_code = schoolClass.class_code ?? '';
     form.school_year = schoolClass.school_year ?? '';
     form.semester = schoolClass.semester ?? '';
-    form.year_level = schoolClass.year_level;
     form.section = schoolClass.section;
     form.term = schoolClass.term ?? '';
     form.description = schoolClass.description ?? '';
@@ -140,6 +201,16 @@ function deleteClass(schoolClass: SchoolClass) {
                     </Button>
                 </div>
 
+                <div class="relative">
+                    <Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                        v-model="classSearch"
+                        type="text"
+                        placeholder="Search classes…"
+                        class="w-full rounded-xl border border-input bg-white py-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/30 dark:bg-sidebar"
+                    />
+                </div>
+
                 <div
                     v-if="classes.length === 0"
                     class="rounded-2xl border border-sidebar-border/70 bg-white p-12 text-center dark:bg-sidebar"
@@ -157,9 +228,14 @@ function deleteClass(schoolClass: SchoolClass) {
                     </p>
                 </div>
 
+                <div v-else-if="filteredClasses.length === 0" class="rounded-2xl border border-sidebar-border/70 bg-white p-8 text-center dark:bg-sidebar">
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300">No classes match your search.</p>
+                    <button @click="classSearch = ''" class="mt-2 text-xs text-orange-500 hover:underline">Clear search</button>
+                </div>
+
                 <div v-else class="space-y-3">
                     <div
-                        v-for="schoolClass in classes"
+                        v-for="schoolClass in filteredClasses"
                         :key="schoolClass.id"
                         class="flex items-center gap-3 rounded-2xl border border-sidebar-border/70 bg-white px-5 py-4 dark:bg-sidebar"
                     >
@@ -170,15 +246,7 @@ function deleteClass(schoolClass: SchoolClass) {
                         </div>
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span
-                                    class="truncate font-bold text-slate-900 dark:text-white"
-                                    >{{ schoolClass.name }}</span
-                                >
-                                <span
-                                    class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
-                                >
-                                    Year {{ schoolClass.year_level }}
-                                </span>
+                                <a :href="classesShow.url({ class: schoolClass.id })" class="truncate font-bold text-slate-900 hover:text-orange-500 dark:text-white">{{ schoolClass.name }}</a>
                                 <span
                                     class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                                 >
@@ -201,10 +269,11 @@ function deleteClass(schoolClass: SchoolClass) {
                                     }}
                                 </span>
                                 <span
-                                    class="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:bg-teal-950/50 dark:text-teal-400"
+                                    v-for="subject in schoolClass.subjects?.slice(0, 3)"
+                                    :key="subject.id"
+                                    class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:bg-violet-950/50 dark:text-violet-400"
+                                    >{{ subject.code }}</span
                                 >
-                                    {{ schoolClass.program.code }}
-                                </span>
                                 <span
                                     v-if="!schoolClass.is_active"
                                     class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-400"
@@ -217,6 +286,13 @@ function deleteClass(schoolClass: SchoolClass) {
                                 {{
                                     schoolClass.description || 'No description'
                                 }}
+                            </p>
+                            <p
+                                v-if="schoolClass.faculty?.name"
+                                class="mt-0.5 truncate text-xs text-muted-foreground"
+                            >
+                                <span class="font-medium">Faculty:</span>
+                                {{ schoolClass.faculty.name }}
                             </p>
                         </div>
                         <div class="flex shrink-0 items-center gap-1">
@@ -258,26 +334,66 @@ function deleteClass(schoolClass: SchoolClass) {
 
                 <form @submit.prevent="submit" class="space-y-4">
                     <div>
-                        <Label for="class-program">Program</Label>
+                        <Label for="class-faculty">Assigned Faculty</Label>
                         <select
-                            id="class-program"
-                            v-model="form.program_id"
-                            required
+                            id="class-faculty"
+                            v-model="form.faculty_id"
                             class="mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                         >
-                            <option value="">Select a program</option>
+                            <option value="">— Unassigned —</option>
                             <option
-                                v-for="program in props.programs"
-                                :key="program.id"
-                                :value="program.id"
+                                v-for="faculty in props.facultyUsers"
+                                :key="faculty.id"
+                                :value="faculty.id"
                             >
-                                {{ program.code }} - {{ program.name }}
+                                {{ faculty.name }}
                             </option>
                         </select>
                         <InputError
                             class="mt-2"
-                            :message="form.errors.program_id"
+                            :message="form.errors.faculty_id"
                         />
+                    </div>
+
+                    <div>
+                        <Label>Subject <span class="text-red-500">*</span></Label>
+                        <div class="mt-1.5 overflow-hidden rounded-md border border-input">
+                            <div class="relative border-b border-input">
+                                <Search class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                <input
+                                    v-model="subjectSearch"
+                                    type="text"
+                                    placeholder="Search subjects…"
+                                    class="w-full bg-transparent py-2 pl-8 pr-3 text-sm outline-none placeholder:text-muted-foreground"
+                                />
+                            </div>
+                            <div class="max-h-40 space-y-0.5 overflow-y-auto p-1.5">
+                                <label
+                                    v-for="subject in filteredSubjects"
+                                    :key="subject.id"
+                                    class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                >
+                                    <input
+                                        v-model="form.subject_id"
+                                        type="radio"
+                                        :value="subject.id"
+                                        class="accent-orange-500"
+                                    />
+                                    <span class="flex-1 text-sm">
+                                        <span class="font-medium">{{ subject.code }}</span>
+                                        <span class="text-muted-foreground"> — {{ subject.name }}</span>
+                                    </span>
+                                    <span
+                                        v-if="subject.program"
+                                        class="rounded-full bg-teal-100 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700 dark:bg-teal-950/50 dark:text-teal-400"
+                                    >{{ subject.program.code }}</span>
+                                </label>
+                                <p v-if="filteredSubjects.length === 0" class="py-2 text-center text-xs text-muted-foreground">
+                                    No subjects found.
+                                </p>
+                            </div>
+                        </div>
+                        <InputError class="mt-2" :message="form.errors.subject_id" />
                     </div>
 
                     <div>
@@ -287,10 +403,27 @@ function deleteClass(schoolClass: SchoolClass) {
                             v-model="form.name"
                             type="text"
                             required
-                            placeholder="e.g. BSIT 3-A"
+                            readonly
+                            placeholder="Auto-filled from subject"
                             class="mt-1.5"
                         />
                         <InputError class="mt-2" :message="form.errors.name" />
+                    </div>
+
+                    <div>
+                        <Label for="class-section">Section</Label>
+                        <Input
+                            id="class-section"
+                            v-model="form.section"
+                            type="text"
+                            maxlength="5"
+                            placeholder="e.g. A"
+                            class="mt-1.5"
+                        />
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.section"
+                        />
                     </div>
 
                     <div>
@@ -354,43 +487,6 @@ function deleteClass(schoolClass: SchoolClass) {
                             <option value="Finals">Finals</option>
                         </select>
                         <InputError class="mt-2" :message="form.errors.term" />
-                    </div>
-
-                    <div>
-                        <Label for="class-year-level">Year Level</Label>
-                        <select
-                            id="class-year-level"
-                            v-model="form.year_level"
-                            required
-                            class="mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                        >
-                            <option value="">Select year level</option>
-                            <option value="1">Year 1</option>
-                            <option value="2">Year 2</option>
-                            <option value="3">Year 3</option>
-                            <option value="4">Year 4</option>
-                            <option value="5">Year 5</option>
-                        </select>
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.year_level"
-                        />
-                    </div>
-
-                    <div>
-                        <Label for="class-section">Section</Label>
-                        <Input
-                            id="class-section"
-                            v-model="form.section"
-                            type="text"
-                            maxlength="5"
-                            placeholder="e.g. A"
-                            class="mt-1.5"
-                        />
-                        <InputError
-                            class="mt-2"
-                            :message="form.errors.section"
-                        />
                     </div>
 
                     <div>

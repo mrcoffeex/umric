@@ -134,7 +134,7 @@ const stats = [
 
                     <!-- CTAs -->
                     <div
-                        class="mb-14 flex flex-col justify-center gap-4 sm:flex-row lg:justify-start"
+                        class="mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start"
                     >
                         <template v-if="!page.props.auth.user">
                             <Link v-if="canRegister" :href="register.url()">

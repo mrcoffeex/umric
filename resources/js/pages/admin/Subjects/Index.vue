@@ -19,6 +19,7 @@ interface Subject {
     name: string;
     code: string;
     program_id: number | null;
+    year_level: number | null;
     program: Program | null;
     description: string | null;
     is_active: boolean;
@@ -45,6 +46,7 @@ const form = useForm({
     name: '',
     code: '',
     program_id: '' as string | number,
+    year_level: '' as string | number,
     description: '',
     is_active: true,
 });
@@ -62,6 +64,7 @@ function openEdit(subject: Subject) {
     form.name = subject.name;
     form.code = subject.code;
     form.program_id = subject.program_id ?? '';
+    form.year_level = subject.year_level ?? '';
     form.description = subject.description ?? '';
     form.is_active = subject.is_active;
     form.clearErrors();
@@ -170,6 +173,11 @@ function deleteSubject(subject: Subject) {
                                     {{ subject.program?.code || '—' }}
                                 </span>
                                 <span
+                                    v-if="subject.year_level"
+                                    class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400"
+                                    >Year {{ subject.year_level }}</span
+                                >
+                                <span
                                     v-if="!subject.is_active"
                                     class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-400"
                                     >Inactive</span
@@ -265,6 +273,26 @@ function deleteSubject(subject: Subject) {
                         <InputError
                             class="mt-2"
                             :message="form.errors.program_id"
+                        />
+                    </div>
+
+                    <div>
+                        <Label for="s-year">Year Level</Label>
+                        <select
+                            id="s-year"
+                            v-model="form.year_level"
+                            class="mt-1.5 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                        >
+                            <option value="">— None —</option>
+                            <option value="1">Year 1</option>
+                            <option value="2">Year 2</option>
+                            <option value="3">Year 3</option>
+                            <option value="4">Year 4</option>
+                            <option value="5">Year 5</option>
+                        </select>
+                        <InputError
+                            class="mt-2"
+                            :message="form.errors.year_level"
                         />
                     </div>
 

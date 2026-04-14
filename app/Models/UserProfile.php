@@ -26,9 +26,21 @@ class UserProfile extends Model
         'degree',
         'graduation_year',
         'bio',
+        'presentations',
+        'achievements',
         'profile_photo',
         'avatar_disk',
+        'approved_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'presentations' => 'array',
+            'achievements' => 'array',
+            'approved_at' => 'datetime',
+        ];
+    }
 
     public function user(): BelongsTo
     {

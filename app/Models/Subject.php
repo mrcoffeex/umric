@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['program_id', 'name', 'code', 'description', 'is_active'])]
+#[Fillable(['program_id', 'name', 'code', 'description', 'year_level', 'is_active'])]
 class Subject extends Model
 {
     /** @use HasFactory<SubjectFactory> */
@@ -17,6 +17,7 @@ class Subject extends Model
     protected function casts(): array
     {
         return [
+            'year_level' => 'integer',
             'is_active' => 'boolean',
         ];
     }

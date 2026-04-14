@@ -1,8 +1,7 @@
 <?php
 
-use App\Models\Department;
-use App\Models\Program;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use App\Models\User;
 use App\Models\UserProfile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -17,24 +16,6 @@ function makeClassAdminUser(): User
     UserProfile::factory()->admin()->create(['user_id' => $user->id]);
 
     return $user;
-}
-
-function makeClassProgram(): Program
-{
-    $department = Department::create([
-        'name' => 'College of Computing',
-        'code' => 'CC-'.fake()->unique()->numerify('###'),
-        'description' => 'Department for computing programs',
-        'is_active' => true,
-    ]);
-
-    return Program::create([
-        'department_id' => $department->id,
-        'name' => 'BS Computer Science '.fake()->unique()->numerify('###'),
-        'code' => 'BSCS-'.fake()->unique()->numerify('###'),
-        'description' => 'Program for CS students',
-        'is_active' => true,
-    ]);
 }
 
 it('redirects guests from classes index', function () {
@@ -59,21 +40,21 @@ it('allows admin to view classes index', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/Classes/Index')
             ->has('classes')
-            ->has('programs')
+            ->has('facultyUsers')
+            ->has('subjects')
         );
 });
 
 it('allows admin to create a class', function () {
     $admin = makeClassAdminUser();
-    $program = makeClassProgram();
+    $subject = Subject::factory()->create();
 
     $this->actingAs($admin)
         ->post(route('admin.classes.store'), [
-            'program_id' => $program->id,
+            'subject_id' => $subject->id,
             'name' => 'Class 1-A',
             'school_year' => '2025-2026',
             'semester' => 1,
-            'year_level' => 1,
             'section' => 'A',
             'description' => 'First year class',
             'is_active' => true,
@@ -81,10 +62,15 @@ it('allows admin to create a class', function () {
         ->assertRedirect();
 
     $this->assertDatabaseHas('school_classes', [
-        'program_id' => $program->id,
         'name' => 'Class 1-A',
-        'year_level' => 1,
         'section' => 'A',
+    ]);
+
+    $createdClass = SchoolClass::query()->where('name', 'Class 1-A')->firstOrFail();
+
+    $this->assertDatabaseHas('school_class_subjects', [
+        'school_class_id' => $createdClass->id,
+        'subject_id' => $subject->id,
     ]);
 });
 
@@ -93,30 +79,29 @@ it('validates required fields for class creation', function () {
 
     $this->actingAs($admin)
         ->post(route('admin.classes.store'), [])
-        ->assertSessionHasErrors(['program_id', 'name', 'year_level', 'section']);
+        ->assertSessionHasErrors(['subject_id', 'name', 'section']);
 });
 
-it('validates program_id exists for class creation', function () {
+it('validates faculty_id exists for class creation', function () {
     $admin = makeClassAdminUser();
+    $subject = Subject::factory()->create();
 
     $this->actingAs($admin)
         ->post(route('admin.classes.store'), [
-            'program_id' => 99999,
+            'faculty_id' => 99999,
+            'subject_id' => $subject->id,
             'name' => 'Invalid Program Class',
-            'year_level' => 2,
             'section' => 'B',
         ])
-        ->assertSessionHasErrors(['program_id']);
+        ->assertSessionHasErrors(['faculty_id']);
 });
 
 it('allows admin to update a class', function () {
     $admin = makeClassAdminUser();
-    $program = makeClassProgram();
+    $subject = Subject::factory()->create();
 
     $class = SchoolClass::create([
-        'program_id' => $program->id,
         'name' => 'Old Class Name',
-        'year_level' => 2,
         'section' => 'B',
         'description' => 'Old class description',
         'is_active' => true,
@@ -124,9 +109,8 @@ it('allows admin to update a class', function () {
 
     $this->actingAs($admin)
         ->patch(route('admin.classes.update', $class), [
-            'program_id' => $program->id,
+            'subject_id' => $subject->id,
             'name' => 'New Class Name',
-            'year_level' => 2,
             'section' => 'B',
             'description' => 'Updated class description',
             'is_active' => true,
@@ -137,16 +121,18 @@ it('allows admin to update a class', function () {
         'id' => $class->id,
         'name' => 'New Class Name',
     ]);
+
+    $this->assertDatabaseHas('school_class_subjects', [
+        'school_class_id' => $class->id,
+        'subject_id' => $subject->id,
+    ]);
 });
 
 it('allows admin to delete a class', function () {
     $admin = makeClassAdminUser();
-    $program = makeClassProgram();
 
     $class = SchoolClass::create([
-        'program_id' => $program->id,
         'name' => 'Class To Delete',
-        'year_level' => 3,
         'section' => 'C',
         'description' => 'Delete this class',
         'is_active' => true,

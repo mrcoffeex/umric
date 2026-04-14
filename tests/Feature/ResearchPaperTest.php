@@ -3,6 +3,7 @@
 use App\Models\Category;
 use App\Models\ResearchPaper;
 use App\Models\User;
+use App\Models\UserProfile;
 
 test('guests cannot access papers index', function () {
     $this->get(route('papers.index'))
@@ -196,6 +197,7 @@ test('public tracking returns 404 for invalid tracking id', function () {
 
 test('dashboard shows authenticated user stats', function () {
     $user = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $user->id]);
     $category = Category::factory()->create();
     ResearchPaper::factory(3)->recycle([$user, $category])->create(['status' => 'published']);
     ResearchPaper::factory(2)->recycle([$user, $category])->create(['status' => 'under_review']);

@@ -37,11 +37,13 @@ const filteredOptions = computed(() =>
 function toggle(value: number) {
     const current = [...props.modelValue];
     const idx = current.indexOf(value);
+
     if (idx === -1) {
         current.push(value);
     } else {
         current.splice(idx, 1);
     }
+
     emit('update:modelValue', current);
 }
 </script>
@@ -76,7 +78,9 @@ function toggle(value: number) {
                 v-if="filteredOptions.length === 0"
                 class="px-3 py-2 text-sm text-muted-foreground"
             >
-                {{ query.trim() ? 'No results found.' : 'No options available.' }}
+                {{
+                    query.trim() ? 'No results found.' : 'No options available.'
+                }}
             </p>
         </div>
     </div>

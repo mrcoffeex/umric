@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Program;
 use App\Models\SchoolClass;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,14 +17,11 @@ class SchoolClassFactory extends Factory
      */
     public function definition(): array
     {
-        $yearLevel = fake()->numberBetween(1, 4);
         $section = fake()->randomElement(['A', 'B', 'C', 'D']);
 
         return [
-            'program_id' => Program::factory(),
-            'year_level' => $yearLevel,
             'section' => $section,
-            'name' => "Class {$yearLevel}-{$section}",
+            'name' => "Class {$section}",
             'description' => fake()->optional()->sentence(),
             'is_active' => true,
         ];

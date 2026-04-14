@@ -28,8 +28,17 @@ class SecurityController extends Controller implements HasMiddleware
     /**
      * Show the user's security settings page.
      */
-    public function edit(TwoFactorAuthenticationRequest $request): Response
+    public function edit(TwoFactorAuthenticationRequest $request): Response|RedirectResponse
     {
+        if ($request->user()->google_id !== null) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Security settings are not available for social login accounts.',
+            ]);
+
+            return redirect()->route('profile.edit');
+        }
+
         $props = [
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
         ];
@@ -49,6 +58,15 @@ class SecurityController extends Controller implements HasMiddleware
      */
     public function update(PasswordUpdateRequest $request): RedirectResponse
     {
+        if ($request->user()->google_id !== null) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Password management is not available for social login accounts.',
+            ]);
+
+            return back();
+        }
+
         $request->user()->update([
             'password' => $request->password,
         ]);

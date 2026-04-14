@@ -73,7 +73,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-const sdgMap = computed(() => Object.fromEntries(props.sdgs.map((s) => [s.id, s])));
+const sdgMap = computed(() =>
+    Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
+);
 const agendaMap = computed(() =>
     Object.fromEntries(props.agendas.map((a) => [a.id, a])),
 );
@@ -131,18 +133,24 @@ const copyToClipboard = async (text: string) => {
 
 <template>
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
-
         <!-- ── Hero Header ─────────────────────────────────────── -->
         <div class="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div
+                class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
+            >
                 <div class="min-w-0 flex-1">
                     <div class="mb-2 flex flex-wrap items-center gap-2">
                         <StatusBadge :status="paper.status" />
-                        <span v-if="paper.category" class="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                        <span
+                            v-if="paper.category"
+                            class="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
+                        >
                             {{ paper.category.name }}
                         </span>
                     </div>
-                    <h1 class="text-xl font-bold leading-snug text-foreground md:text-2xl">
+                    <h1
+                        class="text-xl leading-snug font-bold text-foreground md:text-2xl"
+                    >
                         {{ paper.title }}
                     </h1>
                     <p class="mt-1 text-sm text-muted-foreground">
@@ -151,7 +159,11 @@ const copyToClipboard = async (text: string) => {
                 </div>
                 <div class="flex shrink-0 items-center gap-2">
                     <Link :href="edit(paper.id)">
-                        <Button size="sm" class="bg-orange-500 text-white hover:bg-orange-600">Edit</Button>
+                        <Button
+                            size="sm"
+                            class="bg-orange-500 text-white hover:bg-orange-600"
+                            >Edit</Button
+                        >
                     </Link>
                     <Link :href="index()">
                         <Button size="sm" variant="outline">Back</Button>
@@ -162,13 +174,15 @@ const copyToClipboard = async (text: string) => {
 
         <!-- ── Body Grid ───────────────────────────────────────── -->
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-
             <!-- Left: Main Content (2/3) -->
             <div class="space-y-6 lg:col-span-2">
-
                 <!-- Abstract + Keywords merged -->
-                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <h2 class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                <section
+                    class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                >
+                    <h2
+                        class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         Abstract
                     </h2>
                     <p class="text-sm leading-relaxed text-muted-foreground">
@@ -177,7 +191,11 @@ const copyToClipboard = async (text: string) => {
 
                     <template v-if="paper.keywords">
                         <div class="my-4 border-t border-border" />
-                        <p class="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Keywords</p>
+                        <p
+                            class="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
+                            Keywords
+                        </p>
                         <div class="flex flex-wrap gap-1.5">
                             <span
                                 v-for="keyword in paper.keywords.split(',')"
@@ -191,8 +209,12 @@ const copyToClipboard = async (text: string) => {
                 </section>
 
                 <!-- Tracking Timeline -->
-                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <h2 class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                <section
+                    class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                >
+                    <h2
+                        class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         Submission Progress
                     </h2>
                     <TrackingTimeline
@@ -206,7 +228,9 @@ const copyToClipboard = async (text: string) => {
                     v-if="paper.files && paper.files.length > 0"
                     class="rounded-xl border border-border bg-card p-6 shadow-sm"
                 >
-                    <h2 class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                    <h2
+                        class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         Documents
                     </h2>
                     <div class="space-y-2">
@@ -215,12 +239,28 @@ const copyToClipboard = async (text: string) => {
                             :key="file.id"
                             class="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 transition hover:bg-muted"
                         >
-                            <svg class="h-8 w-8 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                            <svg
+                                class="h-8 w-8 shrink-0 text-red-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                />
                             </svg>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium text-foreground">{{ file.file_name }}</p>
-                                <p class="text-xs text-muted-foreground">{{ formatFileSize(file.file_size) }}</p>
+                                <p
+                                    class="truncate text-sm font-medium text-foreground"
+                                >
+                                    {{ file.file_name }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ formatFileSize(file.file_size) }}
+                                </p>
                             </div>
                             <a
                                 :href="`/storage/${file.file_path}`"
@@ -235,12 +275,19 @@ const copyToClipboard = async (text: string) => {
 
                 <!-- Publications + Citations merged -->
                 <section
-                    v-if="(paper.publication && paper.publication.length > 0) || (paper.citations && paper.citations.length > 0)"
+                    v-if="
+                        (paper.publication && paper.publication.length > 0) ||
+                        (paper.citations && paper.citations.length > 0)
+                    "
                     class="rounded-xl border border-border bg-card p-6 shadow-sm"
                 >
                     <!-- Publications -->
-                    <template v-if="paper.publication && paper.publication.length > 0">
-                        <h2 class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                    <template
+                        v-if="paper.publication && paper.publication.length > 0"
+                    >
+                        <h2
+                            class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             Publications
                         </h2>
                         <div class="space-y-3">
@@ -249,20 +296,43 @@ const copyToClipboard = async (text: string) => {
                                 :key="pub.id"
                                 class="rounded-lg border border-border bg-muted/50 p-4"
                             >
-                                <h3 class="mb-1 text-sm font-semibold text-foreground">{{ pub.journal_name }}</h3>
-                                <div class="space-y-0.5 text-xs text-muted-foreground">
-                                    <p v-if="pub.doi">DOI: <code class="font-mono">{{ pub.doi }}</code></p>
-                                    <p v-if="pub.publisher">Publisher: {{ pub.publisher }}</p>
-                                    <p v-if="pub.volume || pub.issue">Vol. {{ pub.volume }}, Issue {{ pub.issue }}</p>
+                                <h3
+                                    class="mb-1 text-sm font-semibold text-foreground"
+                                >
+                                    {{ pub.journal_name }}
+                                </h3>
+                                <div
+                                    class="space-y-0.5 text-xs text-muted-foreground"
+                                >
+                                    <p v-if="pub.doi">
+                                        DOI:
+                                        <code class="font-mono">{{
+                                            pub.doi
+                                        }}</code>
+                                    </p>
+                                    <p v-if="pub.publisher">
+                                        Publisher: {{ pub.publisher }}
+                                    </p>
+                                    <p v-if="pub.volume || pub.issue">
+                                        Vol. {{ pub.volume }}, Issue
+                                        {{ pub.issue }}
+                                    </p>
                                 </div>
                             </div>
                         </div>
-                        <div v-if="paper.citations && paper.citations.length > 0" class="my-4 border-t border-border" />
+                        <div
+                            v-if="paper.citations && paper.citations.length > 0"
+                            class="my-4 border-t border-border"
+                        />
                     </template>
 
                     <!-- Citations -->
-                    <template v-if="paper.citations && paper.citations.length > 0">
-                        <h2 class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                    <template
+                        v-if="paper.citations && paper.citations.length > 0"
+                    >
+                        <h2
+                            class="mb-3 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             Citations
                         </h2>
                         <div class="space-y-3">
@@ -271,8 +341,15 @@ const copyToClipboard = async (text: string) => {
                                 :key="citation.id"
                                 class="rounded-lg border border-border bg-muted/50 p-4"
                             >
-                                <p class="font-mono text-xs text-foreground">{{ citation.citation_text }}</p>
-                                <p v-if="citation.format" class="mt-1 text-xs text-muted-foreground">{{ citation.format }}</p>
+                                <p class="font-mono text-xs text-foreground">
+                                    {{ citation.citation_text }}
+                                </p>
+                                <p
+                                    v-if="citation.format"
+                                    class="mt-1 text-xs text-muted-foreground"
+                                >
+                                    {{ citation.format }}
+                                </p>
                             </div>
                         </div>
                     </template>
@@ -281,29 +358,53 @@ const copyToClipboard = async (text: string) => {
 
             <!-- Right: Sidebar (1/3) -->
             <div class="space-y-5">
-
                 <!-- Overview card: proponents + authors + SDGs + agendas -->
-                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <h3 class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                <section
+                    class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                >
+                    <h3
+                        class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         Overview
                     </h3>
                     <div class="space-y-4 text-sm">
-
                         <!-- Proponents -->
                         <div v-if="paper.proponents?.length">
-                            <p class="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Proponents</p>
+                            <p
+                                class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Proponents
+                            </p>
                             <div class="space-y-1.5">
                                 <div
                                     v-for="(proponent, idx) in paper.proponents"
                                     :key="proponent.id"
                                     class="flex items-center gap-2"
                                 >
-                                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
-                                        {{ proponent.name.charAt(0).toUpperCase() }}
+                                    <div
+                                        class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
+                                    >
+                                        {{
+                                            proponent.name
+                                                .charAt(0)
+                                                .toUpperCase()
+                                        }}
                                     </div>
                                     <div class="min-w-0">
-                                        <p class="truncate text-sm font-medium text-foreground">{{ proponent.name }}</p>
-                                        <p class="text-xs text-muted-foreground">{{ idx === 0 ? 'Lead Proponent' : 'Proponent' }}</p>
+                                        <p
+                                            class="truncate text-sm font-medium text-foreground"
+                                        >
+                                            {{ proponent.name }}
+                                        </p>
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {{
+                                                idx === 0
+                                                    ? 'Lead Proponent'
+                                                    : 'Proponent'
+                                            }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -312,15 +413,26 @@ const copyToClipboard = async (text: string) => {
                         <!-- Authors -->
                         <div v-if="paper.authors && paper.authors.length > 0">
                             <div class="mb-1.5 border-t border-border pt-3" />
-                            <p class="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Authors</p>
+                            <p
+                                class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Authors
+                            </p>
                             <div class="space-y-1">
                                 <div
                                     v-for="(author, index) in paper.authors"
                                     :key="author.id"
                                     class="flex items-center justify-between"
                                 >
-                                    <span class="text-sm text-foreground">{{ author.name }}</span>
-                                    <span class="text-xs text-muted-foreground">#{{ author.pivot?.author_order || index + 1 }}</span>
+                                    <span class="text-sm text-foreground">{{
+                                        author.name
+                                    }}</span>
+                                    <span class="text-xs text-muted-foreground"
+                                        >#{{
+                                            author.pivot?.author_order ||
+                                            index + 1
+                                        }}</span
+                                    >
                                 </div>
                             </div>
                         </div>
@@ -328,14 +440,24 @@ const copyToClipboard = async (text: string) => {
                         <!-- SDGs -->
                         <div v-if="paper.sdg_ids?.length">
                             <div class="mb-1.5 border-t border-border pt-3" />
-                            <p class="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">SDGs</p>
+                            <p
+                                class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                SDGs
+                            </p>
                             <div class="flex flex-wrap gap-1">
                                 <span
                                     v-for="id in paper.sdg_ids"
                                     :key="id"
                                     class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
                                 >
-                                    {{ sdgMap[id] ? (sdgMap[id].number ? `SDG ${sdgMap[id].number}` : sdgMap[id].name) : `SDG ${id}` }}
+                                    {{
+                                        sdgMap[id]
+                                            ? sdgMap[id].number
+                                                ? `SDG ${sdgMap[id].number}`
+                                                : sdgMap[id].name
+                                            : `SDG ${id}`
+                                    }}
                                 </span>
                             </div>
                         </div>
@@ -343,7 +465,11 @@ const copyToClipboard = async (text: string) => {
                         <!-- Agendas -->
                         <div v-if="paper.agenda_ids?.length">
                             <div class="mb-1.5 border-t border-border pt-3" />
-                            <p class="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Agendas</p>
+                            <p
+                                class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Agendas
+                            </p>
                             <div class="flex flex-wrap gap-1">
                                 <span
                                     v-for="id in paper.agenda_ids"
@@ -354,20 +480,29 @@ const copyToClipboard = async (text: string) => {
                                 </span>
                             </div>
                         </div>
-
                     </div>
                 </section>
 
                 <!-- Share & Track card: tracking ID + public link -->
-                <section class="rounded-xl border border-border bg-card p-6 shadow-sm">
-                    <h3 class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                <section
+                    class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                >
+                    <h3
+                        class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         Share & Track
                     </h3>
 
                     <!-- Tracking ID -->
-                    <p class="mb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tracking ID</p>
+                    <p
+                        class="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
+                        Tracking ID
+                    </p>
                     <div class="flex items-center gap-2">
-                        <code class="flex-1 rounded-lg bg-muted px-3 py-2 font-mono text-sm font-bold text-orange-600 dark:text-orange-400 truncate">
+                        <code
+                            class="flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-sm font-bold text-orange-600 dark:text-orange-400"
+                        >
                             {{ paper.tracking_id }}
                         </code>
                         <button
@@ -381,10 +516,18 @@ const copyToClipboard = async (text: string) => {
                     <div class="my-4 border-t border-border" />
 
                     <!-- Public tracking link -->
-                    <p class="mb-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Public Link</p>
-                    <p class="mb-2 text-xs text-muted-foreground">Share without authentication.</p>
+                    <p
+                        class="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
+                        Public Link
+                    </p>
+                    <p class="mb-2 text-xs text-muted-foreground">
+                        Share without authentication.
+                    </p>
                     <div class="flex items-center gap-2">
-                        <code class="min-w-0 flex-1 overflow-hidden rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground truncate">
+                        <code
+                            class="min-w-0 flex-1 truncate overflow-hidden rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
+                        >
                             {{ publicTrackingUrl }}
                         </code>
                         <button
@@ -395,7 +538,6 @@ const copyToClipboard = async (text: string) => {
                         </button>
                     </div>
                 </section>
-
             </div>
         </div>
     </div>

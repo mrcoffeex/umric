@@ -35,9 +35,7 @@ const options = [
         </div>
 
         <!-- Theme toggle — segmented pill -->
-        <div
-            class="flex items-center gap-0.5 rounded-xl bg-muted p-1"
-        >
+        <div class="flex items-center gap-0.5 rounded-xl bg-muted p-1">
             <button
                 v-for="opt in options"
                 :key="opt.value"

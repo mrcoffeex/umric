@@ -9,13 +9,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class ResearchPaper extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'user_id',
+        'school_class_id',
+        'adviser_id',
+        'statistician_id',
         'category_id',
         'sdg_ids',
         'agenda_ids',
@@ -24,6 +29,19 @@ class ResearchPaper extends Model
         'proponents',
         'tracking_id',
         'status',
+        'current_step',
+        'step_ric_review',
+        'step_plagiarism',
+        'plagiarism_attempts',
+        'plagiarism_score',
+        'step_outline_defense',
+        'outline_defense_schedule',
+        'step_rating',
+        'grade',
+        'step_final_manuscript',
+        'step_final_defense',
+        'final_defense_schedule',
+        'step_hard_bound',
         'submission_date',
         'publication_date',
         'keywords',
@@ -33,11 +51,43 @@ class ResearchPaper extends Model
     protected $casts = [
         'submission_date' => 'date',
         'publication_date' => 'date',
+        'outline_defense_schedule' => 'datetime',
+        'final_defense_schedule' => 'datetime',
         'proponents' => 'array',
         'sdg_ids' => 'array',
         'agenda_ids' => 'array',
         'views' => 'integer',
+        'plagiarism_attempts' => 'integer',
+        'grade' => 'decimal:2',
+        'plagiarism_score' => 'decimal:2',
     ];
+
+    // Workflow constants
+    public const STEPS = [
+        'title_proposal',
+        'ric_review',
+        'plagiarism_check',
+        'outline_defense',
+        'rating',
+        'final_manuscript',
+        'final_defense',
+        'hard_bound',
+        'completed',
+    ];
+
+    public const STEP_LABELS = [
+        'title_proposal' => 'Title Proposal',
+        'ric_review' => 'RIC/Admin Review',
+        'plagiarism_check' => 'Plagiarism Check',
+        'outline_defense' => 'Outline Defense',
+        'rating' => 'Rating',
+        'final_manuscript' => 'Final Manuscript',
+        'final_defense' => 'Final Defense',
+        'hard_bound' => 'Hard Bound',
+        'completed' => 'Completed',
+    ];
+
+    public const MAX_PLAGIARISM_ATTEMPTS = 3;
 
     protected static function boot(): void
     {
@@ -53,9 +103,34 @@ class ResearchPaper extends Model
         });
     }
 
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    // Relations
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function schoolClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class);
+    }
+
+    public function adviser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'adviser_id');
+    }
+
+    public function statistician(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'statistician_id');
     }
 
     public function category(): BelongsTo
@@ -80,6 +155,11 @@ class ResearchPaper extends Model
         return $this->hasMany(Citation::class);
     }
 
+    public function publications(): HasMany
+    {
+        return $this->hasMany(Publication::class);
+    }
+
     public function publication(): HasMany
     {
         return $this->hasMany(Publication::class);
@@ -87,33 +167,75 @@ class ResearchPaper extends Model
 
     public function trackingRecords(): HasMany
     {
-        return $this->hasMany(TrackingRecord::class)->latest('status_changed_at');
+        return $this->hasMany(TrackingRecord::class)->latest();
     }
 
-    public function scopePublished($query)
+    // Workflow helpers
+    public function getStepLabelAttribute(): string
     {
-        return $query->where('status', 'published');
+        return self::STEP_LABELS[$this->current_step] ?? $this->current_step;
     }
 
-    public function scopeByStatus($query, string $status)
+    public function getCurrentStepStatusAttribute(): ?string
     {
-        return $query->where('status', $status);
+        return match ($this->current_step) {
+            'title_proposal' => 'submitted',
+            'ric_review' => $this->step_ric_review,
+            'plagiarism_check' => $this->step_plagiarism,
+            'outline_defense' => $this->step_outline_defense,
+            'rating' => $this->step_rating,
+            'final_manuscript' => $this->step_final_manuscript,
+            'final_defense' => $this->step_final_defense,
+            'hard_bound' => $this->step_hard_bound,
+            default => null,
+        };
     }
 
-    public function scopeByCategory($query, int $categoryId)
+    public function isCompleted(): bool
     {
-        return $query->where('category_id', $categoryId);
+        return $this->current_step === 'completed';
     }
 
-    public function scopeByAuthor($query, int $userId)
+    public function canProceedToNextStep(): bool
     {
-        return $query->where('user_id', $userId);
+        return match ($this->current_step) {
+            'title_proposal' => true,
+            'ric_review' => $this->step_ric_review === 'approved',
+            'plagiarism_check' => $this->step_plagiarism === 'passed',
+            'outline_defense' => $this->step_outline_defense === 'passed',
+            'rating' => $this->step_rating === 'rated',
+            'final_manuscript' => $this->step_final_manuscript === 'submitted',
+            'final_defense' => $this->step_final_defense === 'passed',
+            'hard_bound' => $this->step_hard_bound === 'submitted',
+            default => false,
+        };
     }
 
-    public function getProgressAttribute(): int
+    public function advanceToNextStep(): void
     {
-        $stages = ['submitted' => 0, 'under_review' => 25, 'approved' => 50, 'presented' => 75, 'published' => 100, 'archived' => 100];
+        $index = array_search($this->current_step, self::STEPS);
+        if ($index !== false && isset(self::STEPS[$index + 1])) {
+            $this->current_step = self::STEPS[$index + 1];
+            $this->save();
+        }
+    }
 
-        return $stages[$this->status] ?? 0;
+    // Scopes
+    public function scopeForClass($query, int $classId)
+    {
+        return $query->where('school_class_id', $classId);
+    }
+
+    public function scopeByStep($query, string $step)
+    {
+        return $query->where('current_step', $step);
+    }
+
+    public function scopePendingReview($query)
+    {
+        return $query->where('current_step', 'ric_review')
+            ->where(function ($q) {
+                $q->whereNull('step_ric_review')->orWhere('step_ric_review', 'pending');
+            });
     }
 }

@@ -36,7 +36,7 @@ class CreateNewUser implements CreatesNewUsers
                 $profile->restore();
                 $profile->update(['role' => $role, 'approved_at' => null]);
             } else {
-                $existing->profile()->create(['role' => $role]);
+                $existing->profile()->create(['role' => $role, 'approved_at' => null]);
             }
             $existing->update(['password' => $input['password']]);
 

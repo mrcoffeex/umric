@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\AgendaController;
+use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ApproveUserController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ProgramController;
+use App\Http\Controllers\Admin\ResearchController;
 use App\Http\Controllers\Admin\SchoolClassController;
 use App\Http\Controllers\Admin\SdgController;
 use App\Http\Controllers\Admin\SubjectController;
@@ -11,7 +13,10 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Faculty\ClassJoinController;
 use App\Http\Controllers\ResearchPaperController;
+use App\Http\Controllers\Student\ClassController;
+use App\Http\Controllers\Student\HomeController;
 use App\Models\Category;
 use App\Models\ResearchPaper;
 use Illuminate\Support\Facades\Route;
@@ -46,14 +51,60 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('departments', DepartmentController::class)->except(['create', 'edit', 'show']);
         Route::resource('programs', ProgramController::class)->except(['create', 'edit', 'show', 'index']);
         Route::resource('subjects', SubjectController::class)->except(['create', 'edit', 'show']);
-        Route::resource('classes', SchoolClassController::class)->except(['create', 'edit', 'show']);
+        Route::resource('classes', SchoolClassController::class)->except(['create', 'edit']);
+        Route::post('classes/{class}/join-code', [SchoolClassController::class, 'generateJoinCode'])->name('classes.generate-join-code');
+        Route::delete('classes/{class}/join-code', [SchoolClassController::class, 'revokeJoinCode'])->name('classes.revoke-join-code');
+        Route::delete('classes/{class}/students/{student}', [SchoolClassController::class, 'removeStudent'])->name('classes.remove-student');
         Route::resource('sdgs', SdgController::class)->except(['create', 'edit', 'show']);
         Route::resource('agendas', AgendaController::class)->except(['create', 'edit', 'show']);
         Route::resource('users', UserController::class)->except(['create', 'edit', 'show', 'store']);
 
+        // Admin Research
+        Route::get('research', [ResearchController::class, 'index'])->name('research.index');
+        Route::get('research/{paper}', [ResearchController::class, 'show'])->name('research.show');
+        Route::patch('research/{paper}/step', [ResearchController::class, 'updateStep'])->name('research.update-step');
+        Route::post('research/{paper}/assign', [ResearchController::class, 'assign'])->name('research.assign');
+
+        // Admin Announcements
+        Route::resource('announcements', AnnouncementController::class)->except(['create', 'edit', 'show']);
+
         Route::post('users/{user}/approve', [ApproveUserController::class, 'approve'])->name('users.approve');
         Route::post('users/{user}/reject', [ApproveUserController::class, 'reject'])->name('users.reject');
         Route::post('users/{user}/block', [UserController::class, 'block'])->name('users.block');
+    });
+
+    // Faculty class management
+    Route::middleware('role:faculty')->prefix('faculty')->name('faculty.')->group(function () {
+        Route::get('classes', [App\Http\Controllers\Faculty\SchoolClassController::class, 'index'])->name('classes.index');
+        Route::post('classes', [App\Http\Controllers\Faculty\SchoolClassController::class, 'store'])->name('classes.store');
+        Route::get('classes/{class}', [App\Http\Controllers\Faculty\SchoolClassController::class, 'show'])->name('classes.show');
+        Route::patch('classes/{class}', [App\Http\Controllers\Faculty\SchoolClassController::class, 'update'])->name('classes.update');
+        Route::delete('classes/{class}', [App\Http\Controllers\Faculty\SchoolClassController::class, 'destroy'])->name('classes.destroy');
+        Route::post('classes/{class}/join-code', [App\Http\Controllers\Faculty\SchoolClassController::class, 'generateJoinCode'])->name('classes.generate-join-code');
+        Route::delete('classes/{class}/join-code', [App\Http\Controllers\Faculty\SchoolClassController::class, 'revokeJoinCode'])->name('classes.revoke-join-code');
+        Route::delete('classes/{class}/students/{student}', [App\Http\Controllers\Faculty\SchoolClassController::class, 'removeStudent'])->name('classes.remove-student');
+
+        // Faculty Research
+        Route::get('classes/{class}/research', [App\Http\Controllers\Faculty\ResearchController::class, 'index'])->name('classes.research.index');
+        Route::get('classes/{class}/research/{paper}', [App\Http\Controllers\Faculty\ResearchController::class, 'show'])->name('classes.research.show');
+        Route::patch('classes/{class}/research/{paper}/step', [App\Http\Controllers\Faculty\ResearchController::class, 'updateStep'])->name('classes.research.update-step');
+        Route::post('classes/{class}/research/{paper}/approve', [App\Http\Controllers\Faculty\ResearchController::class, 'approve'])->name('classes.research.approve');
+    });
+
+    Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {
+        Route::get('home', HomeController::class)->name('student.home');
+        Route::get('research', [App\Http\Controllers\Student\ResearchController::class, 'index'])->name('student.research.index');
+        Route::post('research', [App\Http\Controllers\Student\ResearchController::class, 'store'])->name('student.research.store');
+        Route::get('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'show'])->name('student.research.show');
+        Route::put('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'update'])->name('student.research.update');
+        Route::delete('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'destroy'])->name('student.research.destroy');
+        Route::get('classes', [ClassController::class, 'index'])->name('student.classes.index');
+    });
+
+    // Student class join (students only)
+    Route::middleware('role:student')->group(function () {
+        Route::get('classes/join/{code}', [ClassJoinController::class, 'show'])->name('classes.join.show');
+        Route::post('classes/join/{code}', [ClassJoinController::class, 'store'])->name('classes.join.store');
     });
 });
 

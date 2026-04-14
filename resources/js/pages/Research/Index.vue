@@ -48,9 +48,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const sdgMap = computed(() => new Map(props.sdgs.map((s) => [s.id, s])));
-const agendaMap = computed(() =>
-    new Map(props.agendas.map((a) => [a.id, a])),
-);
+const agendaMap = computed(() => new Map(props.agendas.map((a) => [a.id, a])));
 
 defineOptions({
     layout: {
@@ -201,7 +199,10 @@ const formatDate = (date: string) => {
                         </p>
                         <!-- SDGs & Agendas -->
                         <div
-                            v-if="paper.sdg_ids?.length || paper.agenda_ids?.length"
+                            v-if="
+                                paper.sdg_ids?.length ||
+                                paper.agenda_ids?.length
+                            "
                             class="flex flex-wrap gap-1"
                         >
                             <span
@@ -209,17 +210,24 @@ const formatDate = (date: string) => {
                                 :key="'sdg-' + id"
                                 class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
                             >
-                                {{ sdgMap.get(id)?.code ?? ('SDG ' + id) }}
+                                {{ sdgMap.get(id)?.code ?? 'SDG ' + id }}
                             </span>
                             <span
-                                v-for="id in (paper.agenda_ids ?? []).slice(0, 2)"
+                                v-for="id in (paper.agenda_ids ?? []).slice(
+                                    0,
+                                    2,
+                                )"
                                 :key="'agenda-' + id"
                                 class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-400"
                             >
-                                {{ agendaMap.get(id)?.code ?? ('Agenda ' + id) }}
+                                {{ agendaMap.get(id)?.code ?? 'Agenda ' + id }}
                             </span>
                             <span
-                                v-if="(paper.sdg_ids?.length ?? 0) + (paper.agenda_ids?.length ?? 0) > 4"
+                                v-if="
+                                    (paper.sdg_ids?.length ?? 0) +
+                                        (paper.agenda_ids?.length ?? 0) >
+                                    4
+                                "
                                 class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400"
                             >
                                 +{{

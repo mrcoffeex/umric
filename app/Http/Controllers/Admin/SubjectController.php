@@ -33,6 +33,7 @@ class SubjectController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:20', 'unique:subjects,code'],
             'program_id' => ['nullable', 'exists:programs,id'],
+            'year_level' => ['nullable', 'integer', 'between:1,5'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
         ]);
@@ -50,6 +51,7 @@ class SubjectController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:20', Rule::unique('subjects', 'code')->ignore($subject)],
             'program_id' => ['nullable', 'exists:programs,id'],
+            'year_level' => ['nullable', 'integer', 'between:1,5'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
         ]);

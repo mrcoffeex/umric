@@ -6,11 +6,14 @@ import {
     Building2,
     GraduationCap,
     LayoutGrid,
+    Megaphone,
     ScrollText,
     Target,
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import AnnouncementController from '@/actions/App/Http/Controllers/Admin/AnnouncementController';
+import ResearchController from '@/actions/App/Http/Controllers/Admin/ResearchController';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -26,12 +29,16 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import admin from '@/routes/admin';
+import { index as facultyClassesIndex } from '@/routes/faculty/classes';
+import student from '@/routes/student';
 import type { NavItem } from '@/types';
 
 const page = usePage();
 const user = computed(() => page.props.auth.user as { role?: string } | null);
 const role = computed(() => user.value?.role ?? '');
 const isAdmin = computed(() => ['admin', 'staff'].includes(role.value));
+const isFaculty = computed(() => role.value === 'faculty');
+const isStudent = computed(() => role.value === 'student');
 
 const mainNavItems = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
@@ -53,6 +60,18 @@ const adminNavItems: NavItem[] = [
     { title: 'SDGs', href: admin.sdgs.index.url(), icon: Target },
     { title: 'Agendas', href: admin.agendas.index.url(), icon: BookMarked },
     { title: 'Users', href: admin.users.index(), icon: Users },
+    { title: 'Research Papers', href: ResearchController.index(), icon: ScrollText },
+    { title: 'Announcements', href: AnnouncementController.index(), icon: Megaphone },
+];
+
+const facultyNavItems: NavItem[] = [
+    { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
+];
+
+const studentNavItems: NavItem[] = [
+    { title: 'Home', href: student.home(), icon: LayoutGrid },
+    { title: 'My Research', href: student.research.index(), icon: ScrollText },
+    { title: 'My Classes', href: student.classes.index(), icon: GraduationCap },
 ];
 
 const footerNavItems: NavItem[] = [
@@ -79,11 +98,21 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" label="Platform" />
+            <NavMain v-if="!isStudent" :items="mainNavItems" label="Platform" />
             <NavMain
                 v-if="isAdmin"
                 :items="adminNavItems"
                 label="Administration"
+            />
+            <NavMain
+                v-if="isFaculty"
+                :items="facultyNavItems"
+                label="Faculty"
+            />
+            <NavMain
+                v-if="isStudent"
+                :items="studentNavItems"
+                label="Student"
             />
         </SidebarContent>
 

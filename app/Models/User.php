@@ -14,13 +14,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 #[Fillable(['name', 'email', 'password', 'google_id', 'blocked_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
+    use HasFactory, LogsActivity, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()->logOnly(['name', 'email'])->logOnlyDirty();
+    }
 
     public function profile(): HasOne
     {
@@ -70,6 +77,16 @@ class User extends Authenticatable
     public function researchPapers(): HasMany
     {
         return $this->hasMany(ResearchPaper::class);
+    }
+
+    public function advisedPapers(): HasMany
+    {
+        return $this->hasMany(ResearchPaper::class, 'adviser_id');
+    }
+
+    public function statisticianPapers(): HasMany
+    {
+        return $this->hasMany(ResearchPaper::class, 'statistician_id');
     }
 
     public function authoredPapers(): BelongsToMany

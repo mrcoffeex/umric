@@ -40,7 +40,7 @@ test('role middleware blocks unauthorized roles', function () {
 
     $this->actingAs($user)
         ->get(route('dashboard'))
-        ->assertOk();
+        ->assertRedirect(route('student.home'));
 });
 
 test('registration creates user profile with role', function () {

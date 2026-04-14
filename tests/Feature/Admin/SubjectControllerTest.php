@@ -72,6 +72,7 @@ it('allows admin to create a subject', function () {
             'name' => 'Database Systems',
             'code' => 'CS101',
             'program_id' => $program->id,
+            'year_level' => 2,
             'description' => 'Introduction to database design',
             'is_active' => true,
         ])
@@ -81,6 +82,7 @@ it('allows admin to create a subject', function () {
         'name' => 'Database Systems',
         'code' => 'CS101',
         'program_id' => $program->id,
+        'year_level' => 2,
     ]);
 });
 
@@ -90,6 +92,29 @@ it('validates required fields for subject creation', function () {
     $this->actingAs($admin)
         ->post(route('admin.subjects.store'), [])
         ->assertSessionHasErrors(['name', 'code']);
+});
+
+it('validates year_level is between 1 and 5 for subjects', function () {
+    $admin = makeSubjectAdminUser();
+    $program = makeSubjectProgram();
+
+    $this->actingAs($admin)
+        ->post(route('admin.subjects.store'), [
+            'name' => 'Test',
+            'code' => 'TST',
+            'program_id' => $program->id,
+            'year_level' => 0,
+        ])
+        ->assertSessionHasErrors(['year_level']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.subjects.store'), [
+            'name' => 'Test',
+            'code' => 'TST',
+            'program_id' => $program->id,
+            'year_level' => 6,
+        ])
+        ->assertSessionHasErrors(['year_level']);
 });
 
 it('validates unique code when creating subject', function () {
@@ -127,6 +152,7 @@ it('allows admin to update a subject', function () {
             'name' => 'New Subject Name',
             'code' => 'SUBJ200',
             'program_id' => null,
+            'year_level' => 3,
             'description' => 'Updated description',
             'is_active' => true,
         ])

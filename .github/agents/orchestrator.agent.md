@@ -2,7 +2,7 @@
 name: Orchestrator
 description: Sonnet, Codex, Gemini
 model: Claude Sonnet 4.6 (copilot)
-tools: ['read/readFile', 'agent', 'vscode/memory']
+tools: [vscode/memory, read/readFile, agent/runSubagent, laravel-boost/application-info, laravel-boost/browser-logs, laravel-boost/database-connections, laravel-boost/database-query, laravel-boost/database-schema, laravel-boost/get-absolute-url, laravel-boost/last-error, laravel-boost/read-log-entries, laravel-boost/search-docs, ms-azuretools.vscode-containers/containerToolsConfig]
 ---
 
 <!-- Note: Memory is experimental at the moment. You'll need to be in VS Code Insiders and toggle on memory in settings -->
