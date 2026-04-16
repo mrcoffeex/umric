@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Faculty\AllResearchController;
 use App\Http\Controllers\Faculty\ClassJoinController;
 use App\Http\Controllers\ResearchPaperController;
 use App\Http\Controllers\Student\ClassController;
@@ -64,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('research/{paper}', [ResearchController::class, 'show'])->name('research.show');
         Route::patch('research/{paper}/step', [ResearchController::class, 'updateStep'])->name('research.update-step');
         Route::post('research/{paper}/assign', [ResearchController::class, 'assign'])->name('research.assign');
+        Route::post('research/{paper}/comments', [ResearchController::class, 'storeComment'])->name('research.store-comment');
 
         // Admin Announcements
         Route::resource('announcements', AnnouncementController::class)->except(['create', 'edit', 'show']);
@@ -85,8 +87,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('classes/{class}/students/{student}', [App\Http\Controllers\Faculty\SchoolClassController::class, 'removeStudent'])->name('classes.remove-student');
 
         // Faculty Research
+        Route::get('research', [AllResearchController::class, 'index'])->name('research.index');
         Route::get('classes/{class}/research', [App\Http\Controllers\Faculty\ResearchController::class, 'index'])->name('classes.research.index');
         Route::get('classes/{class}/research/{paper}', [App\Http\Controllers\Faculty\ResearchController::class, 'show'])->name('classes.research.show');
+        Route::post('classes/{class}/research/{paper}/comments', [App\Http\Controllers\Faculty\ResearchController::class, 'storeComment'])->name('classes.research.store-comment');
         Route::patch('classes/{class}/research/{paper}/step', [App\Http\Controllers\Faculty\ResearchController::class, 'updateStep'])->name('classes.research.update-step');
         Route::post('classes/{class}/research/{paper}/approve', [App\Http\Controllers\Faculty\ResearchController::class, 'approve'])->name('classes.research.approve');
     });
@@ -94,11 +98,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {
         Route::get('home', HomeController::class)->name('student.home');
         Route::get('research', [App\Http\Controllers\Student\ResearchController::class, 'index'])->name('student.research.index');
+        Route::get('research/create', [App\Http\Controllers\Student\ResearchController::class, 'create'])->name('student.research.create');
         Route::post('research', [App\Http\Controllers\Student\ResearchController::class, 'store'])->name('student.research.store');
         Route::get('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'show'])->name('student.research.show');
+        Route::get('research/{paper}/edit', [App\Http\Controllers\Student\ResearchController::class, 'edit'])->name('student.research.edit');
         Route::put('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'update'])->name('student.research.update');
         Route::delete('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'destroy'])->name('student.research.destroy');
         Route::get('classes', [ClassController::class, 'index'])->name('student.classes.index');
+        Route::get('classes/{class}', [ClassController::class, 'show'])->name('student.classes.show');
     });
 
     // Student class join (students only)

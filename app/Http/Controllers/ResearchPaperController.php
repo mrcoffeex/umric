@@ -172,6 +172,8 @@ class ResearchPaperController extends Controller
 
         return Inertia::render('Research/Show', [
             'paper' => $paper,
+            'steps' => ResearchPaper::STEPS,
+            'stepLabels' => ResearchPaper::STEP_LABELS,
             'sdgs' => Sdg::all(),
             'agendas' => Agenda::all(),
         ]);
@@ -262,9 +264,9 @@ class ResearchPaperController extends Controller
             ->with([
                 'category',
                 'authors',
-                'files',
                 'citations',
                 'publication',
+                'schoolClass',
                 'trackingRecords' => function ($query) {
                     $query->latest();
                 },
@@ -273,6 +275,8 @@ class ResearchPaperController extends Controller
 
         return Inertia::render('Research/PublicTracking', [
             'paper' => $paper,
+            'steps' => ResearchPaper::STEPS,
+            'stepLabels' => ResearchPaper::STEP_LABELS,
         ]);
     }
 

@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import NeuCard from '@/components/NeuCard.vue';
+import { computed } from 'vue';
+import { useAppearance } from '@/composables/useAppearance';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TrackingTimeline from '@/components/TrackingTimeline.vue';
+import {
+    BookOpen, Calendar, ExternalLink, GraduationCap,
+    Hash, Moon, Quote, Sun, Tag, Users,
+} from 'lucide-vue-next';
 
 interface Author {
     id: number;
@@ -15,11 +19,10 @@ interface Category {
     name: string;
 }
 
-interface File {
+interface SchoolClass {
     id: number;
-    file_name: string;
-    file_size: number;
-    file_path: string;
+    name: string;
+    section?: string;
 }
 
 interface Publication {
@@ -39,7 +42,9 @@ interface Citation {
 
 interface TrackingRecord {
     id: number;
-    status: string;
+    step?: string;
+    action?: string;
+    status?: string;
     created_at: string;
     notes?: string;
 }
@@ -49,13 +54,15 @@ interface Paper {
     title: string;
     abstract: string;
     status: string;
+    current_step: string;
     tracking_id: string;
     created_at: string;
     progress?: number;
     keywords?: string;
+    proponents?: string[] | string | null;
     category?: Category;
+    school_class?: SchoolClass;
     authors?: Author[];
-    files?: File[];
     publication?: Publication[];
     citations?: Citation[];
     tracking_records?: TrackingRecord[];
@@ -63,10 +70,31 @@ interface Paper {
 
 interface Props {
     paper: Paper;
+    steps: string[];
+    stepLabels: Record<string, string>;
 }
 
-defineProps<Props>();
-const isDark = ref(false);
+const props = defineProps<Props>();
+
+const { appearance, updateAppearance } = useAppearance();
+
+function toggleTheme() {
+    updateAppearance(appearance.value === 'dark' ? 'light' : appearance.value === 'light' ? 'dark' : 'dark');
+}
+
+const proponents = computed(() => {
+    if (!props.paper.proponents) return [];
+    if (Array.isArray(props.paper.proponents)) {
+        return props.paper.proponents.map((p) => (typeof p === 'string' ? p : (p as any).name ?? p));
+    }
+    return (props.paper.proponents as string).split(',').map((v) => v.trim()).filter(Boolean);
+});
+
+const currentStepIndex = computed(() => props.steps.indexOf(props.paper.current_step));
+const progressPercent = computed(() => {
+    if (props.steps.length <= 1) return 0;
+    return Math.round((currentStepIndex.value / (props.steps.length - 1)) * 100);
+});
 
 const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -75,317 +103,222 @@ const formatDate = (date: string) => {
         day: 'numeric',
     });
 };
-
-const formatFileSize = (bytes: number) => {
-    if (bytes === 0) {
-        return '0 Bytes';
-    }
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-};
 </script>
 
 <template>
-    <div
-        :class="{
-            'min-h-screen bg-gradient-to-br transition-colors duration-300': true,
-            'dark from-slate-900 to-slate-800 text-white': isDark,
-            'from-slate-100 to-slate-200 text-gray-900': !isDark,
-        }"
-    >
-        <!-- Header -->
-        <div class="sticky top-0 z-50 backdrop-blur-md">
-            <NeuCard class="!rounded-b-3xl">
-                <div
-                    class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4"
-                >
-                    <h1 class="text-3xl font-bold">Track Research Paper</h1>
-                    <button
-                        @click="isDark = !isDark"
-                        class="rounded-lg p-2 transition hover:bg-white/10"
-                    >
-                        {{ isDark ? '☀️' : '🌙' }}
-                    </button>
+    <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+        <!-- Sticky Header -->
+        <header class="sticky top-0 z-50 border-b border-gray-200/80 bg-white/80 backdrop-blur-lg dark:border-gray-800/80 dark:bg-gray-950/80">
+            <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+                <div class="flex items-center gap-2.5">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 shadow-sm">
+                        <BookOpen class="h-4 w-4 text-white" />
+                    </div>
+                    <span class="text-sm font-bold tracking-tight text-gray-900 dark:text-gray-100">Research Tracker</span>
                 </div>
-            </NeuCard>
-        </div>
+                <button
+                    @click="toggleTheme"
+                    class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800"
+                >
+                    <Sun v-if="appearance === 'dark'" class="h-4 w-4" />
+                    <Moon v-else class="h-4 w-4" />
+                </button>
+            </div>
+        </header>
 
         <!-- Main Content -->
-        <div class="mx-auto max-w-6xl px-6 py-8">
+        <main class="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
             <!-- Hero Card -->
-            <NeuCard class="mb-8">
-                <div class="flex flex-col gap-8 md:flex-row">
-                    <div class="flex-1">
-                        <h2 class="mb-4 text-4xl font-bold">
-                            {{ paper.title }}
-                        </h2>
-                        <p
-                            class="mb-6 line-clamp-3 text-lg text-gray-600 dark:text-gray-400"
-                        >
-                            {{ paper.abstract }}
-                        </p>
+            <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <div class="p-5 sm:p-6">
+                    <h1 class="text-xl font-bold leading-tight text-gray-900 sm:text-2xl md:text-3xl dark:text-gray-50">{{ paper.title }}</h1>
+                    <p class="mt-3 line-clamp-3 text-sm leading-relaxed text-gray-500 sm:text-base dark:text-gray-400">{{ paper.abstract }}</p>
 
-                        <div class="flex flex-wrap gap-4">
-                            <div>
-                                <p
-                                    class="text-sm text-gray-600 dark:text-gray-400"
-                                >
-                                    Status
-                                </p>
-                                <StatusBadge :status="paper.status" />
-                            </div>
-
-                            <div>
-                                <p
-                                    class="mb-2 text-sm text-gray-600 dark:text-gray-400"
-                                >
-                                    Category
-                                </p>
-                                <span
-                                    class="rounded-full bg-purple-100 px-3 py-1 text-sm font-medium text-purple-900 dark:bg-purple-900 dark:text-purple-100"
-                                >
-                                    {{ paper.category?.name }}
-                                </span>
-                            </div>
-
-                            <div>
-                                <p
-                                    class="mb-2 text-sm text-gray-600 dark:text-gray-400"
-                                >
-                                    Submitted
-                                </p>
-                                <span class="text-sm font-semibold">{{
-                                    formatDate(paper.created_at)
-                                }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="text-center md:w-48">
-                        <div class="inline-flex flex-col items-center">
-                            <div
-                                class="mb-2 text-6xl font-bold text-purple-600 dark:text-purple-400"
-                            >
-                                {{ paper.progress || 0 }}%
-                            </div>
-                            <p class="mb-4 text-gray-600 dark:text-gray-400">
-                                Complete
-                            </p>
-                            <div
-                                class="h-2 w-full overflow-hidden rounded-full bg-white/30 dark:bg-white/10"
-                            >
-                                <div
-                                    class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500"
-                                    :style="{
-                                        width: (paper.progress || 0) + '%',
-                                    }"
-                                ></div>
-                            </div>
-                        </div>
+                    <!-- Meta chips -->
+                    <div class="mt-5 flex flex-wrap items-center gap-2.5">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-500/10 dark:text-orange-400">
+                            {{ stepLabels[paper.current_step] ?? paper.current_step }}
+                        </span>
+                        <span v-if="paper.category" class="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 dark:bg-violet-500/10 dark:text-violet-400">
+                            <Tag class="h-3 w-3" />
+                            {{ paper.category.name }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                            <Calendar class="h-3 w-3" />
+                            {{ formatDate(paper.created_at) }}
+                        </span>
                     </div>
                 </div>
-            </NeuCard>
 
-            <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                <!-- Main Timeline -->
+                <!-- Progress bar strip -->
+                <div class="border-t border-gray-100 bg-gray-50/50 px-5 py-3.5 sm:px-6 dark:border-gray-800 dark:bg-gray-950/30">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-medium text-gray-500 dark:text-gray-400">Progress</span>
+                        <span class="font-bold tabular-nums text-orange-600 dark:text-orange-400">{{ progressPercent }}%</span>
+                    </div>
+                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+                        <div
+                            class="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-400 transition-all duration-700 ease-out"
+                            :style="{ width: progressPercent + '%' }"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid: Timeline + Sidebar -->
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <!-- Timeline -->
                 <div class="lg:col-span-2">
-                    <NeuCard>
-                        <h3 class="mb-6 text-2xl font-bold">Timeline</h3>
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+                        <h2 class="mb-5 flex items-center gap-2 text-base font-bold text-gray-900 sm:text-lg dark:text-gray-50">
+                            <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-500/10">
+                                <Calendar class="h-3.5 w-3.5 text-orange-500" />
+                            </div>
+                            Timeline
+                        </h2>
                         <TrackingTimeline
-                            :current-status="paper.status"
+                            :current-step="paper.current_step"
+                            :steps="steps"
+                            :step-labels="stepLabels"
                             :tracking="paper.tracking_records || []"
                         />
-                    </NeuCard>
+                    </div>
                 </div>
 
-                <!-- Sidebar Info -->
+                <!-- Sidebar -->
                 <div class="space-y-6">
                     <!-- Tracking ID -->
-                    <NeuCard>
-                        <h4
-                            class="mb-3 text-sm font-bold tracking-wider text-gray-600 uppercase dark:text-gray-400"
-                        >
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h3 class="mb-2.5 flex items-center gap-2 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                            <Hash class="h-3.5 w-3.5" />
                             Tracking ID
-                        </h4>
-                        <div
-                            class="rounded-lg bg-white/20 p-3 font-mono text-lg font-bold break-all text-purple-600 dark:bg-black/20 dark:text-purple-400"
-                        >
+                        </h3>
+                        <div class="rounded-lg border border-orange-200 bg-orange-50/60 px-3 py-2.5 font-mono text-sm font-bold break-all text-orange-700 dark:border-orange-500/20 dark:bg-orange-500/10 dark:text-orange-400">
                             {{ paper.tracking_id }}
                         </div>
-                    </NeuCard>
+                    </div>
+
+                    <!-- Proponents -->
+                    <div v-if="proponents.length" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h3 class="mb-3 flex items-center gap-2 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                            <Users class="h-3.5 w-3.5" />
+                            Proponents
+                        </h3>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span v-for="name in proponents" :key="name" class="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">{{ name }}</span>
+                        </div>
+                    </div>
 
                     <!-- Authors -->
-                    <NeuCard v-if="paper.authors && paper.authors.length > 0">
-                        <h4
-                            class="mb-3 text-sm font-bold tracking-wider text-gray-600 uppercase dark:text-gray-400"
-                        >
+                    <div v-if="paper.authors && paper.authors.length > 0" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h3 class="mb-3 flex items-center gap-2 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                            <Users class="h-3.5 w-3.5" />
                             Authors
-                        </h4>
-                        <div class="space-y-2">
-                            <div
-                                v-for="(author, index) in paper.authors"
-                                :key="author.id"
-                                class="rounded bg-white/10 p-2 dark:bg-black/10"
-                            >
-                                <p class="font-medium">{{ author.name }}</p>
-                                <p
-                                    class="text-xs text-gray-600 dark:text-gray-400"
-                                >
-                                    {{
-                                        author.pivot?.author_order || index + 1
-                                    }}. Author
-                                </p>
+                        </h3>
+                        <div class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <div v-for="(author, index) in paper.authors" :key="author.id" class="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
+                                <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ author.name }}</p>
+                                <span class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                    #{{ author.pivot?.author_order || index + 1 }}
+                                </span>
                             </div>
                         </div>
-                    </NeuCard>
+                    </div>
+
+                    <!-- Class -->
+                    <div v-if="paper.school_class" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h3 class="mb-2.5 flex items-center gap-2 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                            <GraduationCap class="h-3.5 w-3.5" />
+                            Class
+                        </h3>
+                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {{ paper.school_class.name }}
+                            <span v-if="paper.school_class.section" class="text-gray-400 dark:text-gray-500"> · Section {{ paper.school_class.section }}</span>
+                        </p>
+                    </div>
 
                     <!-- Keywords -->
-                    <NeuCard v-if="paper.keywords">
-                        <h4
-                            class="mb-3 text-sm font-bold tracking-wider text-gray-600 uppercase dark:text-gray-400"
-                        >
+                    <div v-if="paper.keywords" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h3 class="mb-3 flex items-center gap-2 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                            <Tag class="h-3.5 w-3.5" />
                             Keywords
-                        </h4>
-                        <div class="flex flex-wrap gap-2">
+                        </h3>
+                        <div class="flex flex-wrap gap-1.5">
                             <span
                                 v-for="keyword in paper.keywords.split(',')"
                                 :key="keyword.trim()"
-                                class="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-900 dark:bg-blue-900 dark:text-blue-100"
+                                class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
                             >
                                 {{ keyword.trim() }}
                             </span>
                         </div>
-                    </NeuCard>
+                    </div>
 
                     <!-- Statistics -->
-                    <NeuCard>
-                        <h4
-                            class="mb-3 text-sm font-bold tracking-wider text-gray-600 uppercase dark:text-gray-400"
-                        >
-                            Statistics
-                        </h4>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600 dark:text-gray-400"
-                                    >Files</span
-                                >
-                                <span class="font-semibold">{{
-                                    (paper.files || []).length
-                                }}</span>
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                        <h3 class="mb-3 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:text-gray-400">Quick Stats</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-xl bg-gray-50 px-3 py-2.5 text-center dark:bg-gray-800/60">
+                                <p class="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{{ (paper.publication || []).length }}</p>
+                                <p class="text-[10px] font-medium text-gray-500 uppercase dark:text-gray-400">Pubs</p>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600 dark:text-gray-400"
-                                    >Publications</span
-                                >
-                                <span class="font-semibold">{{
-                                    (paper.publication || []).length
-                                }}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600 dark:text-gray-400"
-                                    >Citations</span
-                                >
-                                <span class="font-semibold">{{
-                                    (paper.citations || []).length
-                                }}</span>
+                            <div class="rounded-xl bg-gray-50 px-3 py-2.5 text-center dark:bg-gray-800/60">
+                                <p class="text-lg font-bold tabular-nums text-gray-900 dark:text-gray-100">{{ (paper.citations || []).length }}</p>
+                                <p class="text-[10px] font-medium text-gray-500 uppercase dark:text-gray-400">Cites</p>
                             </div>
                         </div>
-                    </NeuCard>
-                </div>
-            </div>
-
-            <!-- Documents Section -->
-            <NeuCard v-if="paper.files && paper.files.length > 0" class="mt-8">
-                <h3 class="mb-6 text-2xl font-bold">Documents</h3>
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div
-                        v-for="file in paper.files"
-                        :key="file.id"
-                        class="flex items-center justify-between rounded-lg bg-white/10 p-4 transition hover:bg-white/20 dark:bg-black/10 dark:hover:bg-black/20"
-                    >
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">📄</span>
-                            <div>
-                                <p class="font-semibold">
-                                    {{ file.file_name }}
-                                </p>
-                                <p
-                                    class="text-sm text-gray-600 dark:text-gray-400"
-                                >
-                                    {{ formatFileSize(file.file_size) }}
-                                </p>
-                            </div>
-                        </div>
-                        <a
-                            :href="`/storage/${file.file_path}`"
-                            class="font-medium text-purple-600 hover:underline dark:text-purple-400"
-                        >
-                            View
-                        </a>
                     </div>
                 </div>
-            </NeuCard>
+            </div>
 
             <!-- Publications & Citations -->
-            <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <!-- Publications -->
-                <NeuCard
-                    v-if="paper.publication && paper.publication.length > 0"
-                >
-                    <h3 class="mb-6 text-xl font-bold">Publications</h3>
-                    <div class="space-y-4">
-                        <div
-                            v-for="pub in paper.publication"
-                            :key="pub.id"
-                            class="rounded-lg bg-white/10 p-4 dark:bg-black/10"
-                        >
-                            <h4 class="mb-2 font-semibold">
-                                {{ pub.journal_name }}
-                            </h4>
-                            <div
-                                class="space-y-1 text-xs text-gray-600 dark:text-gray-400"
-                            >
-                                <p v-if="pub.doi">
-                                    DOI:
-                                    <code class="font-mono">{{ pub.doi }}</code>
+                <div v-if="paper.publication && paper.publication.length > 0" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+                    <h2 class="mb-4 flex items-center gap-2 text-base font-bold text-gray-900 dark:text-gray-50">
+                        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                            <BookOpen class="h-3.5 w-3.5 text-emerald-500" />
+                        </div>
+                        Publications
+                    </h2>
+                    <div class="space-y-3">
+                        <div v-for="pub in paper.publication" :key="pub.id" class="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/30">
+                            <h4 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ pub.journal_name }}</h4>
+                            <div class="mt-2 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                                <p v-if="pub.doi" class="flex items-center gap-1.5">
+                                    <ExternalLink class="h-3 w-3 shrink-0" />
+                                    <code class="font-mono text-gray-600 dark:text-gray-300">{{ pub.doi }}</code>
                                 </p>
-                                <p v-if="pub.publisher">
-                                    Publisher: {{ pub.publisher }}
-                                </p>
-                                <p v-if="pub.volume || pub.issue">
-                                    Vol. {{ pub.volume }}, Issue {{ pub.issue }}
-                                </p>
+                                <p v-if="pub.publisher">Publisher: {{ pub.publisher }}</p>
+                                <p v-if="pub.volume || pub.issue">Vol. {{ pub.volume }}, Issue {{ pub.issue }}</p>
                             </div>
                         </div>
                     </div>
-                </NeuCard>
+                </div>
 
                 <!-- Citations -->
-                <NeuCard v-if="paper.citations && paper.citations.length > 0">
-                    <h3 class="mb-6 text-xl font-bold">Citations</h3>
-                    <div class="space-y-4">
-                        <div
-                            v-for="citation in paper.citations"
-                            :key="citation.id"
-                            class="rounded-lg bg-white/10 p-4 dark:bg-black/10"
-                        >
-                            <p class="mb-2 font-mono text-xs">
-                                {{ citation.citation_text }}
-                            </p>
-                            <p
-                                v-if="citation.format"
-                                class="text-xs text-gray-600 dark:text-gray-400"
-                            >
-                                {{ citation.format }}
-                            </p>
+                <div v-if="paper.citations && paper.citations.length > 0" class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6 dark:border-gray-800 dark:bg-gray-900">
+                    <h2 class="mb-4 flex items-center gap-2 text-base font-bold text-gray-900 dark:text-gray-50">
+                        <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-500/10">
+                            <Quote class="h-3.5 w-3.5 text-amber-500" />
+                        </div>
+                        Citations
+                    </h2>
+                    <div class="space-y-3">
+                        <div v-for="citation in paper.citations" :key="citation.id" class="rounded-xl border border-gray-100 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/30">
+                            <p class="text-xs leading-relaxed text-gray-700 dark:text-gray-300">{{ citation.citation_text }}</p>
+                            <p v-if="citation.format" class="mt-2 text-[10px] font-semibold tracking-wide text-gray-400 uppercase dark:text-gray-500">{{ citation.format }}</p>
                         </div>
                     </div>
-                </NeuCard>
+                </div>
             </div>
-        </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-8 border-t border-gray-200 dark:border-gray-800">
+            <div class="mx-auto max-w-5xl px-4 py-6 text-center sm:px-6">
+                <p class="text-xs text-gray-400 dark:text-gray-600">University Research Information Center &middot; Research Tracking System</p>
+            </div>
+        </footer>
     </div>
 </template>

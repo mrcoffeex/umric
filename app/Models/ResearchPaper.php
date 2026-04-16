@@ -170,6 +170,11 @@ class ResearchPaper extends Model
         return $this->hasMany(TrackingRecord::class)->latest();
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(Comment::class)->latest();
+    }
+
     // Workflow helpers
     public function getStepLabelAttribute(): string
     {

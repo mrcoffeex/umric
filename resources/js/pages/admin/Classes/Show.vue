@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Users, Copy, RefreshCw, Unlink, UserMinus, ChevronLeft } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { CheckCircle2, ChevronLeft, Copy, GraduationCap, Link2, RefreshCw, ScrollText, Unlink, UserMinus, Users } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import AdminSchoolClassController from '@/actions/App/Http/Controllers/Admin/SchoolClassController';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import admin from '@/routes/admin';
 
 type Props = {
-    class: {
+    schoolClass: {
         id: number;
         name: string;
         class_code: string | null;
@@ -29,6 +28,7 @@ type Props = {
         avatar_url: string | null;
         joined_at: string;
     }>;
+    researchPapersCount: number;
 };
 
 const props = defineProps<Props>();
@@ -44,11 +44,16 @@ defineOptions({
 });
 
 const joinUrl = computed(() =>
-    props.class.join_code ? `${window.location.origin}/classes/join/${props.class.join_code}` : '',
+    props.schoolClass.join_code ? `${window.location.origin}/classes/join/${props.schoolClass.join_code}` : '',
 );
 
+const copied = ref(false);
 const copyJoinLink = () => {
-    if (joinUrl.value) navigator.clipboard.writeText(joinUrl.value);
+    if (joinUrl.value) {
+        navigator.clipboard.writeText(joinUrl.value);
+        copied.value = true;
+        setTimeout(() => (copied.value = false), 2000);
+    }
 };
 
 const generateJoinCodeForm = useForm({});
@@ -56,14 +61,14 @@ const revokeJoinCodeForm = useForm({});
 const removeStudentForm = useForm({});
 
 const generateJoinCode = () => {
-    generateJoinCodeForm.post(AdminSchoolClassController.generateJoinCode.url({ class: props.class.id }), {
+    generateJoinCodeForm.post(AdminSchoolClassController.generateJoinCode.url({ class: props.schoolClass.id }), {
         preserveScroll: true,
     });
 };
 
 const revokeJoinCode = () => {
     if (confirm('Revoke this join link? Students will no longer be able to use it.')) {
-        revokeJoinCodeForm.delete(AdminSchoolClassController.revokeJoinCode.url({ class: props.class.id }), {
+        revokeJoinCodeForm.delete(AdminSchoolClassController.revokeJoinCode.url({ class: props.schoolClass.id }), {
             preserveScroll: true,
         });
     }
@@ -71,7 +76,7 @@ const revokeJoinCode = () => {
 
 const removeStudent = (studentId: number) => {
     if (confirm('Remove this student from the class?')) {
-        removeStudentForm.delete(AdminSchoolClassController.removeStudent.url({ class: props.class.id, student: studentId }), {
+        removeStudentForm.delete(AdminSchoolClassController.removeStudent.url({ class: props.schoolClass.id, student: studentId }), {
             preserveScroll: true,
         });
     }
@@ -85,95 +90,197 @@ const formatDate = (dateString: string) =>
 </script>
 
 <template>
-    <Head :title="`Class: ${props.class.name}`" />
+    <Head :title="`Class: ${props.schoolClass.name}`" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
+        <!-- Back nav -->
         <div>
-            <Link :href="admin.classes.index()" class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+            <Link :href="admin.classes.index()" class="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground">
                 <ChevronLeft class="h-4 w-4" /> Back to Classes
             </Link>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-3">
-            <div class="lg:col-span-2 space-y-6">
-                <div class="rounded-2xl border border-sidebar-border/70 bg-white dark:bg-sidebar">
-                    <div class="border-b border-sidebar-border/50 px-5 pb-4 pt-5">
-                        <h1 class="text-xl font-black text-slate-900 dark:text-white">{{ props.class.name }}</h1>
+        <!-- Class header -->
+        <div class="overflow-hidden rounded-2xl border border-border bg-card">
+            <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
+            <div class="p-5 md:p-6">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30">
+                                <GraduationCap class="h-5 w-5 text-orange-500" />
+                            </div>
+                            <div class="min-w-0">
+                                <h1 class="truncate text-xl font-bold text-foreground">{{ props.schoolClass.name }}</h1>
+                                <p v-if="props.schoolClass.class_code" class="font-mono text-xs text-muted-foreground">{{ props.schoolClass.class_code }}</p>
+                            </div>
+                        </div>
                         <div class="mt-3 flex flex-wrap gap-1.5">
-                            <span v-if="props.class.section" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">Sec {{ props.class.section }}</span>
-                            <span v-if="props.class.school_year" class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">{{ props.class.school_year }}</span>
-                            <span v-if="props.class.semester" class="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{{ props.class.semester === 1 ? '1st Sem' : '2nd Sem' }}</span>
-                            <span v-if="props.class.term" class="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{{ props.class.term }}</span>
-                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="props.class.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'">
-                                {{ props.class.is_active ? 'Active' : 'Inactive' }}
+                            <span class="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold uppercase text-muted-foreground">Sec {{ props.schoolClass.section }}</span>
+                            <span v-if="props.schoolClass.school_year" class="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">{{ props.schoolClass.school_year }}</span>
+                            <span v-if="props.schoolClass.semester" class="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">{{ props.schoolClass.semester === 1 ? '1st Sem' : '2nd Sem' }}</span>
+                            <span v-if="props.schoolClass.term" class="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">{{ props.schoolClass.term }}</span>
+                            <span class="rounded-full px-2.5 py-0.5 text-[11px] font-semibold" :class="props.schoolClass.is_active ? 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'">
+                                {{ props.schoolClass.is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </div>
-                        <div v-if="props.class.subjects.length > 0" class="mt-2 flex flex-wrap gap-1.5">
-                            <span v-for="subject in props.class.subjects" :key="subject.id" class="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:bg-violet-950/30 dark:text-violet-400" :title="subject.name">
-                                {{ subject.code }}<span v-if="subject.program" class="font-normal opacity-70"> · {{ subject.program.code }}</span>
-                            </span>
-                        </div>
-                        <p v-if="props.class.faculty" class="mt-3 text-sm text-muted-foreground">
-                            <span class="font-medium text-foreground">Faculty:</span> {{ props.class.faculty.name }}
-                        </p>
-                        <p v-if="props.class.description" class="mt-3 text-sm text-muted-foreground">{{ props.class.description }}</p>
+                    </div>
+                </div>
+
+                <!-- Subjects -->
+                <div v-if="props.schoolClass.subjects.length > 0" class="mt-4 flex flex-wrap gap-1.5">
+                    <span
+                        v-for="subject in props.schoolClass.subjects"
+                        :key="subject.id"
+                        class="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:bg-purple-950/30 dark:text-purple-300"
+                        :title="subject.name"
+                    >
+                        {{ subject.code }}
+                        <span v-if="subject.program" class="font-normal opacity-60">· {{ subject.program.code }}</span>
+                    </span>
+                </div>
+
+                <p v-if="props.schoolClass.faculty" class="mt-4 text-sm text-muted-foreground">
+                    <span class="font-medium text-foreground">Faculty:</span> {{ props.schoolClass.faculty.name }}
+                </p>
+                <p v-if="props.schoolClass.description" class="mt-4 text-sm leading-relaxed text-muted-foreground">{{ props.schoolClass.description }}</p>
+            </div>
+        </div>
+
+        <!-- Stat cards row -->
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-3">
+            <div class="rounded-2xl border border-border bg-card p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Students</p>
+                <p class="mt-1 text-2xl font-bold text-foreground">{{ props.students.length }}</p>
+            </div>
+            <div class="rounded-2xl border border-border bg-card p-4">
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Research Papers</p>
+                <p class="mt-1 text-2xl font-bold text-foreground">{{ props.researchPapersCount }}</p>
+            </div>
+            <div class="col-span-2 rounded-2xl border border-border bg-card p-4 lg:col-span-1">
+                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Join Link</p>
+                <p class="mt-1 text-2xl font-bold" :class="props.schoolClass.join_code ? 'text-green-700 dark:text-green-300' : 'text-muted-foreground/40'">
+                    {{ props.schoolClass.join_code ? 'Active' : 'None' }}
+                </p>
+            </div>
+        </div>
+
+        <div class="grid gap-6 lg:grid-cols-5">
+            <!-- Left column: Join link + Research -->
+            <div class="space-y-6 lg:col-span-3">
+                <!-- Join link card -->
+                <div class="overflow-hidden rounded-2xl border border-border bg-card">
+                    <div class="flex items-center gap-2 border-b border-border px-5 py-4">
+                        <Link2 class="h-4 w-4 text-teal-500" />
+                        <h2 class="text-sm font-bold text-foreground">Student Join Link</h2>
                     </div>
 
-                    <div class="space-y-5 p-5">
-                        <div>
-                            <p class="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Student Join Link</p>
-                            <div v-if="props.class.join_code" class="space-y-3">
-                                <Input :value="joinUrl" readonly class="bg-slate-50 font-mono text-sm dark:bg-slate-900/50" />
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <Button size="sm" variant="outline" @click="copyJoinLink" type="button">
-                                        <Copy class="mr-1.5 h-3.5 w-3.5" /> Copy Link
-                                    </Button>
-                                    <Button size="sm" variant="ghost" @click="generateJoinCode" :disabled="generateJoinCodeForm.processing" class="border border-input">
-                                        <RefreshCw class="mr-1.5 h-3.5 w-3.5" :class="{ 'animate-spin': generateJoinCodeForm.processing }" /> Regenerate
-                                    </Button>
-                                    <Button size="sm" variant="ghost" @click="revokeJoinCode" :disabled="revokeJoinCodeForm.processing" class="text-destructive hover:bg-destructive/10 hover:text-destructive">
-                                        <Unlink class="mr-1.5 h-3.5 w-3.5" /> Revoke
+                    <div class="p-5">
+                        <div v-if="props.schoolClass.join_code" class="space-y-4">
+                            <div class="overflow-hidden rounded-xl border border-border bg-muted">
+                                <div class="flex items-center gap-3 p-3">
+                                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30">
+                                        <Link2 class="h-4 w-4 text-teal-500" />
+                                    </div>
+                                    <p class="min-w-0 flex-1 cursor-text select-all truncate font-mono text-sm text-muted-foreground" :title="joinUrl">
+                                        {{ joinUrl }}
+                                    </p>
+                                    <Button
+                                        size="sm"
+                                        :variant="copied ? 'default' : 'outline'"
+                                        :class="copied ? 'border-0 bg-green-500 text-white hover:bg-green-600' : ''"
+                                        @click="copyJoinLink"
+                                        type="button"
+                                    >
+                                        <CheckCircle2 v-if="copied" class="mr-1.5 h-3.5 w-3.5" />
+                                        <Copy v-else class="mr-1.5 h-3.5 w-3.5" />
+                                        {{ copied ? 'Copied!' : 'Copy' }}
                                     </Button>
                                 </div>
                             </div>
-                            <div v-else class="space-y-3">
-                                <p class="text-sm text-muted-foreground">No join link generated yet.</p>
-                                <Button @click="generateJoinCode" :disabled="generateJoinCodeForm.processing" class="border-0 bg-orange-500 text-white shadow shadow-orange-500/20 hover:bg-orange-600">
-                                    Generate Join Link
+                            <p class="text-xs text-muted-foreground">Share this link with students so they can join this class.</p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Button size="sm" variant="outline" @click="generateJoinCode" :disabled="generateJoinCodeForm.processing">
+                                    <RefreshCw class="mr-1.5 h-3.5 w-3.5" :class="{ 'animate-spin': generateJoinCodeForm.processing }" /> Regenerate
+                                </Button>
+                                <Button size="sm" variant="ghost" @click="revokeJoinCode" :disabled="revokeJoinCodeForm.processing" class="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                                    <Unlink class="mr-1.5 h-3.5 w-3.5" /> Revoke Link
                                 </Button>
                             </div>
                         </div>
+
+                        <div v-else class="flex flex-col items-center rounded-xl border border-dashed border-border p-8 text-center">
+                            <div class="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30">
+                                <Link2 class="h-6 w-6 text-orange-400" />
+                            </div>
+                            <p class="text-sm font-semibold text-foreground">No join link generated yet</p>
+                            <p class="mt-1 max-w-xs text-xs text-muted-foreground">Generate a link so students can enroll themselves into this class.</p>
+                            <Button @click="generateJoinCode" :disabled="generateJoinCodeForm.processing" class="mt-4 border-0 bg-orange-500 text-white shadow shadow-orange-500/20 hover:bg-orange-600">
+                                Generate Join Link
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Research papers card -->
+                <div class="overflow-hidden rounded-2xl border border-border bg-card">
+                    <div class="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <ScrollText class="h-4 w-4 text-orange-500" />
+                            <h2 class="text-sm font-bold text-foreground">Research Papers</h2>
+                        </div>
+                        <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-bold text-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
+                            {{ props.researchPapersCount }}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-3 p-5">
+                        <p class="text-sm text-muted-foreground">
+                            {{ props.researchPapersCount }} paper{{ props.researchPapersCount === 1 ? '' : 's' }} currently in this class.
+                        </p>
+                        <Button as-child size="sm" class="border-0 bg-orange-500 text-white shadow shadow-orange-500/20 hover:bg-orange-600">
+                            <Link :href="admin.research.index()">
+                                <ScrollText class="mr-1.5 h-3.5 w-3.5" /> View Papers
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            <div class="flex h-full max-h-[800px] flex-col overflow-hidden rounded-2xl border border-sidebar-border/70 bg-white dark:bg-sidebar lg:col-span-1">
-                <div class="flex shrink-0 items-center justify-between border-b border-sidebar-border/50 px-5 pb-4 pt-5">
-                    <h2 class="text-base font-bold text-slate-900 dark:text-white">Students</h2>
-                    <span class="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-400">{{ props.students.length }}</span>
-                </div>
-                <div class="flex-1 overflow-y-auto">
-                    <div v-if="props.students.length === 0" class="flex h-full flex-col items-center justify-center p-8 text-center">
-                        <div class="mb-4 rounded-2xl bg-orange-50 p-4 dark:bg-orange-950/30">
-                            <Users class="h-8 w-8 text-orange-500" />
-                        </div>
-                        <p class="text-sm font-bold text-slate-900 dark:text-white">No students enrolled</p>
-                        <p class="mt-2 max-w-[200px] text-xs text-muted-foreground">Students join via the join link.</p>
+            <!-- Right column: Students list -->
+            <div class="flex max-h-[700px] flex-col overflow-hidden rounded-2xl border border-border bg-card lg:col-span-2">
+                <div class="flex shrink-0 items-center justify-between gap-2 border-b border-border px-5 py-4">
+                    <div class="flex items-center gap-2">
+                        <Users class="h-4 w-4 text-teal-500" />
+                        <h2 class="text-sm font-bold text-foreground">Students</h2>
                     </div>
-                    <ul v-else class="divide-y divide-sidebar-border/30">
-                        <li v-for="student in props.students" :key="student.id" class="flex items-center gap-3 p-4">
+                    <span class="rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300">
+                        {{ props.students.length }}
+                    </span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto">
+                    <div v-if="props.students.length === 0" class="flex h-full min-h-[200px] flex-col items-center justify-center p-8 text-center">
+                        <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 dark:bg-teal-950/30">
+                            <Users class="h-7 w-7 text-teal-400" />
+                        </div>
+                        <h3 class="text-sm font-bold text-foreground">No students yet</h3>
+                        <p class="mt-1 max-w-[200px] text-xs text-muted-foreground">Share the join link to get students enrolled.</p>
+                    </div>
+
+                    <ul v-else class="divide-y divide-border/50">
+                        <li v-for="student in props.students" :key="student.id" class="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-muted/50">
                             <div class="h-9 w-9 shrink-0 overflow-hidden rounded-full">
                                 <img v-if="student.avatar_url" :src="student.avatar_url" :alt="student.name" class="h-full w-full object-cover" />
-                                <div v-else class="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-400 to-teal-400 text-xs font-bold text-white">
+                                <div v-else class="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-400 to-teal-400 text-[11px] font-bold text-white">
                                     {{ getInitials(student.name) }}
                                 </div>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="truncate text-sm font-medium text-slate-900 dark:text-white">{{ student.name }}</p>
+                                <p class="truncate text-sm font-medium text-foreground">{{ student.name }}</p>
                                 <p class="truncate text-xs text-muted-foreground">{{ student.email }}</p>
-                                <p class="text-[10px] text-muted-foreground">Joined {{ formatDate(student.joined_at) }}</p>
                             </div>
-                            <Button variant="ghost" size="icon" class="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-500" @click="removeStudent(student.id)" :disabled="removeStudentForm.processing">
+                            <span class="hidden whitespace-nowrap text-[10px] text-muted-foreground sm:block">{{ formatDate(student.joined_at) }}</span>
+                            <Button variant="ghost" size="icon" class="h-7 w-7 shrink-0 text-muted-foreground hover:text-red-500" @click="removeStudent(student.id)" :disabled="removeStudentForm.processing" title="Remove student">
                                 <UserMinus class="h-3.5 w-3.5" />
                             </Button>
                         </li>

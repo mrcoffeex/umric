@@ -1,8 +1,21 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import {
+    ArcElement,
+    BarElement,
+    CategoryScale,
+    Chart as ChartJS,
+    Filler,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Tooltip,
+} from 'chart.js';
+import {
     AlertCircle,
     ArrowRight,
+    ArrowUpRight,
     BookOpen,
     BookOpenCheck,
     CheckCircle2,
@@ -10,9 +23,13 @@ import {
     GraduationCap,
     Megaphone,
     School,
+    TrendingUp,
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { Bar, Doughnut } from 'vue-chartjs';
+
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getStepBadgeClass, getStepBarClass } from '@/lib/step-colors';
 import { dashboard } from '@/routes';
 import admin from '@/routes/admin';
@@ -22,6 +39,18 @@ import {
     index as papersIndex,
     show as papersShow,
 } from '@/routes/papers';
+
+ChartJS.register(
+    ArcElement,
+    BarElement,
+    CategoryScale,
+    Filler,
+    Legend,
+    LinearScale,
+    LineElement,
+    PointElement,
+    Tooltip,
+);
 
 interface Announcement {
     id: number;
@@ -61,12 +90,19 @@ interface StudentPaper {
     created_at: string;
 }
 
+interface SubmissionPoint {
+    month: string;
+    count: number;
+}
+
 interface Props {
     role: 'admin' | 'staff' | 'faculty' | 'student';
     announcements: Announcement[];
     stepLabels: Record<string, string>;
     stats: Record<string, number | string | boolean | null>;
     stepCounts?: Record<string, number>;
+    statusCounts?: Record<string, number>;
+    submissionsOverTime?: SubmissionPoint[];
     recentPapers?: DashboardPaper[];
     classes?: ClassSummary[];
     paper?: StudentPaper | null;
@@ -74,13 +110,18 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const announcementIcon: Record<Announcement['type'], string> = {
+    info: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
+    success: 'bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-400',
+    warning: 'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
+    danger: 'bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400',
+};
+
 const announcementColors: Record<Announcement['type'], string> = {
-    info: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300',
-    success:
-        'border-green-200 bg-green-50 text-green-700 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300',
-    warning:
-        'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300',
-    danger: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300',
+    info: 'border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20',
+    success: 'border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/20',
+    warning: 'border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20',
+    danger: 'border-red-200 bg-red-50/50 dark:border-red-900/40 dark:bg-red-950/20',
 };
 
 const orderedStepEntries = computed(() => Object.entries(props.stepLabels ?? {}));
@@ -89,45 +130,153 @@ const visibleClasses = computed(() => props.classes ?? []);
 
 const maxStepCount = computed(() => {
     const counts = Object.values(props.stepCounts ?? {});
-
     return counts.length > 0 ? Math.max(1, ...counts) : 1;
 });
+
+const totalStepPapers = computed(() =>
+    Object.values(props.stepCounts ?? {}).reduce((a, b) => a + b, 0),
+);
+
+const completionRate = computed(() => Number(props.stats.completionRate ?? 0));
+
+// Chart data for submissions over time
+const submissionsChartData = computed(() => ({
+    labels: (props.submissionsOverTime ?? []).map(p => p.month),
+    datasets: [
+        {
+            label: 'Submissions',
+            data: (props.submissionsOverTime ?? []).map(p => p.count),
+            backgroundColor: 'rgba(249, 115, 22, 0.15)',
+            borderColor: 'rgb(249, 115, 22)',
+            borderWidth: 2,
+            borderRadius: 6,
+            hoverBackgroundColor: 'rgba(249, 115, 22, 0.3)',
+        },
+    ],
+}));
+
+const submissionsChartOptions = computed(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleFont: { size: 12 },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 8,
+        },
+    },
+    scales: {
+        x: {
+            grid: { display: false },
+            ticks: { font: { size: 11 }, color: '#9ca3af' },
+        },
+        y: {
+            beginAtZero: true,
+            ticks: {
+                stepSize: 1,
+                font: { size: 11 },
+                color: '#9ca3af',
+            },
+            grid: { color: 'rgba(156, 163, 175, 0.1)' },
+        },
+    },
+}));
+
+// Chart data for status distribution (doughnut)
+const statusChartColors: Record<string, string> = {
+    active: 'rgb(59, 130, 246)',
+    draft: 'rgb(156, 163, 175)',
+    completed: 'rgb(34, 197, 94)',
+    archived: 'rgb(107, 114, 128)',
+    rejected: 'rgb(239, 68, 68)',
+    under_review: 'rgb(234, 179, 8)',
+};
+
+const statusChartData = computed(() => {
+    const counts = props.statusCounts ?? {};
+    const labels = Object.keys(counts);
+    const data = Object.values(counts);
+    const colors = labels.map(s => statusChartColors[s] ?? 'rgb(156, 163, 175)');
+
+    return {
+        labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1).replace('_', ' ')),
+        datasets: [
+            {
+                data,
+                backgroundColor: colors.map(c => c.replace('rgb', 'rgba').replace(')', ', 0.2)')),
+                borderColor: colors,
+                borderWidth: 2,
+                hoverOffset: 4,
+            },
+        ],
+    };
+});
+
+const statusChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: {
+        legend: {
+            position: 'bottom' as const,
+            labels: {
+                padding: 16,
+                usePointStyle: true,
+                pointStyleWidth: 8,
+                font: { size: 11 },
+            },
+        },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            padding: 10,
+            cornerRadius: 8,
+        },
+    },
+};
 
 const adminStaffStatCards = computed(() => [
     {
         label: 'Total Papers',
         value: Number(props.stats.totalPapers ?? 0),
-        border: 'border-orange-300',
         icon: BookOpen,
-        iconClass: 'text-orange-500',
+        iconBg: 'bg-orange-100 dark:bg-orange-950/40',
+        iconClass: 'text-orange-600 dark:text-orange-400',
+        accent: 'from-orange-500/10 to-transparent',
     },
     {
         label: 'Pending Review',
         value: Number(props.stats.pendingReview ?? 0),
-        border: 'border-teal-300',
         icon: ClipboardList,
-        iconClass: 'text-teal-500',
+        iconBg: 'bg-teal-100 dark:bg-teal-950/40',
+        iconClass: 'text-teal-600 dark:text-teal-400',
+        accent: 'from-teal-500/10 to-transparent',
     },
     {
         label: 'Completed',
         value: Number(props.stats.completed ?? 0),
-        border: 'border-green-300',
         icon: CheckCircle2,
-        iconClass: 'text-green-500',
+        iconBg: 'bg-green-100 dark:bg-green-950/40',
+        iconClass: 'text-green-600 dark:text-green-400',
+        accent: 'from-green-500/10 to-transparent',
     },
     {
         label: 'Total Users',
         value: Number(props.stats.totalUsers ?? 0),
-        border: 'border-indigo-300',
         icon: Users,
-        iconClass: 'text-indigo-500',
+        iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
+        iconClass: 'text-indigo-600 dark:text-indigo-400',
+        accent: 'from-indigo-500/10 to-transparent',
     },
     {
         label: 'Pending Approval',
         value: Number(props.stats.pendingApproval ?? 0),
-        border: 'border-amber-300',
         icon: AlertCircle,
-        iconClass: 'text-amber-500',
+        iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+        iconClass: 'text-amber-600 dark:text-amber-400',
+        accent: 'from-amber-500/10 to-transparent',
     },
 ]);
 
@@ -135,30 +284,34 @@ const facultyStatCards = computed(() => [
     {
         label: 'Classes',
         value: Number(props.stats.totalClasses ?? 0),
-        border: 'border-orange-300',
         icon: School,
-        iconClass: 'text-orange-500',
+        iconBg: 'bg-orange-100 dark:bg-orange-950/40',
+        iconClass: 'text-orange-600 dark:text-orange-400',
+        accent: 'from-orange-500/10 to-transparent',
     },
     {
         label: 'Students',
         value: Number(props.stats.totalStudents ?? 0),
-        border: 'border-teal-300',
         icon: GraduationCap,
-        iconClass: 'text-teal-500',
+        iconBg: 'bg-teal-100 dark:bg-teal-950/40',
+        iconClass: 'text-teal-600 dark:text-teal-400',
+        accent: 'from-teal-500/10 to-transparent',
     },
     {
         label: 'Papers',
         value: Number(props.stats.totalPapers ?? 0),
-        border: 'border-blue-300',
         icon: BookOpen,
-        iconClass: 'text-blue-500',
+        iconBg: 'bg-blue-100 dark:bg-blue-950/40',
+        iconClass: 'text-blue-600 dark:text-blue-400',
+        accent: 'from-blue-500/10 to-transparent',
     },
     {
         label: 'Pending Actions',
         value: Number(props.stats.pendingActions ?? 0),
-        border: 'border-amber-300',
         icon: ClipboardList,
-        iconClass: 'text-amber-500',
+        iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+        iconClass: 'text-amber-600 dark:text-amber-400',
+        accent: 'from-amber-500/10 to-transparent',
     },
 ]);
 
@@ -166,35 +319,32 @@ const studentCards = computed(() => [
     {
         label: 'Class Enrolled',
         value: Boolean(props.stats.hasClass) ? 'Yes' : 'No',
-        border: 'border-orange-300',
         icon: School,
-        iconClass: 'text-orange-500',
+        iconBg: 'bg-orange-100 dark:bg-orange-950/40',
+        iconClass: 'text-orange-600 dark:text-orange-400',
+        accent: 'from-orange-500/10 to-transparent',
     },
     {
         label: 'Paper Submitted',
         value: Boolean(props.stats.hasPaper) ? 'Yes' : 'No',
-        border: 'border-teal-300',
         icon: BookOpenCheck,
-        iconClass: 'text-teal-500',
+        iconBg: 'bg-teal-100 dark:bg-teal-950/40',
+        iconClass: 'text-teal-600 dark:text-teal-400',
+        accent: 'from-teal-500/10 to-transparent',
     },
     {
         label: 'Current Step',
         value: String(props.stats.currentStepLabel ?? 'Not started'),
-        border: 'border-indigo-300',
         icon: ClipboardList,
-        iconClass: 'text-indigo-500',
+        iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
+        iconClass: 'text-indigo-600 dark:text-indigo-400',
+        accent: 'from-indigo-500/10 to-transparent',
     },
 ]);
 
 const statCards = computed(() => {
-    if (props.role === 'faculty') {
-        return facultyStatCards.value;
-    }
-
-    if (props.role === 'admin' || props.role === 'staff') {
-        return adminStaffStatCards.value;
-    }
-
+    if (props.role === 'faculty') return facultyStatCards.value;
+    if (props.role === 'admin' || props.role === 'staff') return adminStaffStatCards.value;
     return studentCards.value;
 });
 
@@ -207,10 +357,7 @@ function stepCount(step: string): number {
 }
 
 function formatDate(date: string | null | undefined): string {
-    if (!date) {
-        return '-';
-    }
-
+    if (!date) return '-';
     return new Date(date).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -223,10 +370,7 @@ function announcementDate(date: string | null): string {
 }
 
 function stepLabel(step?: string | null): string {
-    if (!step) {
-        return 'Unassigned';
-    }
-
+    if (!step) return 'Unassigned';
     return props.stepLabels[step] ?? step;
 }
 
@@ -234,7 +378,6 @@ function paperLink(paperId: number): string {
     if (props.role === 'admin' || props.role === 'staff') {
         return admin.research.show.url({ paper: paperId });
     }
-
     return papersShow.url({ paper: paperId });
 }
 
@@ -249,282 +392,358 @@ defineOptions({
     <Head title="Dashboard" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
-        <section class="overflow-hidden rounded-2xl border border-border bg-card">
-            <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
+        <!-- Page Header -->
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start gap-3">
+                <div class="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-2.5 shadow-lg shadow-orange-500/20">
+                    <Megaphone class="h-5 w-5 text-white" />
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-foreground">
+                        Dashboard
+                    </h1>
+                    <p class="text-sm text-muted-foreground">
+                        Monitor workflow progress, research activity, and key metrics.
+                    </p>
+                </div>
+            </div>
+            <div class="hidden items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground md:flex">
+                <span class="h-2 w-2 rounded-full bg-green-500" />
+                Live data
+            </div>
+        </div>
 
-            <div class="flex flex-col gap-6 p-5 md:p-6">
-                <div class="flex items-start justify-between gap-4">
+        <!-- Announcements -->
+        <section v-if="announcements.length > 0">
+            <div class="mb-3 flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-foreground">Announcements</h2>
+                <span class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                    {{ announcements.length }}
+                </span>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div
+                    v-for="announcement in announcements"
+                    :key="announcement.id"
+                    :class="[
+                        'group relative overflow-hidden rounded-xl border p-4 transition-shadow hover:shadow-md',
+                        announcementColors[announcement.type],
+                    ]"
+                >
                     <div class="flex items-start gap-3">
-                        <div class="rounded-xl bg-muted p-2.5">
-                            <Megaphone class="h-5 w-5 text-orange-500" />
+                        <div :class="['shrink-0 rounded-lg p-1.5', announcementIcon[announcement.type]]">
+                            <Megaphone class="h-3.5 w-3.5" />
                         </div>
-                        <div class="space-y-1">
-                            <h1 class="text-2xl font-bold text-foreground">
-                                Dashboard
-                            </h1>
-                            <p class="text-sm text-muted-foreground">
-                                Track announcements, workflow progress, and recent research activity in one place.
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <p class="text-sm font-semibold text-foreground">
+                                    {{ announcement.title }}
+                                </p>
+                                <span
+                                    v-if="announcement.is_pinned"
+                                    class="shrink-0 rounded-md bg-foreground/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground/70"
+                                >
+                                    Pinned
+                                </span>
+                            </div>
+                            <p class="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                                {{ announcement.content }}
+                            </p>
+                            <p class="mt-2 text-[10px] font-medium text-muted-foreground/70">
+                                {{ announcementDate(announcement.published_at) }}
                             </p>
                         </div>
                     </div>
-
-                    <div class="hidden rounded-xl bg-muted px-3 py-2 text-right md:block">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                            Updates
-                        </p>
-                        <p class="text-sm font-bold text-foreground">
-                            {{ announcements.length }} active
-                        </p>
-                    </div>
-                </div>
-
-                <div
-                    v-if="announcements.length === 0"
-                    class="rounded-xl border border-dashed border-border bg-muted px-4 py-8 text-center text-sm text-muted-foreground"
-                >
-                    No announcements available.
-                </div>
-
-                <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <div
-                        v-for="announcement in announcements"
-                        :key="announcement.id"
-                        :class="[
-                            'flex h-full flex-col gap-4 rounded-2xl border p-4',
-                            announcementColors[announcement.type],
-                        ]"
-                    >
-                        <div class="flex items-start justify-between gap-3">
-                            <div class="space-y-1">
-                                <p class="text-sm font-bold">
-                                    {{ announcement.title }}
-                                </p>
-                                <p class="text-xs font-medium opacity-80">
-                                    {{ announcementDate(announcement.published_at) }}
-                                </p>
-                            </div>
-                            <span
-                                v-if="announcement.is_pinned"
-                                class="rounded-full border border-current px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                            >
-                                Pinned
-                            </span>
-                        </div>
-
-                        <p class="line-clamp-3 text-sm opacity-90">
-                            {{ announcement.content }}
-                        </p>
-                    </div>
                 </div>
             </div>
         </section>
 
-        <section class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <div
+        <!-- Stat Cards -->
+        <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <Card
                 v-for="card in statCards"
                 :key="card.label"
-                :class="[
-                    'rounded-2xl border border-border border-l-4 bg-card p-4',
-                    {
-                        'border-l-orange-500': card.border === 'border-orange-300',
-                        'border-l-teal-500': card.border === 'border-teal-300',
-                        'border-l-green-500': card.border === 'border-green-300',
-                        'border-l-indigo-500': card.border === 'border-indigo-300',
-                        'border-l-amber-500': card.border === 'border-amber-300',
-                        'border-l-blue-500': card.border === 'border-blue-300',
-                    },
-                ]"
+                class="group relative overflow-hidden transition-shadow hover:shadow-md"
             >
-                <div class="flex items-center gap-2">
-                    <component :is="card.icon" :class="['h-5 w-5', card.iconClass]" />
-                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        {{ card.label }}
-                    </p>
-                </div>
-                <p class="mt-4 text-2xl font-bold text-foreground">
-                    {{ card.value }}
-                </p>
-            </div>
+                <div :class="['pointer-events-none absolute inset-0 bg-gradient-to-br', card.accent]" />
+                <CardContent class="relative p-4">
+                    <div class="flex items-center justify-between">
+                        <div :class="['rounded-lg p-2', card.iconBg]">
+                            <component :is="card.icon" :class="['h-4 w-4', card.iconClass]" />
+                        </div>
+                        <ArrowUpRight class="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                    </div>
+                    <div class="mt-3">
+                        <p class="text-2xl font-bold tracking-tight text-foreground">
+                            {{ card.value }}
+                        </p>
+                        <p class="mt-0.5 text-xs font-medium text-muted-foreground">
+                            {{ card.label }}
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
         </section>
 
+        <!-- Charts Row (admin/staff/faculty) -->
         <section
             v-if="role !== 'student'"
-            class="rounded-2xl border border-border bg-card p-5 md:p-6"
+            class="grid gap-4 lg:grid-cols-5"
         >
-            <div class="mb-4 flex items-center justify-between gap-4">
-                <h2 class="text-base font-bold text-foreground">
-                    Workflow Step Counts
-                </h2>
-                <Link
-                    v-if="role === 'admin' || role === 'staff'"
-                    :href="admin.research.index.url()"
-                    class="text-xs font-semibold text-orange-500 hover:text-orange-600"
-                >
-                    View Research Queue
-                </Link>
-            </div>
-
-            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <div
-                    v-for="[step, label] in orderedStepEntries"
-                    :key="step"
-                    class="rounded-2xl border border-border bg-muted p-4"
-                >
-                    <div class="mb-3 flex items-center justify-between gap-3 text-sm">
-                        <span class="font-medium text-foreground">{{ label }}</span>
-                        <span class="font-bold text-foreground">{{ stepCount(step) }}</span>
+            <!-- Submissions Over Time -->
+            <Card class="lg:col-span-3">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                    <CardTitle class="text-sm font-semibold">Submissions Over Time</CardTitle>
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <TrendingUp class="h-3.5 w-3.5" />
+                        Last 6 months
                     </div>
-                    <div class="h-2 overflow-hidden rounded-full bg-background">
-                        <div
-                            :class="['h-full rounded-full', getStepBarClass(step)]"
-                            :style="{ width: `${(stepCount(step) / maxStepCount) * 100}%` }"
+                </CardHeader>
+                <CardContent>
+                    <div class="h-56">
+                        <Bar
+                            v-if="(submissionsOverTime ?? []).length > 0"
+                            :data="submissionsChartData"
+                            :options="submissionsChartOptions"
                         />
+                        <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
+                            No submission data yet.
+                        </div>
                     </div>
-                </div>
-            </div>
+                </CardContent>
+            </Card>
+
+            <!-- Status Distribution -->
+            <Card class="lg:col-span-2">
+                <CardHeader class="pb-2">
+                    <CardTitle class="text-sm font-semibold">Status Distribution</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div class="relative h-56">
+                        <Doughnut
+                            v-if="statusCounts && Object.keys(statusCounts).length > 0"
+                            :data="statusChartData"
+                            :options="statusChartOptions"
+                        />
+                        <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
+                            No status data yet.
+                        </div>
+                        <!-- Center label -->
+                        <div
+                            v-if="statusCounts && Object.keys(statusCounts).length > 0"
+                            class="pointer-events-none absolute inset-0 flex items-center justify-center"
+                            style="margin-bottom: 2.5rem"
+                        >
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-foreground">{{ completionRate }}%</p>
+                                <p class="text-[10px] font-medium text-muted-foreground">Complete</p>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </section>
 
-        <div class="grid gap-6" :class="role === 'faculty' ? 'xl:grid-cols-[2fr_1fr]' : 'grid-cols-1'">
-            <section class="rounded-2xl border border-border bg-card p-5 md:p-6">
-                <div class="mb-4 flex items-center justify-between gap-4">
-                    <h2 class="text-base font-bold text-foreground">
-                        Recent Papers
-                    </h2>
+        <!-- Workflow Step Counts -->
+        <section v-if="role !== 'student'">
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                    <div>
+                        <CardTitle class="text-sm font-semibold">Workflow Pipeline</CardTitle>
+                        <p class="mt-0.5 text-xs text-muted-foreground">
+                            {{ totalStepPapers }} papers across all stages
+                        </p>
+                    </div>
+                    <Link
+                        v-if="role === 'admin' || role === 'staff'"
+                        :href="admin.research.index.url()"
+                        class="inline-flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-600"
+                    >
+                        View Queue <ArrowRight class="h-3.5 w-3.5" />
+                    </Link>
+                </CardHeader>
+                <CardContent>
+                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        <div
+                            v-for="[step, label] in orderedStepEntries"
+                            :key="step"
+                            class="group flex items-center gap-3 rounded-lg border border-border bg-background p-3 transition-colors hover:bg-muted/50"
+                        >
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="truncate text-xs font-medium text-foreground">{{ label }}</span>
+                                    <span class="shrink-0 text-sm font-bold tabular-nums text-foreground">{{ stepCount(step) }}</span>
+                                </div>
+                                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                                    <div
+                                        :class="['h-full rounded-full transition-all duration-500', getStepBarClass(step)]"
+                                        :style="{ width: `${(stepCount(step) / maxStepCount) * 100}%` }"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </section>
+
+        <!-- Recent Papers + Sidebar -->
+        <div class="grid gap-4" :class="role === 'faculty' ? 'xl:grid-cols-[3fr_1fr]' : 'grid-cols-1'">
+            <!-- Recent Papers -->
+            <Card>
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                    <CardTitle class="text-sm font-semibold">Recent Papers</CardTitle>
                     <Link
                         :href="(role === 'admin' || role === 'staff') ? admin.research.index.url() : papersIndex.url()"
-                        class="inline-flex items-center gap-2 text-xs font-semibold text-teal-500 hover:text-teal-600"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
                     >
-                        Open list <ArrowRight class="h-4 w-4" />
+                        View all <ArrowRight class="h-3.5 w-3.5" />
                     </Link>
-                </div>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="visibleRecentPapers.length === 0" class="py-12 text-center">
+                        <BookOpen class="mx-auto h-8 w-8 text-muted-foreground/40" />
+                        <p class="mt-2 text-sm text-muted-foreground">No papers to show yet.</p>
+                    </div>
 
-                <div v-if="visibleRecentPapers.length === 0" class="py-10 text-center text-sm text-muted-foreground">
-                    No papers to show.
-                </div>
+                    <div v-else class="overflow-hidden rounded-lg border border-border">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-border bg-muted/50">
+                                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tracking</th>
+                                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Title</th>
+                                    <th class="hidden px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Student</th>
+                                    <th class="hidden px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Step</th>
+                                    <th class="hidden px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">
+                                <tr
+                                    v-for="paper in visibleRecentPapers"
+                                    :key="paper.id"
+                                    class="transition-colors hover:bg-muted/30"
+                                >
+                                    <td class="px-4 py-3">
+                                        <span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                                            {{ paper.tracking_id }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <Link
+                                            :href="paperLink(paper.id)"
+                                            class="line-clamp-1 text-sm font-medium text-foreground hover:text-orange-500"
+                                        >
+                                            {{ paper.title }}
+                                        </Link>
+                                    </td>
+                                    <td class="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">
+                                        {{ paper.student_name ?? '-' }}
+                                    </td>
+                                    <td class="hidden px-4 py-3 lg:table-cell">
+                                        <span
+                                            :class="[
+                                                'inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold',
+                                                getStepBadgeClass(paper.current_step ?? ''),
+                                            ]"
+                                        >
+                                            {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                                        </span>
+                                    </td>
+                                    <td class="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
+                                        {{ formatDate(paper.created_at) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </CardContent>
+            </Card>
 
-                <div v-else class="overflow-hidden rounded-2xl border border-border">
-                    <table class="w-full text-sm">
-                        <thead class="bg-muted">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Tracking</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground">Title</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground md:table-cell">Student</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground lg:table-cell">Step</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase text-muted-foreground xl:table-cell">Date</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-border">
-                            <tr
-                                v-for="paper in visibleRecentPapers"
-                                :key="paper.id"
-                                class="hover:bg-muted"
-                            >
-                                <td class="px-4 py-3 font-mono text-xs text-muted-foreground">{{ paper.tracking_id }}</td>
-                                <td class="px-4 py-3">
-                                    <Link
-                                        :href="paperLink(paper.id)"
-                                        class="line-clamp-1 font-semibold text-foreground hover:text-orange-500"
-                                    >
-                                        {{ paper.title }}
-                                    </Link>
-                                </td>
-                                <td class="hidden px-4 py-3 text-muted-foreground md:table-cell">{{ paper.student_name ?? '-' }}</td>
-                                <td class="hidden px-4 py-3 lg:table-cell">
-                                    <span
-                                        :class="[
-                                            'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
-                                            getStepBadgeClass(paper.current_step ?? ''),
-                                        ]"
-                                    >
-                                        {{ paper.step_label ?? stepLabel(paper.current_step) }}
-                                    </span>
-                                </td>
-                                <td class="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">{{ formatDate(paper.created_at) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <section
-                v-if="role === 'faculty'"
-                class="rounded-2xl border border-border bg-card p-5 md:p-6"
-            >
-                <div class="mb-4 flex items-center justify-between gap-4">
-                    <h2 class="text-base font-bold text-foreground">
-                        My Classes
-                    </h2>
+            <!-- Faculty Classes Sidebar -->
+            <Card v-if="role === 'faculty'">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                    <CardTitle class="text-sm font-semibold">My Classes</CardTitle>
                     <Link
                         :href="facultyClassesIndex.url()"
                         class="text-xs font-semibold text-orange-500 hover:text-orange-600"
                     >
-                        Open Classes
+                        View all
                     </Link>
-                </div>
-                <div v-if="visibleClasses.length === 0" class="text-sm text-muted-foreground">
-                    No classes assigned.
-                </div>
-                <div v-else class="space-y-4">
-                    <div
-                        v-for="classItem in visibleClasses"
-                        :key="classItem.id"
-                        class="rounded-2xl border border-border bg-muted p-4"
-                    >
-                        <p class="text-sm font-semibold text-foreground">
-                            {{ classItem.name }}
-                        </p>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            {{ classItem.members_count ?? 0 }} students •
-                            {{ classItem.research_papers_count ?? 0 }} papers
-                        </p>
+                </CardHeader>
+                <CardContent>
+                    <div v-if="visibleClasses.length === 0" class="py-8 text-center text-sm text-muted-foreground">
+                        No classes assigned.
                     </div>
-                </div>
-            </section>
+                    <div v-else class="space-y-2">
+                        <div
+                            v-for="classItem in visibleClasses"
+                            :key="classItem.id"
+                            class="rounded-lg border border-border bg-background p-3 transition-colors hover:bg-muted/50"
+                        >
+                            <p class="text-sm font-semibold text-foreground">
+                                {{ classItem.name }}
+                            </p>
+                            <div class="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                                <span class="flex items-center gap-1">
+                                    <Users class="h-3 w-3" />
+                                    {{ classItem.members_count ?? 0 }}
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <BookOpen class="h-3 w-3" />
+                                    {{ classItem.research_papers_count ?? 0 }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
-        <section
-            v-if="role === 'student'"
-            class="rounded-2xl border border-border bg-card p-5 md:p-6"
-        >
-            <div class="grid gap-6 lg:grid-cols-2">
-                <div>
-                    <h2 class="mb-4 text-base font-bold text-foreground">
-                        Student Workflow
-                    </h2>
-                    <div class="flex flex-wrap gap-2">
-                        <span
-                            v-for="[step, label] in orderedStepEntries"
-                            :key="step"
-                            :class="[
-                                'rounded-full border border-transparent px-2.5 py-1 text-xs font-semibold',
-                                isStepActive(step)
-                                    ? getStepBadgeClass(step)
-                                    : 'border-border bg-card text-muted-foreground',
-                            ]"
-                        >
-                            {{ label }}
-                        </span>
-                    </div>
-                </div>
+        <!-- Student Section -->
+        <section v-if="role === 'student'">
+            <Card>
+                <CardContent class="p-5">
+                    <div class="grid gap-6 lg:grid-cols-2">
+                        <div>
+                            <h2 class="mb-4 text-sm font-semibold text-foreground">
+                                Workflow Progress
+                            </h2>
+                            <div class="flex flex-wrap gap-2">
+                                <span
+                                    v-for="[step, label] in orderedStepEntries"
+                                    :key="step"
+                                    :class="[
+                                        'rounded-md border border-transparent px-2.5 py-1 text-xs font-semibold transition-all',
+                                        isStepActive(step)
+                                            ? getStepBadgeClass(step)
+                                            : 'border-border bg-card text-muted-foreground',
+                                    ]"
+                                >
+                                    {{ label }}
+                                </span>
+                            </div>
+                        </div>
 
-                <div class="flex flex-col gap-4">
-                    <h3 class="text-sm font-bold text-foreground">
-                        Quick Actions
-                    </h3>
-                    <Link
-                        :href="papersCreate.url()"
-                        class="inline-flex w-fit items-center gap-2 rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white hover:bg-orange-600"
-                    >
-                        <BookOpen class="h-4 w-4" /> Submit Paper
-                    </Link>
-                    <Link
-                        :href="papersIndex.url()"
-                        class="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground hover:border-teal-500 hover:text-teal-600"
-                    >
-                        <ClipboardList class="h-4 w-4" /> My Papers
-                    </Link>
-                </div>
-            </div>
+                        <div class="flex flex-col gap-3">
+                            <h3 class="text-sm font-semibold text-foreground">
+                                Quick Actions
+                            </h3>
+                            <Link
+                                :href="papersCreate.url()"
+                                class="inline-flex w-fit items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-orange-600"
+                            >
+                                <BookOpen class="h-4 w-4" /> Submit Paper
+                            </Link>
+                            <Link
+                                :href="papersIndex.url()"
+                                class="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:border-teal-500 hover:text-teal-600"
+                            >
+                                <ClipboardList class="h-4 w-4" /> My Papers
+                            </Link>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </section>
     </div>
 </template>

@@ -1,0 +1,425 @@
+<script setup lang="ts">
+import { Head, Link } from '@inertiajs/vue3';
+import { ChevronDown, FileSearch, Filter, Globe, GraduationCap, ScrollText, Search, Target } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { getStepBadgeClass } from '@/lib/step-colors';
+import { index as classesIndex } from '@/routes/faculty/classes';
+import classResearch from '@/routes/faculty/classes/research';
+import { index as researchIndex } from '@/routes/faculty/research';
+
+interface SchoolClassInfo {
+    id: number;
+    name: string;
+    section: string | null;
+    class_code: string | null;
+}
+
+interface SdgItem {
+    id: number;
+    number: number;
+    name: string;
+    code: string;
+    color: string;
+}
+
+interface AgendaItem {
+    id: number;
+    name: string;
+    code: string;
+}
+
+interface Paper {
+    id: number;
+    title: string;
+    tracking_id: string;
+    current_step: string;
+    step_label?: string;
+    grade?: string | null;
+    sdg_ids?: number[];
+    agenda_ids?: number[];
+    student?: { id: number; name: string } | null;
+    school_class?: SchoolClassInfo | null;
+}
+
+interface Props {
+    papers: Paper[];
+    classes: SchoolClassInfo[];
+    sdgs: SdgItem[];
+    agendas: AgendaItem[];
+    stepCounts: Record<string, number>;
+    stepLabels: Record<string, string>;
+}
+
+const props = defineProps<Props>();
+
+const searchQuery = ref('');
+const filtersOpen = ref(false);
+const activeStep = ref<string>('all');
+const activeClass = ref<number | 'all'>('all');
+const activeSdg = ref<number | 'all'>('all');
+const activeAgenda = ref<number | 'all'>('all');
+
+const orderedSteps = [
+    'title_proposal',
+    'ric_review',
+    'plagiarism_check',
+    'outline_defense',
+    'rating',
+    'final_manuscript',
+    'final_defense',
+    'hard_bound',
+    'completed',
+];
+
+const baseFilteredPapers = computed(() => {
+    let result = props.papers as Paper[];
+
+    const q = searchQuery.value.trim().toLowerCase();
+    if (q) {
+        result = result.filter(
+            (p) =>
+                p.title.toLowerCase().includes(q) ||
+                p.tracking_id.toLowerCase().includes(q) ||
+                (p.student?.name ?? '').toLowerCase().includes(q),
+        );
+    }
+
+    if (activeClass.value !== 'all') {
+        result = result.filter((p) => p.school_class?.id === activeClass.value);
+    }
+
+    if (activeSdg.value !== 'all') {
+        result = result.filter((p) => (p.sdg_ids ?? []).includes(activeSdg.value as number));
+    }
+
+    if (activeAgenda.value !== 'all') {
+        result = result.filter((p) => (p.agenda_ids ?? []).includes(activeAgenda.value as number));
+    }
+
+    return result;
+});
+
+const stepPills = computed(() => {
+    return [
+        { key: 'all', label: 'All', count: baseFilteredPapers.value.length },
+        ...orderedSteps.map((step) => ({
+            key: step,
+            label: props.stepLabels[step] ?? step,
+            count: baseFilteredPapers.value.filter((p) => p.current_step === step).length,
+        })),
+    ];
+});
+
+const filteredPapers = computed(() => {
+    if (activeStep.value === 'all') {
+        return baseFilteredPapers.value;
+    }
+
+    return baseFilteredPapers.value.filter((p) => p.current_step === activeStep.value);
+});
+
+const activeFilterCount = computed(() => {
+    let count = 0;
+    if (searchQuery.value.trim()) count++;
+    if (activeClass.value !== 'all') count++;
+    if (activeSdg.value !== 'all') count++;
+    if (activeAgenda.value !== 'all') count++;
+    if (activeStep.value !== 'all') count++;
+    return count;
+});
+
+function clearAllFilters() {
+    searchQuery.value = '';
+    activeClass.value = 'all';
+    activeSdg.value = 'all';
+    activeAgenda.value = 'all';
+    activeStep.value = 'all';
+}
+
+function stepLabel(step: string): string {
+    return props.stepLabels[step] ?? step;
+}
+
+defineOptions({
+    layout: {
+        breadcrumbs: [
+            { title: 'My Classes', href: classesIndex() },
+            { title: 'My Research', href: researchIndex() },
+        ],
+    },
+});
+</script>
+
+<template>
+    <Head title="My Research" />
+
+    <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
+        <!-- Hero Header -->
+        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+            <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
+            <div class="p-5">
+                <h1 class="text-2xl font-bold text-foreground">My Research</h1>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                    All research papers across your classes.
+                </p>
+            </div>
+        </section>
+
+        <!-- Quick Stats -->
+        <div class="grid gap-3 sm:grid-cols-3">
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                    <ScrollText class="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-muted-foreground">Total Papers</p>
+                    <p class="text-lg font-bold text-foreground">{{ papers.length }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30">
+                    <GraduationCap class="h-5 w-5 text-teal-500" />
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-muted-foreground">Classes</p>
+                    <p class="text-lg font-bold text-foreground">{{ classes.length }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/30">
+                    <ScrollText class="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-muted-foreground">Completed</p>
+                    <p class="text-lg font-bold text-foreground">{{ stepCounts['completed'] ?? 0 }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search + Filters -->
+        <section class="rounded-2xl border border-border bg-card">
+            <!-- Search bar -->
+            <div class="p-4">
+                <div class="relative">
+                    <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Search by title, tracking ID, or student name..."
+                        class="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    />
+                </div>
+            </div>
+
+            <!-- Collapsible filter toggle -->
+            <div class="border-t border-border">
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-between px-4 py-3 text-left"
+                    @click="filtersOpen = !filtersOpen"
+                >
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Filter class="h-4 w-4" />
+                        Filters
+                        <span
+                            v-if="activeFilterCount > 0"
+                            class="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400"
+                        >
+                            {{ activeFilterCount }}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button
+                            v-if="activeFilterCount > 0"
+                            type="button"
+                            class="text-xs font-semibold text-orange-500 hover:underline"
+                            @click.stop="clearAllFilters"
+                        >
+                            Clear all
+                        </button>
+                        <ChevronDown
+                            :class="['h-4 w-4 text-muted-foreground transition-transform duration-200', filtersOpen ? 'rotate-180' : '']"
+                        />
+                    </div>
+                </button>
+
+                <div v-show="filtersOpen" class="space-y-4 px-4 pb-4">
+                    <!-- Class filter -->
+                    <div v-if="classes.length > 1">
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <GraduationCap class="h-3.5 w-3.5" /> Class
+                        </p>
+                        <select
+                            :value="activeClass"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                            @change="activeClass = ($event.target as HTMLSelectElement).value === 'all' ? 'all' : Number(($event.target as HTMLSelectElement).value)"
+                        >
+                            <option value="all">All Classes</option>
+                            <option v-for="cls in classes" :key="cls.id" :value="cls.id">
+                                {{ cls.name }}{{ cls.section ? ` · ${cls.section}` : '' }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- SDG filter -->
+                    <div v-if="sdgs.length > 0">
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Globe class="h-3.5 w-3.5" /> SDG
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    activeSdg === 'all'
+                                        ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600',
+                                ]"
+                                @click="activeSdg = 'all'"
+                            >
+                                All
+                            </button>
+                            <button
+                                v-for="sdg in sdgs"
+                                :key="sdg.id"
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    activeSdg === sdg.id
+                                        ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600',
+                                ]"
+                                :title="sdg.name"
+                                @click="activeSdg = sdg.id"
+                            >
+                                <span class="inline-block h-2 w-2 rounded-full" :style="{ backgroundColor: sdg.color }" />
+                                {{ sdg.code }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Agenda filter -->
+                    <div v-if="agendas.length > 0">
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Target class="h-3.5 w-3.5" /> Agenda
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    activeAgenda === 'all'
+                                        ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600',
+                                ]"
+                                @click="activeAgenda = 'all'"
+                            >
+                                All
+                            </button>
+                            <button
+                                v-for="agenda in agendas"
+                                :key="agenda.id"
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    activeAgenda === agenda.id
+                                        ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600',
+                                ]"
+                                :title="agenda.name"
+                                @click="activeAgenda = agenda.id"
+                            >
+                                {{ agenda.code }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step filter -->
+                    <div>
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Filter class="h-3.5 w-3.5" /> Step
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button
+                                v-for="pill in stepPills"
+                                :key="pill.key"
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    activeStep === pill.key
+                                        ? 'border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-orange-600',
+                                ]"
+                                @click="activeStep = pill.key"
+                            >
+                                {{ pill.label }}
+                                <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] dark:bg-white/10">{{ pill.count }}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Papers Table -->
+        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+            <div v-if="filteredPapers.length === 0" class="p-12 text-center">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30">
+                    <FileSearch class="h-6 w-6 text-orange-500" />
+                </div>
+                <h2 class="text-base font-bold text-foreground">No papers found</h2>
+                <p class="mt-1 text-sm text-muted-foreground">No research papers match the selected filters.</p>
+            </div>
+
+            <div v-else class="overflow-x-auto">
+                <table class="w-full min-w-[860px] text-sm">
+                    <thead>
+                        <tr class="border-b border-border bg-muted">
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tracking ID</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Student</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Step</th>
+                            <th class="w-24 px-4 py-3" />
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr v-for="paper in filteredPapers" :key="paper.id" class="hover:bg-muted/50">
+                            <td class="px-4 py-3">
+                                <span class="inline-flex rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold text-foreground">
+                                    {{ paper.tracking_id }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <p class="line-clamp-1 font-semibold text-foreground">{{ paper.title }}</p>
+                            </td>
+                            <td class="px-4 py-3 text-foreground">
+                                {{ paper.student?.name ?? '-' }}
+                            </td>
+                            <td class="px-4 py-3">
+                                <span v-if="paper.school_class" class="inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300">
+                                    {{ paper.school_class.name }}<span v-if="paper.school_class.section"> · {{ paper.school_class.section }}</span>
+                                </span>
+                                <span v-else class="text-muted-foreground">—</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span :class="['inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', getStepBadgeClass(paper.current_step)]">
+                                    {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <Link
+                                    v-if="paper.school_class"
+                                    :href="classResearch.show.url({ class: paper.school_class.id, paper: paper.id })"
+                                    class="inline-flex rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                                >
+                                    View
+                                </Link>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</template>

@@ -79,6 +79,57 @@
     }
 }
 
+@keyframes hero-fade-up {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes hero-fade-right {
+    from {
+        opacity: 0;
+        transform: translateX(40px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+@keyframes draw-line {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes nav-indicator-slide {
+    from {
+        opacity: 0;
+        transform: scaleX(0.5);
+    }
+    to {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
 .animate-gradient-shift {
     background-size: 300% 300%;
     animation: gradient-shift 8s ease infinite;
@@ -106,6 +157,95 @@
 
 .animate-pulse-ring {
     animation: pulse-ring 2.5s ease-out infinite;
+}
+
+/* ─── Hero entrance ─── */
+.hero-stagger-1 {
+    animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+.hero-stagger-2 {
+    animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.25s both;
+}
+
+.hero-stagger-3 {
+    animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+}
+
+.hero-stagger-4 {
+    animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+}
+
+.hero-stagger-5 {
+    animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.7s both;
+}
+
+.hero-card-enter {
+    animation: hero-fade-right 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+
+/* ─── Shimmer text effect ─── */
+.text-shimmer {
+    background: linear-gradient(
+        110deg,
+        #f97316 0%,
+        #fb923c 30%,
+        #fde68a 50%,
+        #fb923c 70%,
+        #14b8a6 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+}
+
+/* ─── Active nav indicator ─── */
+.nav-active-indicator {
+    animation: nav-indicator-slide 0.25s ease-out;
+}
+
+/* ─── Feature card gradient border on hover ─── */
+.feature-card-glow {
+    position: relative;
+}
+
+.feature-card-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, transparent, transparent);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.feature-card-glow:hover::before {
+    background: linear-gradient(
+        135deg,
+        rgba(249, 115, 22, 0.5),
+        rgba(20, 184, 166, 0.5)
+    );
+    opacity: 1;
+}
+
+/* ─── Step connector animation ─── */
+.step-connector-animated {
+    background: linear-gradient(
+        90deg,
+        #f97316 0%,
+        #14b8a6 50%,
+        #f97316 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
 }
 
 /* ─── Glass card ─── */

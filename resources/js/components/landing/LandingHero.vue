@@ -3,6 +3,8 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Search, Zap, ChevronDown } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { register, dashboard } from '@/routes';
+import { useScrollReveal } from '@/composables/useScrollReveal';
+import { useCountUp } from '@/composables/useCountUp';
 
 defineProps<{
     canRegister: boolean;
@@ -51,11 +53,17 @@ function scrollToFeatures() {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
 }
 
+// Animated counters for stats
+const { target: statsRef, isVisible: statsVisible } = useScrollReveal(0.2);
+const paperCount = useCountUp(1200, statsVisible, 2000);
+const studentCount = useCountUp(800, statsVisible, 2000);
+const deptCount = useCountUp(12, statsVisible, 1200);
+
 const stats = [
-    { value: '1,200+', label: 'Papers Tracked', color: 'text-orange-500' },
-    { value: '800+', label: 'Student Researchers', color: 'text-teal-500' },
-    { value: '12+', label: 'Departments', color: 'text-orange-500' },
-    { value: '6', label: 'Research Stages', color: 'text-teal-500' },
+    { key: 'papers', suffix: '+', label: 'Papers Tracked', color: 'text-orange-500' },
+    { key: 'students', suffix: '+', label: 'Student Researchers', color: 'text-teal-500' },
+    { key: 'depts', suffix: '+', label: 'Departments', color: 'text-orange-500' },
+    { key: 'stages', value: '6', label: 'Research Stages', color: 'text-teal-500' },
 ];
 </script>
 
@@ -113,18 +121,18 @@ const stats = [
                 <div class="text-center lg:text-left">
                     <!-- Headline -->
                     <h1
-                        class="mb-6 text-4xl leading-[1.05] font-black tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+                        class="hero-stagger-1 mb-6 text-4xl leading-[1.05] font-black tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
                     >
                         <span class="text-slate-900 dark:text-white"
                             >Your Research,</span
                         >
                         <br />
-                        <span class="text-gradient">Every Step.</span>
+                        <span class="text-shimmer">Every Step.</span>
                     </h1>
 
                     <!-- Subtext -->
                     <p
-                        class="mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl lg:mx-0 dark:text-slate-400"
+                        class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl lg:mx-0 dark:text-slate-400"
                     >
                         Track every milestone of your student research — from
                         title proposal and chapter submissions, through panel
@@ -134,7 +142,7 @@ const stats = [
 
                     <!-- CTAs -->
                     <div
-                        class="mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start"
+                        class="hero-stagger-3 mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start"
                     >
                         <template v-if="!page.props.auth.user">
                             <Link v-if="canRegister" :href="register.url()">
@@ -164,15 +172,19 @@ const stats = [
 
                     <!-- Stats row -->
                     <div
-                        class="mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4 lg:mx-0"
+                        ref="statsRef"
+                        class="hero-stagger-4 mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4 lg:mx-0"
                     >
                         <div
                             v-for="stat in stats"
                             :key="stat.label"
                             class="text-center lg:text-left"
                         >
-                            <div :class="['text-2xl font-black', stat.color]">
-                                {{ stat.value }}
+                            <div :class="['text-2xl font-black tabular-nums', stat.color]">
+                                <template v-if="stat.key === 'papers'">{{ paperCount.toLocaleString() }}{{ stat.suffix }}</template>
+                                <template v-else-if="stat.key === 'students'">{{ studentCount.toLocaleString() }}{{ stat.suffix }}</template>
+                                <template v-else-if="stat.key === 'depts'">{{ deptCount }}{{ stat.suffix }}</template>
+                                <template v-else>{{ stat.value }}</template>
                             </div>
                             <div
                                 class="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-500"
@@ -188,7 +200,7 @@ const stats = [
                     class="relative hidden justify-center lg:flex lg:justify-end"
                 >
                     <!-- Main card -->
-                    <div class="animate-float relative w-full max-w-md">
+                    <div class="hero-card-enter animate-float relative w-full max-w-md">
                         <!-- Browser chrome frame -->
                         <div
                             class="overflow-hidden rounded-2xl border border-slate-200/60 shadow-2xl shadow-slate-900/20 dark:border-slate-700/60 dark:shadow-black/50"
@@ -384,7 +396,7 @@ const stats = [
         </div>
 
         <!-- Quick track widget -->
-        <div class="mx-auto mt-14 w-full max-w-2xl px-1">
+        <div class="hero-stagger-5 mx-auto mt-14 w-full max-w-2xl px-1">
             <div
                 class="relative flex gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-lg shadow-slate-900/5 dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-black/20"
             >

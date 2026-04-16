@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { AlertTriangle, FileText, Pencil, Plus, Search, Send, Trash2 } from 'lucide-vue-next';
+import { AlertTriangle, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import student from '@/routes/student';
@@ -28,11 +28,12 @@ interface Props {
 const props = defineProps<Props>();
 const page = usePage();
 const authUserId = computed(() => (page.props.auth as { user: { id: number } }).user.id);
-const serverErrors = computed(() => (page.props.errors ?? {}) as Record<string, string>);
 
 defineOptions({
     layout: {
-        breadcrumbs: [{ title: 'My Research', href: student.research.index() }],
+        breadcrumbs: [
+            { title: 'My Research', href: student.research.index() },
+        ],
     },
 });
 
@@ -74,58 +75,6 @@ function canEdit(paper: Paper): boolean {
 
 function formatDate(date: string): string {
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-// ── Create Modal ────────────────────────────────────
-const showCreateModal = ref(false);
-const createForm = ref({ title: '', abstract: '' });
-const createProcessing = ref(false);
-
-function openCreate(): void {
-    createForm.value = { title: '', abstract: '' };
-    showCreateModal.value = true;
-}
-
-function submitCreate(): void {
-    createProcessing.value = true;
-    router.post(student.research.store.url(), createForm.value, {
-        preserveScroll: true,
-        onFinish: () => {
-            createProcessing.value = false;
-        },
-        onSuccess: () => {
-            showCreateModal.value = false;
-        },
-    });
-}
-
-// ── Edit Modal ──────────────────────────────────────
-const showEditModal = ref(false);
-const editForm = ref({ title: '', abstract: '' });
-const editPaperId = ref<number | null>(null);
-const editProcessing = ref(false);
-
-function openEdit(paper: Paper): void {
-    editPaperId.value = paper.id;
-    editForm.value = { title: paper.title, abstract: paper.abstract ?? '' };
-    showEditModal.value = true;
-}
-
-function submitEdit(): void {
-    if (!editPaperId.value) {
-        return;
-    }
-
-    editProcessing.value = true;
-    router.put(student.research.update.url(editPaperId.value), editForm.value, {
-        preserveScroll: true,
-        onFinish: () => {
-            editProcessing.value = false;
-        },
-        onSuccess: () => {
-            showEditModal.value = false;
-        },
-    });
 }
 
 // ── Delete Confirmation ─────────────────────────────
@@ -173,7 +122,7 @@ function submitDelete(): void {
                 <button
                     type="button"
                     class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
-                    @click="openCreate"
+                    @click="router.visit(student.research.create.url())"
                 >
                     <Plus class="h-4 w-4" />
                     New Title Proposal
@@ -245,7 +194,7 @@ function submitDelete(): void {
                                 type="button"
                                 class="rounded-lg border border-border p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                 title="Edit"
-                                @click.stop.prevent="openEdit(paper)"
+                                @click.stop.prevent="router.visit(student.research.edit.url(paper.id))"
                             >
                                 <Pencil class="h-3.5 w-3.5" />
                             </button>
@@ -276,109 +225,13 @@ function submitDelete(): void {
                 v-if="!searchQuery"
                 type="button"
                 class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
-                @click="openCreate"
+                @click="router.visit(student.research.create.url())"
             >
                 <Plus class="h-4 w-4" />
                 New Title Proposal
             </button>
         </div>
     </div>
-
-    <!-- ── Create Modal ────────────────────────────────── -->
-    <Teleport to="body">
-        <div v-if="showCreateModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="showCreateModal = false">
-            <div class="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl">
-                <div class="border-b border-border p-5">
-                    <h2 class="text-lg font-bold text-foreground">New Title Proposal</h2>
-                    <p class="mt-1 text-sm text-muted-foreground">You must be enrolled in a class to submit.</p>
-                </div>
-
-                <form class="space-y-4 p-5" @submit.prevent="submitCreate">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Research Title</label>
-                        <input
-                            v-model="createForm.title"
-                            type="text"
-                            required
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            placeholder="Enter your research title"
-                        />
-                        <p v-if="serverErrors.title" class="mt-1 text-xs text-red-500">{{ serverErrors.title }}</p>
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Abstract (Optional)</label>
-                        <textarea
-                            v-model="createForm.abstract"
-                            rows="4"
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            placeholder="Brief description of your research"
-                        />
-                    </div>
-
-                    <p v-if="serverErrors.class" class="text-sm text-red-500">{{ serverErrors.class }}</p>
-
-                    <div class="flex justify-end gap-3">
-                        <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted" @click="showCreateModal = false">Cancel</button>
-                        <button
-                            type="submit"
-                            :disabled="createProcessing"
-                            class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
-                        >
-                            <Send class="h-3.5 w-3.5" />
-                            Submit
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </Teleport>
-
-    <!-- ── Edit Modal ──────────────────────────────────── -->
-    <Teleport to="body">
-        <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="showEditModal = false">
-            <div class="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl">
-                <div class="border-b border-border p-5">
-                    <h2 class="text-lg font-bold text-foreground">Edit Title Proposal</h2>
-                    <p class="mt-1 text-sm text-muted-foreground">You can only edit papers at the title proposal step.</p>
-                </div>
-
-                <form class="space-y-4 p-5" @submit.prevent="submitEdit">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Research Title</label>
-                        <input
-                            v-model="editForm.title"
-                            type="text"
-                            required
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                        />
-                        <p v-if="serverErrors.title" class="mt-1 text-xs text-red-500">{{ serverErrors.title }}</p>
-                    </div>
-
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Abstract (Optional)</label>
-                        <textarea
-                            v-model="editForm.abstract"
-                            rows="4"
-                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                        />
-                    </div>
-
-                    <div class="flex justify-end gap-3">
-                        <button type="button" class="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted" @click="showEditModal = false">Cancel</button>
-                        <button
-                            type="submit"
-                            :disabled="editProcessing"
-                            class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
-                        >
-                            <Pencil class="h-3.5 w-3.5" />
-                            Save Changes
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </Teleport>
 
     <!-- ── Delete Confirmation Modal ──────────────────── -->
     <Teleport to="body">

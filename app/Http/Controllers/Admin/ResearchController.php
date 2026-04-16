@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Agenda;
 use App\Models\ResearchPaper;
+use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use App\Models\User;
@@ -33,6 +34,20 @@ class ResearchController extends Controller
             });
         }
 
+        if ($request->filled('sdg')) {
+            $sdgId = (int) $request->sdg;
+            $query->whereJsonContains('sdg_ids', $sdgId);
+        }
+
+        if ($request->filled('agenda')) {
+            $agendaId = (int) $request->agenda;
+            $query->whereJsonContains('agenda_ids', $agendaId);
+        }
+
+        if ($request->filled('class')) {
+            $query->where('school_class_id', (int) $request->class);
+        }
+
         $papers = $query->latest()->paginate(20)->withQueryString();
 
         $stepCounts = [];
@@ -46,13 +61,20 @@ class ResearchController extends Controller
         $staffUsers = User::whereHas('profile', fn ($q) => $q->whereIn('role', ['staff', 'admin']))
             ->orderBy('name')->get(['id', 'name']);
 
+        $sdgs = Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']);
+        $agendas = Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $classes = SchoolClass::where('is_active', true)->orderBy('name')->get(['id', 'name', 'section']);
+
         return Inertia::render('admin/Research/Index', [
             'papers' => $papers,
             'stepCounts' => $stepCounts,
             'facultyUsers' => $facultyUsers,
             'staffUsers' => $staffUsers,
-            'filters' => $request->only(['step', 'search']),
+            'filters' => $request->only(['step', 'search', 'sdg', 'agenda', 'class']),
             'stepLabels' => ResearchPaper::STEP_LABELS,
+            'sdgs' => $sdgs,
+            'agendas' => $agendas,
+            'classes' => $classes,
         ]);
     }
 
@@ -64,6 +86,7 @@ class ResearchController extends Controller
             'adviser',
             'statistician',
             'trackingRecords.updatedBy',
+            'comments.user',
         ]);
 
         $facultyUsers = User::whereHas('profile', fn ($q) => $q->where('role', 'faculty'))
@@ -73,7 +96,7 @@ class ResearchController extends Controller
             ->orderBy('name')->get(['id', 'name']);
 
         $sdgs = Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']);
-        $agendas = Agenda::where('is_active', true)->orderBy('title')->get(['id', 'title']);
+        $agendas = Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('admin/Research/Show', [
             'paper' => [
@@ -101,7 +124,8 @@ class ResearchController extends Controller
                 'step_hard_bound' => $paper->step_hard_bound,
                 'submission_date' => $paper->submission_date?->toDateString(),
                 'created_at' => $paper->created_at->toISOString(),
-                'user' => [
+                'user_id' => $paper->user_id,
+                'student' => [
                     'id' => $paper->user->id,
                     'name' => $paper->user->name,
                     'email' => $paper->user->email,
@@ -112,24 +136,47 @@ class ResearchController extends Controller
                 ] : null,
                 'adviser' => $paper->adviser ? ['id' => $paper->adviser->id, 'name' => $paper->adviser->name] : null,
                 'statistician' => $paper->statistician ? ['id' => $paper->statistician->id, 'name' => $paper->statistician->name] : null,
-                'tracking_records' => $paper->trackingRecords->map(fn ($r) => [
-                    'id' => $r->id,
-                    'step' => $r->step,
-                    'action' => $r->action,
-                    'status' => $r->status,
-                    'old_status' => $r->old_status,
-                    'notes' => $r->notes,
-                    'metadata' => $r->metadata,
-                    'performed_by' => $r->updatedBy?->name,
-                    'created_at' => $r->created_at->toISOString(),
-                ]),
             ],
+            'trackingRecords' => $paper->trackingRecords->map(fn ($r) => [
+                'id' => $r->id,
+                'step' => $r->step,
+                'action' => $r->action,
+                'status' => $r->status,
+                'old_status' => $r->old_status,
+                'notes' => $r->notes,
+                'metadata' => $r->metadata,
+                'updated_by' => $r->updatedBy ? ['id' => $r->updatedBy->id, 'name' => $r->updatedBy->name] : null,
+                'created_at' => $r->created_at->toISOString(),
+            ]),
             'facultyUsers' => $facultyUsers,
             'staffUsers' => $staffUsers,
             'sdgs' => $sdgs,
             'agendas' => $agendas,
             'stepLabels' => ResearchPaper::STEP_LABELS,
+            'steps' => ResearchPaper::STEPS,
+            'comments' => $paper->comments->map(fn ($c) => [
+                'id' => $c->id,
+                'body' => $c->body,
+                'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
+                'created_at' => $c->created_at->toISOString(),
+            ]),
         ]);
+    }
+
+    public function storeComment(Request $request, ResearchPaper $paper): RedirectResponse
+    {
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $paper->comments()->create([
+            'user_id' => $request->user()->id,
+            'body' => $validated['body'],
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Comment added.']);
+
+        return back();
     }
 
     public function assign(Request $request, ResearchPaper $paper): RedirectResponse

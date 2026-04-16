@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agenda;
+use App\Models\Comment;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
+use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +21,13 @@ class ResearchController extends Controller
     {
         $this->ensureFacultyOwnsClass($request, $class);
 
-        $papers = ResearchPaper::query()
+        // Get student IDs enrolled in this class
+        $studentIds = \DB::table('school_class_members')
             ->where('school_class_id', $class->id)
+            ->pluck('student_id');
+
+        $papers = ResearchPaper::query()
+            ->whereIn('user_id', $studentIds)
             ->with(['user', 'adviser', 'statistician'])
             ->latest()
             ->get()
@@ -52,7 +60,7 @@ class ResearchController extends Controller
         $stepCounts = [];
         foreach (ResearchPaper::STEPS as $step) {
             $stepCounts[$step] = ResearchPaper::query()
-                ->where('school_class_id', $class->id)
+                ->whereIn('user_id', $studentIds)
                 ->where('current_step', $step)
                 ->count();
         }
@@ -78,18 +86,27 @@ class ResearchController extends Controller
         $this->ensureFacultyOwnsClass($request, $class);
         $this->ensurePaperBelongsToClass($class, $paper);
 
-        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy']);
+        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user']);
 
         return Inertia::render('faculty/Research/Show', [
+            'schoolClass' => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'section' => $class->section,
+            ],
             'paper' => [
                 'id' => $paper->id,
                 'tracking_id' => $paper->tracking_id,
                 'title' => $paper->title,
                 'abstract' => $paper->abstract,
                 'proponents' => $paper->proponents,
+                'sdg_ids' => $paper->sdg_ids,
+                'agenda_ids' => $paper->agenda_ids,
+                'keywords' => $paper->keywords,
                 'status' => $paper->status,
                 'current_step' => $paper->current_step,
                 'step_label' => $paper->step_label,
+                'user_id' => $paper->user_id,
                 'step_ric_review' => $paper->step_ric_review,
                 'step_plagiarism' => $paper->step_plagiarism,
                 'plagiarism_attempts' => $paper->plagiarism_attempts,
@@ -103,6 +120,7 @@ class ResearchController extends Controller
                 'final_defense_schedule' => $paper->final_defense_schedule?->toISOString(),
                 'step_hard_bound' => $paper->step_hard_bound,
                 'submission_date' => $paper->submission_date?->toDateString(),
+                'created_at' => $paper->created_at->toISOString(),
                 'student' => $paper->user ? [
                     'id' => $paper->user->id,
                     'name' => $paper->user->name,
@@ -142,6 +160,18 @@ class ResearchController extends Controller
                 'created_at' => $record->created_at?->toISOString(),
             ])->values(),
             'stepLabels' => ResearchPaper::STEP_LABELS,
+            'steps' => ResearchPaper::STEPS,
+            'sdgs' => Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']),
+            'agendas' => Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'comments' => $paper->comments->map(fn (Comment $comment) => [
+                'id' => $comment->id,
+                'body' => $comment->body,
+                'user' => $comment->user ? [
+                    'id' => $comment->user->id,
+                    'name' => $comment->user->name,
+                ] : null,
+                'created_at' => $comment->created_at?->toISOString(),
+            ])->values(),
         ]);
     }
 
@@ -267,6 +297,25 @@ class ResearchController extends Controller
         return back();
     }
 
+    public function storeComment(Request $request, SchoolClass $class, ResearchPaper $paper): RedirectResponse
+    {
+        $this->ensureFacultyOwnsClass($request, $class);
+        $this->ensurePaperBelongsToClass($class, $paper);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $paper->comments()->create([
+            'user_id' => $request->user()->id,
+            'body' => $validated['body'],
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Comment added.']);
+
+        return back();
+    }
+
     private function ensureFacultyOwnsClass(Request $request, SchoolClass $class): void
     {
         if ($class->faculty_id !== $request->user()->id) {
@@ -276,7 +325,12 @@ class ResearchController extends Controller
 
     private function ensurePaperBelongsToClass(SchoolClass $class, ResearchPaper $paper): void
     {
-        if ($paper->school_class_id !== $class->id) {
+        $isMember = \DB::table('school_class_members')
+            ->where('school_class_id', $class->id)
+            ->where('student_id', $paper->user_id)
+            ->exists();
+
+        if (! $isMember) {
             abort(404);
         }
     }

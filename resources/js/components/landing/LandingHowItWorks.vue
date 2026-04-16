@@ -48,6 +48,8 @@ const steps = [
         ],
     },
 ];
+
+const stepRefs = steps.map(() => useScrollReveal(0.05));
 </script>
 
 <template>
@@ -91,7 +93,7 @@ const steps = [
                 <!-- Badge center X = left-8(32px) + w-8/2(16px) = 48px from each col left edge -->
                 <!-- right = col_width - 48px = calc((100% - 4rem)/3 - 48px) -->
                 <div
-                    class="absolute hidden h-0.5 bg-gradient-to-r from-orange-400 via-teal-400 to-orange-400/50 lg:block dark:from-orange-600/60 dark:via-teal-600/60 dark:to-orange-600/30"
+                    class="step-connector-animated absolute hidden h-0.5 lg:block"
                     style="
                         top: 0;
                         left: 48px;
@@ -102,11 +104,17 @@ const steps = [
                 <div
                     v-for="(step, i) in steps"
                     :key="step.number"
-                    :class="['reveal', { visible: isVisible }]"
+                    :ref="
+                        (el) => {
+                            if (el)
+                                stepRefs[i].target.value = el as HTMLElement;
+                        }
+                    "
+                    :class="['reveal', { visible: stepRefs[i].isVisible.value }]"
                     :style="{ transitionDelay: `${i * 150}ms` }"
                 >
                     <div
-                        class="relative h-full rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm transition-shadow duration-300 hover:shadow-xl dark:border-slate-800/80 dark:bg-slate-900"
+                        class="relative h-full rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800/80 dark:bg-slate-900"
                     >
                         <!-- Step number badge -->
                         <div

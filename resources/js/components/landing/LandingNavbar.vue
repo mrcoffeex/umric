@@ -10,6 +10,7 @@ defineProps<{ canRegister: boolean }>();
 const { appearance, updateAppearance } = useAppearance();
 const scrolled = ref(false);
 const mobileOpen = ref(false);
+const activeSection = ref('hero');
 
 function cycleTheme() {
     if (appearance.value === 'light') {
@@ -26,8 +27,30 @@ function scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 }
 
+const sectionIds = [
+    'hero',
+    'features',
+    'showcase',
+    'how-it-works',
+    'testimonials',
+    'contact',
+];
+
 function handleScroll() {
     scrolled.value = window.scrollY > 24;
+
+    // Scroll-spy: find current section
+    let current = 'hero';
+    for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.top <= 120) {
+                current = id;
+            }
+        }
+    }
+    activeSection.value = current;
 }
 
 onMounted(() =>
@@ -78,9 +101,18 @@ const navLinks = [
                     v-for="link in navLinks"
                     :key="link.id"
                     @click="scrollTo(link.id)"
-                    class="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-orange-50 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-orange-950/30 dark:hover:text-orange-400"
+                    class="relative rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200"
+                    :class="[
+                        activeSection === link.id
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-slate-600 hover:bg-orange-50 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-orange-950/30 dark:hover:text-orange-400',
+                    ]"
                 >
                     {{ link.label }}
+                    <span
+                        v-if="activeSection === link.id"
+                        class="nav-active-indicator absolute inset-x-2 -bottom-0.5 h-0.5 rounded-full bg-gradient-to-r from-orange-500 to-teal-500"
+                    />
                 </button>
             </div>
 
@@ -161,7 +193,12 @@ const navLinks = [
                     v-for="link in navLinks"
                     :key="link.id"
                     @click="scrollTo(link.id)"
-                    class="block w-full rounded-lg px-4 py-3 text-left text-sm font-medium text-slate-600 transition hover:bg-orange-50 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-orange-950/30"
+                    class="block w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition"
+                    :class="[
+                        activeSection === link.id
+                            ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/30 dark:text-orange-400'
+                            : 'text-slate-600 hover:bg-orange-50 hover:text-orange-500 dark:text-slate-400 dark:hover:bg-orange-950/30',
+                    ]"
                 >
                     {{ link.label }}
                 </button>

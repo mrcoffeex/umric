@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agenda;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
+use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -58,6 +61,24 @@ class ResearchController extends Controller
             'trackingLog' => $paper->trackingRecords,
             'stepLabels' => ResearchPaper::STEP_LABELS,
             'steps' => ResearchPaper::STEPS,
+            'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
+            'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function create(Request $request): Response
+    {
+        if (! $request->user()->isStudent()) {
+            abort(403);
+        }
+
+        return Inertia::render('student/Research/Create', [
+            'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
+            'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
+            'auth_user' => [
+                'id' => $request->user()->id,
+                'name' => $request->user()->name,
+            ],
         ]);
     }
 
@@ -71,6 +92,11 @@ class ResearchController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'abstract' => ['nullable', 'string'],
             'proponents' => ['nullable', 'array'],
+            'sdg_ids' => ['nullable', 'array'],
+            'sdg_ids.*' => ['integer', 'exists:sdgs,id'],
+            'agenda_ids' => ['nullable', 'array'],
+            'agenda_ids.*' => ['integer', 'exists:agendas,id'],
+            'keywords' => ['nullable', 'string', 'max:500'],
         ]);
 
         $schoolClass = SchoolClass::query()
@@ -86,6 +112,9 @@ class ResearchController extends Controller
             'title' => $validated['title'],
             'abstract' => $validated['abstract'] ?? null,
             'proponents' => $validated['proponents'] ?? null,
+            'sdg_ids' => $validated['sdg_ids'] ?? null,
+            'agenda_ids' => $validated['agenda_ids'] ?? null,
+            'keywords' => $validated['keywords'] ?? null,
             'school_class_id' => $schoolClass->id,
             'tracking_id' => 'RP-'.strtoupper(Str::random(8)),
             'current_step' => 'title_proposal',
@@ -107,6 +136,29 @@ class ResearchController extends Controller
         return redirect()->route('student.research.show', $paper);
     }
 
+    public function edit(Request $request, ResearchPaper $paper): Response
+    {
+        if (! $request->user()->isStudent() || $paper->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($paper->current_step !== 'title_proposal') {
+            abort(403);
+        }
+
+        $paper->load('files');
+
+        return Inertia::render('student/Research/Edit', [
+            'paper' => $paper,
+            'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
+            'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
+            'auth_user' => [
+                'id' => $request->user()->id,
+                'name' => $request->user()->name,
+            ],
+        ]);
+    }
+
     public function update(Request $request, ResearchPaper $paper): RedirectResponse
     {
         if (! $request->user()->isStudent() || $paper->user_id !== $request->user()->id) {
@@ -121,13 +173,38 @@ class ResearchController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'abstract' => ['nullable', 'string'],
             'proponents' => ['nullable', 'array'],
+            'sdg_ids' => ['nullable', 'array'],
+            'sdg_ids.*' => ['integer', 'exists:sdgs,id'],
+            'agenda_ids' => ['nullable', 'array'],
+            'agenda_ids.*' => ['integer', 'exists:agendas,id'],
+            'keywords' => ['nullable', 'string', 'max:500'],
+            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:20480'],
         ]);
 
         $paper->update([
             'title' => $validated['title'],
             'abstract' => $validated['abstract'] ?? $paper->abstract,
             'proponents' => $validated['proponents'] ?? $paper->proponents,
+            'sdg_ids' => array_key_exists('sdg_ids', $validated) ? $validated['sdg_ids'] : $paper->sdg_ids,
+            'agenda_ids' => array_key_exists('agenda_ids', $validated) ? $validated['agenda_ids'] : $paper->agenda_ids,
+            'keywords' => array_key_exists('keywords', $validated) ? $validated['keywords'] : $paper->keywords,
         ]);
+
+        if ($request->hasFile('file')) {
+            $paper->files()->each(function ($file) {
+                Storage::delete($file->file_path);
+                $file->delete();
+            });
+
+            $uploadedFile = $request->file('file');
+            $paper->files()->create([
+                'file_name' => $uploadedFile->getClientOriginalName(),
+                'file_path' => $uploadedFile->store('papers', 'local'),
+                'file_type' => $uploadedFile->getMimeType(),
+                'file_size' => $uploadedFile->getSize(),
+                'disk' => 'local',
+            ]);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Research paper updated.']);
 

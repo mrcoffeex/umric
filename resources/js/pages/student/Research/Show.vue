@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link, setLayoutProps, usePage } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     BookCheck,
@@ -10,6 +10,7 @@ import {
     FileBarChart2,
     FileSearch,
     GraduationCap,
+    Pencil,
     ScrollText,
     Send,
     Shield,
@@ -40,6 +41,9 @@ interface Paper {
     step_label?: string;
     submission_date?: string | null;
     created_at: string;
+    keywords?: string | null;
+    sdg_ids?: number[] | null;
+    agenda_ids?: number[] | null;
     proponents?: string[] | Array<{ id: number; name: string }> | string | null;
     step_ric_review?: string | null;
     step_plagiarism?: string | null;
@@ -53,6 +57,7 @@ interface Paper {
     step_final_defense?: string | null;
     final_defense_schedule?: string | null;
     step_hard_bound?: string | null;
+    user_id?: number | null;
     adviser?: { id: number; name: string } | null;
     statistician?: { id: number; name: string } | null;
     school_class?: { id: number; name: string; section?: string | null } | null;
@@ -63,9 +68,24 @@ interface Props {
     trackingLog?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
+    sdgs: Array<{ id: number; name: string; number?: number }>;
+    agendas: Array<{ id: number; name: string }>;
 }
 
 const props = defineProps<Props>();
+
+const page = usePage();
+const authUserId = computed(() => (page.props.auth as { user: { id: number } }).user.id);
+const canEdit = computed(
+    () => props.paper.user_id === authUserId.value && props.paper.current_step === 'title_proposal',
+);
+
+const sdgMap = computed(() =>
+    Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
+);
+const agendaMap = computed(() =>
+    Object.fromEntries(props.agendas.map((a) => [a.id, a])),
+);
 
 const copied = ref(false);
 
@@ -296,10 +316,11 @@ async function copyToClipboard(text: string): Promise<void> {
     }
 }
 
-defineOptions({
-    layout: {
-        breadcrumbs: [{ title: 'My Research', href: student.research.index() }],
-    },
+setLayoutProps({
+    breadcrumbs: [
+        { title: 'My Research', href: student.research.index() },
+        { title: props.paper.title, href: student.research.show(props.paper.id) },
+    ],
 });
 </script>
 
@@ -339,11 +360,21 @@ defineOptions({
                         >
                     </div>
                 </div>
-                <span
-                    class="rounded-full border border-border bg-muted px-3 py-1 font-mono text-xs font-bold text-foreground"
-                >
-                    {{ paper.tracking_id }}
-                </span>
+                <div class="flex shrink-0 items-center gap-2">
+                    <Link
+                        v-if="canEdit"
+                        :href="student.research.edit.url(paper.id)"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-orange-300 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-700 transition hover:bg-orange-100 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-950/50"
+                    >
+                        <Pencil class="h-3 w-3" />
+                        Edit
+                    </Link>
+                    <span
+                        class="rounded-full border border-border bg-muted px-3 py-1 font-mono text-xs font-bold text-foreground"
+                    >
+                        {{ paper.tracking_id }}
+                    </span>
+                </div>
             </div>
         </section>
 
@@ -603,76 +634,69 @@ defineOptions({
 
                 <!-- Paper Info -->
                 <section class="rounded-2xl border border-border bg-card p-5">
-                    <h3 class="mb-4 text-base font-bold text-foreground">
+                    <h3 class="mb-4 flex items-center gap-2 text-base font-bold text-foreground">
+                        <FileSearch class="h-5 w-5 text-orange-500" />
                         Paper Info
                     </h3>
-                    <div class="space-y-3 text-sm">
-                        <div v-if="paper.abstract">
-                            <p
-                                class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Abstract
-                            </p>
-                            <p class="mt-1 text-sm text-foreground">
-                                {{ paper.abstract }}
+
+                    <!-- Abstract — separate visual block -->
+                    <div v-if="paper.abstract" class="mb-4 rounded-xl border border-border bg-muted/30 p-4">
+                        <p class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Abstract</p>
+                        <p class="text-sm leading-relaxed text-foreground">{{ paper.abstract }}</p>
+                    </div>
+
+                    <!-- Key details in a definition-list style grid -->
+                    <div class="divide-y divide-border">
+                        <div v-if="proponents.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Proponents</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="name in proponents" :key="name" class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">{{ name }}</span>
+                            </div>
+                        </div>
+
+                        <div v-if="paper.adviser" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Adviser</p>
+                            <p class="text-sm text-foreground">{{ paper.adviser.name }}</p>
+                        </div>
+
+                        <div v-if="paper.statistician" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Statistician</p>
+                            <p class="text-sm text-foreground">{{ paper.statistician.name }}</p>
+                        </div>
+
+                        <div v-if="paper.school_class" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Class</p>
+                            <p class="text-sm text-foreground">
+                                {{ paper.school_class.name }}
+                                <span v-if="paper.school_class.section" class="text-muted-foreground"> · Section {{ paper.school_class.section }}</span>
                             </p>
                         </div>
 
-                        <div v-if="proponents.length">
-                            <p
-                                class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Proponents
-                            </p>
-                            <div class="mt-1 flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="name in proponents"
-                                    :key="name"
-                                    class="rounded-full border border-border px-2 py-0.5 text-xs text-foreground"
-                                >
-                                    {{ name }}
+                        <div v-if="paper.keywords" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Keywords</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="keyword in paper.keywords.split(',')" :key="keyword.trim()" class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
+                                    {{ keyword.trim() }}
                                 </span>
                             </div>
                         </div>
 
-                        <div v-if="paper.adviser">
-                            <p
-                                class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Adviser
-                            </p>
-                            <p class="mt-1 text-sm text-foreground">
-                                {{ paper.adviser.name }}
-                            </p>
+                        <div v-if="paper.sdg_ids?.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">SDGs</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="id in paper.sdg_ids" :key="id" class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
+                                    {{ sdgMap[id] ? (sdgMap[id].number ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}` : sdgMap[id].name) : `SDG ${id}` }}
+                                </span>
+                            </div>
                         </div>
 
-                        <div v-if="paper.statistician">
-                            <p
-                                class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Statistician
-                            </p>
-                            <p class="mt-1 text-sm text-foreground">
-                                {{ paper.statistician.name }}
-                            </p>
-                        </div>
-
-                        <div v-if="paper.school_class">
-                            <p
-                                class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Class
-                            </p>
-                            <p class="mt-1 text-sm text-foreground">
-                                {{ paper.school_class.name }}
-                                <span
-                                    v-if="paper.school_class.section"
-                                    class="text-muted-foreground"
-                                >
-                                    · Section
-                                    {{ paper.school_class.section }}</span
-                                >
-                            </p>
+                        <div v-if="paper.agenda_ids?.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Research Agendas</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="id in paper.agenda_ids" :key="id" class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+                                    {{ agendaMap[id]?.name ?? `Agenda ${id}` }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </section>

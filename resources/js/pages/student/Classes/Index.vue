@@ -46,7 +46,9 @@ function semesterLabel(semester?: number | null): string {
 
 defineOptions({
     layout: {
-        breadcrumbs: [{ title: 'My Classes', href: student.classes.index() }],
+        breadcrumbs: [
+            { title: 'My Classes', href: student.classes.index() },
+        ],
     },
 });
 </script>
@@ -87,10 +89,11 @@ defineOptions({
         </div>
 
         <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <article
+            <Link
                 v-for="classItem in classes"
                 :key="classItem.id"
-                class="overflow-hidden rounded-2xl border border-border bg-card"
+                :href="student.classes.show.url(classItem.id)"
+                class="block overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md"
             >
                 <div class="h-1 bg-gradient-to-r from-teal-500 to-teal-300 dark:to-teal-700" />
                 <div class="p-5">
@@ -144,7 +147,7 @@ defineOptions({
                         </div>
                     </div>
                 </div>
-            </article>
+            </Link>
         </div>
     </div>
 </template>

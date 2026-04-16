@@ -8,8 +8,8 @@ import TagsInput from '@/components/TagsInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { create, index, store } from '@/routes/papers';
 import { search as searchProponents } from '@/routes/papers/proponents';
+import student from '@/routes/student';
 
 interface Props {
     sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
@@ -31,8 +31,8 @@ const agendaOptions = computed(() =>
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'Research Papers', href: index() },
-            { title: 'Create Title Proposal', href: create() },
+            { title: 'My Research', href: student.research.index() },
+            { title: 'Create Title Proposal', href: student.research.create() },
         ],
     },
 });
@@ -137,7 +137,7 @@ function selectProponent(slot: number, result: SearchResult) {
 }
 
 function submit() {
-    form.post(store.url());
+    form.post(student.research.store.url());
 }
 </script>
 
@@ -146,7 +146,7 @@ function submit() {
         <div class="w-full max-w-5xl space-y-6">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <Link :href="index()">
+                    <Link :href="student.research.index()">
                         <Button variant="outline" size="sm" class="gap-1.5">
                             <ArrowLeft class="h-3.5 w-3.5" />
                             Back
@@ -430,7 +430,7 @@ function submit() {
                 </div>
 
                 <div class="flex items-center justify-end gap-3">
-                    <Link :href="index()">
+                    <Link :href="student.research.index()">
                         <Button type="button" variant="outline">Cancel</Button>
                     </Link>
                     <Button

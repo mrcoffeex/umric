@@ -139,7 +139,7 @@ const cardRefs = features.map(() => useScrollReveal(0.05));
                 >
                     <div
                         :class="[
-                            'group h-full cursor-default rounded-2xl border p-7 transition-all duration-300',
+                            'feature-card-glow group h-full cursor-default overflow-hidden rounded-2xl border p-7 transition-all duration-300',
                             'bg-white dark:bg-slate-900',
                             'border-slate-200/80 dark:border-slate-800/80',
                             feature.border,
@@ -151,7 +151,7 @@ const cardRefs = features.map(() => useScrollReveal(0.05));
                         <!-- Icon -->
                         <div
                             :class="[
-                                'mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-transform duration-300 group-hover:scale-110',
+                                'mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg',
                                 feature.color,
                             ]"
                         >

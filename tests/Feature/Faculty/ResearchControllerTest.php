@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\Comment;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Models\UserProfile;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -26,6 +28,17 @@ function studentUser(): User
     return $user;
 }
 
+function enrollStudent(User $student, SchoolClass $class): void
+{
+    DB::table('school_class_members')->insert([
+        'school_class_id' => $class->id,
+        'student_id' => $student->id,
+        'joined_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
 it('allows faculty class owner to view class research index', function () {
     $faculty = facultyUser();
     $student = studentUser();
@@ -36,9 +49,10 @@ it('allows faculty class owner to view class research index', function () {
         'section' => 'A',
     ]);
 
+    enrollStudent($student, $class);
+
     ResearchPaper::factory()->create([
         'user_id' => $student->id,
-        'school_class_id' => $class->id,
         'current_step' => 'ric_review',
         'step_ric_review' => 'pending',
     ]);
@@ -66,9 +80,10 @@ it('forbids faculty from updating paper of class they do not own', function () {
         'section' => 'B',
     ]);
 
+    enrollStudent($student, $class);
+
     $paper = ResearchPaper::factory()->create([
         'user_id' => $student->id,
-        'school_class_id' => $class->id,
         'current_step' => 'outline_defense',
         'step_outline_defense' => 'pending',
     ]);
@@ -91,9 +106,10 @@ it('updates rating step and logs tracking record for faculty owner', function ()
         'section' => 'C',
     ]);
 
+    enrollStudent($student, $class);
+
     $paper = ResearchPaper::factory()->create([
         'user_id' => $student->id,
-        'school_class_id' => $class->id,
         'current_step' => 'rating',
         'step_rating' => 'pending',
     ]);
@@ -132,9 +148,10 @@ it('approves ric review and advances to plagiarism check', function () {
         'section' => 'D',
     ]);
 
+    enrollStudent($student, $class);
+
     $paper = ResearchPaper::factory()->create([
         'user_id' => $student->id,
-        'school_class_id' => $class->id,
         'current_step' => 'ric_review',
         'step_ric_review' => 'pending',
     ]);
@@ -158,4 +175,93 @@ it('approves ric review and advances to plagiarism check', function () {
         'status' => 'approved',
         'updated_by' => $faculty->id,
     ]);
+});
+
+it('allows faculty to store a comment on a paper in their class', function () {
+    $faculty = facultyUser();
+    $student = studentUser();
+
+    $class = SchoolClass::factory()->create(['faculty_id' => $faculty->id]);
+    enrollStudent($student, $class);
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->post(route('faculty.classes.research.store-comment', [$class, $paper]), [
+            'body' => 'Great progress on the methodology section.',
+        ])
+        ->assertRedirect();
+
+    $this->assertDatabaseHas('comments', [
+        'research_paper_id' => $paper->id,
+        'user_id' => $faculty->id,
+        'body' => 'Great progress on the methodology section.',
+    ]);
+});
+
+it('forbids faculty from commenting on a paper outside their class', function () {
+    $faculty = facultyUser();
+    $otherFaculty = facultyUser();
+    $student = studentUser();
+
+    $class = SchoolClass::factory()->create(['faculty_id' => $otherFaculty->id]);
+    enrollStudent($student, $class);
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->post(route('faculty.classes.research.store-comment', [$class, $paper]), [
+            'body' => 'Should not be allowed.',
+        ])
+        ->assertForbidden();
+
+    $this->assertDatabaseMissing('comments', [
+        'research_paper_id' => $paper->id,
+    ]);
+});
+
+it('validates comment body is required', function () {
+    $faculty = facultyUser();
+    $student = studentUser();
+
+    $class = SchoolClass::factory()->create(['faculty_id' => $faculty->id]);
+    enrollStudent($student, $class);
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->post(route('faculty.classes.research.store-comment', [$class, $paper]), [
+            'body' => '',
+        ])
+        ->assertSessionHasErrors('body');
+});
+
+it('returns comments when viewing a paper', function () {
+    $faculty = facultyUser();
+    $student = studentUser();
+
+    $class = SchoolClass::factory()->create(['faculty_id' => $faculty->id]);
+    enrollStudent($student, $class);
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+    ]);
+
+    Comment::factory()->count(3)->create([
+        'research_paper_id' => $paper->id,
+        'user_id' => $faculty->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->get(route('faculty.classes.research.show', [$class, $paper]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('comments', 3)
+        );
 });

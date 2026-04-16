@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { FileSearch, Filter, Users } from 'lucide-vue-next';
+import { FileSearch, Filter, Search, ScrollText, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
@@ -38,6 +38,7 @@ const props = defineProps<Props>();
 
 const schoolClass = computed(() => props.schoolClass ?? props.class);
 const activeStep = ref<string>('all');
+const searchQuery = ref('');
 
 const orderedSteps = [
     'title_proposal',
@@ -65,12 +66,25 @@ const stepPills = computed(() => {
 });
 
 const filteredPapers = computed(() => {
-    if (activeStep.value === 'all') {
-        return props.papers;
+    let list = props.papers;
+
+    if (activeStep.value !== 'all') {
+        list = list.filter((p) => p.current_step === activeStep.value);
     }
 
-    return props.papers.filter((paper) => paper.current_step === activeStep.value);
+    const q = searchQuery.value.trim().toLowerCase();
+    if (q) {
+        list = list.filter((p) =>
+            p.title.toLowerCase().includes(q) ||
+            p.tracking_id.toLowerCase().includes(q) ||
+            studentName(p).toLowerCase().includes(q),
+        );
+    }
+
+    return list;
 });
+
+const completedCount = computed(() => props.stepCounts['completed'] ?? 0);
 
 function stepLabel(step: string): string {
     return props.stepLabels[step] ?? step;
@@ -81,10 +95,7 @@ function studentName(paper: Paper): string {
 }
 
 function formatDate(value?: string): string {
-    if (!value) {
-        return '-';
-    }
-
+    if (!value) return '-';
     return new Date(value).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -106,6 +117,7 @@ defineOptions({
     <Head :title="`${schoolClass?.name ?? 'Class'} Research Papers`" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
+        <!-- Header + Stats -->
         <section class="rounded-2xl border border-border bg-card p-5">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -116,41 +128,69 @@ defineOptions({
                         Track paper progress by workflow step.
                     </p>
                 </div>
-                <div class="rounded-xl border border-border bg-muted px-4 py-3 text-right">
-                    <div class="flex items-center justify-end gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Users class="h-4 w-4 text-teal-500" />
-                        <span>Members</span>
+                <div class="flex gap-3">
+                    <div class="rounded-xl border border-border bg-muted px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <ScrollText class="h-3.5 w-3.5 text-orange-500" />
+                            Papers
+                        </div>
+                        <p class="mt-1 text-xl font-bold text-foreground">{{ papers.length }}</p>
                     </div>
-                    <p class="mt-1 text-2xl font-bold text-foreground">
-                        {{ schoolClass?.members_count ?? '-' }}
-                    </p>
+                    <div class="rounded-xl border border-border bg-muted px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <ScrollText class="h-3.5 w-3.5 text-green-500" />
+                            Completed
+                        </div>
+                        <p class="mt-1 text-xl font-bold text-foreground">{{ completedCount }}</p>
+                    </div>
+                    <div class="rounded-xl border border-border bg-muted px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Users class="h-3.5 w-3.5 text-teal-500" />
+                            Members
+                        </div>
+                        <p class="mt-1 text-xl font-bold text-foreground">{{ schoolClass?.members_count ?? '-' }}</p>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section class="rounded-2xl border border-border bg-card p-5">
-            <div class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Filter class="h-4 w-4" />
-                Step Filters
+        <!-- Search + Step Filters -->
+        <section class="rounded-2xl border border-border bg-card">
+            <div class="p-4">
+                <div class="relative">
+                    <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        v-model="searchQuery"
+                        type="text"
+                        placeholder="Search by title, tracking ID, or student..."
+                        class="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    />
+                </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    v-for="pill in stepPills"
-                    :key="pill.key"
-                    type="button"
-                    @click="activeStep = pill.key"
-                    :class="[
-                        'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
-                        activeStep === pill.key
-                            ? 'border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
-                            : 'border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-orange-600',
-                    ]"
-                >
-                    {{ pill.label }}
-                    <span class="rounded-full bg-black/5 px-2 py-0.5 text-[10px] dark:bg-white/10">
-                        {{ pill.count }}
-                    </span>
-                </button>
+            <div class="border-t border-border px-4 py-3">
+                <div class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Filter class="h-4 w-4" />
+                    Step Filters
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        v-for="pill in stepPills"
+                        :key="pill.key"
+                        type="button"
+                        @click="activeStep = pill.key"
+                        :class="[
+                            'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                            activeStep === pill.key
+                                ? 'border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
+                                : 'border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-orange-600',
+                        ]"
+                    >
+                        {{ pill.label }}
+                        <span class="rounded-full bg-black/5 px-2 py-0.5 text-[10px] dark:bg-white/10">
+                            {{ pill.count }}
+                        </span>
+                    </button>
+                </div>
             </div>
         </section>
 

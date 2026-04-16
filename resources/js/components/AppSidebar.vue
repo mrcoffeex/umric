@@ -30,6 +30,7 @@ import {
 import { dashboard } from '@/routes';
 import admin from '@/routes/admin';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
+import { index as facultyResearchIndex } from '@/routes/faculty/research';
 import student from '@/routes/student';
 import type { NavItem } from '@/types';
 
@@ -42,29 +43,28 @@ const isStudent = computed(() => role.value === 'student');
 
 const mainNavItems = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
-    {
-        title: role.value === 'student' ? 'My Proposals' : 'Research Papers',
-        href: '/papers',
-        icon: ScrollText,
-    },
 ]);
 
 const adminNavItems: NavItem[] = [
+    { title: 'Research Papers', href: ResearchController.index(), icon: ScrollText },
+    { title: 'Announcements', href: AnnouncementController.index(), icon: Megaphone },
     {
-        title: 'Departments & Programs',
+        title: 'Departments',
         href: admin.departments.index(),
         icon: Building2,
     },
     { title: 'Subjects', href: admin.subjects.index(), icon: BookOpen },
     { title: 'Classes', href: admin.classes.index(), icon: GraduationCap },
+];
+
+const AdminSettingsItems: NavItem[] = [
+    { title: 'Users', href: admin.users.index(), icon: Users },
     { title: 'SDGs', href: admin.sdgs.index.url(), icon: Target },
     { title: 'Agendas', href: admin.agendas.index.url(), icon: BookMarked },
-    { title: 'Users', href: admin.users.index(), icon: Users },
-    { title: 'Research Papers', href: ResearchController.index(), icon: ScrollText },
-    { title: 'Announcements', href: AnnouncementController.index(), icon: Megaphone },
 ];
 
 const facultyNavItems: NavItem[] = [
+    { title: 'My Research', href: facultyResearchIndex(), icon: ScrollText },
     { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
 ];
 
@@ -103,6 +103,11 @@ const footerNavItems: NavItem[] = [
                 v-if="isAdmin"
                 :items="adminNavItems"
                 label="Administration"
+            />
+            <NavMain
+                v-if="isAdmin"
+                :items="AdminSettingsItems"
+                label="Settings"
             />
             <NavMain
                 v-if="isFaculty"

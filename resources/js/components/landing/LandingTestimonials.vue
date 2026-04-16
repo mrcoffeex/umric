@@ -69,6 +69,8 @@ const reviews = [
     },
 ];
 
+const cardRefs = reviews.map(() => useScrollReveal(0.05));
+
 const logos = [
     'Information Technology',
     'College of Education',
@@ -118,14 +120,18 @@ const logoItems = [...logos, ...logos];
 
             <!-- Research review cards -->
             <div
-                :class="[
-                    'reveal mb-20 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4',
-                    { visible: isVisible },
-                ]"
+                class="mb-20 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
             >
                 <div
                     v-for="(r, i) in reviews"
                     :key="r.paperId"
+                    :ref="
+                        (el) => {
+                            if (el)
+                                cardRefs[i].target.value = el as HTMLElement;
+                        }
+                    "
+                    :class="['reveal', { visible: cardRefs[i].isVisible.value }]"
                     :style="{ transitionDelay: `${i * 100}ms` }"
                     class="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800/80 dark:bg-slate-900"
                 >
@@ -230,7 +236,7 @@ const logoItems = [...logos, ...logos];
                         class="pointer-events-none absolute top-0 right-0 bottom-0 z-10 w-20 bg-gradient-to-l from-white to-transparent dark:from-slate-950"
                     />
 
-                    <div class="animate-ticker flex w-max gap-10">
+                    <div class="group animate-ticker flex w-max gap-10 hover:[animation-play-state:paused]">
                         <div
                             v-for="(logo, i) in logoItems"
                             :key="`${logo}-${i}`"

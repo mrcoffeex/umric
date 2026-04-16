@@ -41,7 +41,9 @@ interface Category {
 
 interface TrackingRecord {
     id: number;
-    status: string;
+    step?: string;
+    action?: string;
+    status?: string;
     created_at: string;
     notes?: string;
 }
@@ -51,6 +53,7 @@ interface Paper {
     title: string;
     abstract: string;
     status: string;
+    current_step: string;
     tracking_id: string;
     created_at: string;
     progress?: number;
@@ -68,6 +71,8 @@ interface Paper {
 
 interface Props {
     paper: Paper;
+    steps: string[];
+    stepLabels: Record<string, string>;
     sdgs: Array<{ id: number; name: string; number?: number }>;
     agendas: Array<{ id: number; name: string }>;
 }
@@ -218,7 +223,9 @@ const copyToClipboard = async (text: string) => {
                         Submission Progress
                     </h2>
                     <TrackingTimeline
-                        :current-status="paper.status"
+                        :current-step="paper.current_step"
+                        :steps="steps"
+                        :step-labels="stepLabels"
                         :tracking="paper.tracking_records || []"
                     />
                 </section>

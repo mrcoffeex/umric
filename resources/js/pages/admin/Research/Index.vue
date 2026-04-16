@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
 import {
+    ChevronDown,
     ChevronLeft,
     ChevronRight,
     Eye,
     FileSearch,
+    Filter,
+    Globe,
+    GraduationCap,
+    ScrollText,
     Search,
+    Target,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import admin from '@/routes/admin';
 
@@ -18,8 +25,28 @@ interface PaperRow {
     current_step: string;
     step_label?: string;
     created_at: string;
+    sdg_ids?: number[] | null;
+    agenda_ids?: number[] | null;
     user?: { name: string } | null;
     school_class?: { name: string } | null;
+}
+
+interface SdgItem {
+    id: number;
+    number: number;
+    name: string;
+    color: string | null;
+}
+
+interface AgendaItem {
+    id: number;
+    name: string;
+}
+
+interface ClassItem {
+    id: number;
+    name: string;
+    section: string | null;
 }
 
 interface Paginator<T> {
@@ -36,16 +63,51 @@ interface Paginator<T> {
 interface Props {
     papers: Paginator<PaperRow>;
     stepCounts: Record<string, number>;
-    filters: { step: string | null; search: string | null };
+    filters: { step: string | null; search: string | null; sdg: string | null; agenda: string | null; class: string | null };
     stepLabels: Record<string, string>;
     facultyUsers: Array<{ id: number; name: string }>;
     staffUsers: Array<{ id: number; name: string }>;
+    sdgs: SdgItem[];
+    agendas: AgendaItem[];
+    classes: ClassItem[];
 }
 
 const props = defineProps<Props>();
 
+const sdgMap = computed(() => {
+    const map = new Map<number, SdgItem>();
+    for (const sdg of props.sdgs) {
+        map.set(sdg.id, sdg);
+    }
+    return map;
+});
+
+const agendaMap = computed(() => {
+    const map = new Map<number, AgendaItem>();
+    for (const agenda of props.agendas) {
+        map.set(agenda.id, agenda);
+    }
+    return map;
+});
+
+function paperSdgs(paper: PaperRow): SdgItem[] {
+    return (paper.sdg_ids ?? [])
+        .map(id => sdgMap.value.get(id))
+        .filter((s): s is SdgItem => !!s);
+}
+
+function paperAgendas(paper: PaperRow): AgendaItem[] {
+    return (paper.agenda_ids ?? [])
+        .map(id => agendaMap.value.get(id))
+        .filter((a): a is AgendaItem => !!a);
+}
+
 const search = ref(props.filters.search ?? '');
 const selectedStep = ref(props.filters.step ?? '');
+const selectedSdg = ref(props.filters.sdg ?? '');
+const selectedAgenda = ref(props.filters.agenda ?? '');
+const selectedClass = ref(props.filters.class ?? '');
+const filtersOpen = ref(!!props.filters.sdg || !!props.filters.agenda || !!props.filters.class);
 const mounted = ref(false);
 let debounce: ReturnType<typeof setTimeout>;
 
@@ -53,11 +115,8 @@ onMounted(() => {
     mounted.value = true;
 });
 
-watch([search, selectedStep], () => {
-    if (!mounted.value) {
-        return;
-    }
-
+function applyFilters() {
+    if (!mounted.value) return;
     clearTimeout(debounce);
     debounce = setTimeout(() => {
         router.get(
@@ -65,14 +124,39 @@ watch([search, selectedStep], () => {
             {
                 search: search.value || undefined,
                 step: selectedStep.value || undefined,
+                sdg: selectedSdg.value || undefined,
+                agenda: selectedAgenda.value || undefined,
+                class: selectedClass.value || undefined,
             },
             { preserveState: true, replace: true },
         );
     }, 350);
+}
+
+watch([search, selectedStep, selectedSdg, selectedAgenda, selectedClass], applyFilters);
+
+const activeFilterCount = computed(() => {
+    let count = 0;
+    if (selectedSdg.value) count++;
+    if (selectedAgenda.value) count++;
+    if (selectedClass.value) count++;
+    return count;
 });
 
+function clearAllFilters() {
+    selectedSdg.value = '';
+    selectedAgenda.value = '';
+    selectedClass.value = '';
+}
+
+const totalPaperCount = computed(() => {
+    return Object.values(props.stepCounts).reduce((sum, c) => sum + c, 0);
+});
+
+const completedCount = computed(() => props.stepCounts['completed'] ?? 0);
+
 const stepTabs = computed(() => [
-    { key: '', label: 'All', count: props.papers.total },
+    { key: '', label: 'All', count: totalPaperCount.value },
     ...Object.entries(props.stepLabels).map(([key, label]) => ({
         key,
         label,
@@ -104,30 +188,122 @@ defineOptions({
 
 <template>
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
+        <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-foreground">
-                    Research Workflow
-                </h1>
-                <p class="mt-0.5 text-sm text-muted-foreground">
-                    Review and monitor all papers in the workflow pipeline.
-                </p>
+                <h1 class="text-2xl font-bold text-foreground">Research Workflow</h1>
+                <p class="mt-0.5 text-sm text-muted-foreground">Review and monitor all papers in the workflow pipeline.</p>
             </div>
-            <div class="text-sm text-muted-foreground">
-                {{ papers.total }} papers
+            <div class="text-sm text-muted-foreground">{{ totalPaperCount }} papers</div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid gap-3 sm:grid-cols-3">
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                    <ScrollText class="h-5 w-5 text-orange-500" />
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-muted-foreground">Total Papers</p>
+                    <p class="text-lg font-bold text-foreground">{{ totalPaperCount }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/30">
+                    <ScrollText class="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-muted-foreground">Completed</p>
+                    <p class="text-lg font-bold text-foreground">{{ completedCount }}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30">
+                    <GraduationCap class="h-5 w-5 text-teal-500" />
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-muted-foreground">Classes</p>
+                    <p class="text-lg font-bold text-foreground">{{ classes.length }}</p>
+                </div>
             </div>
         </div>
 
-        <div class="relative">
-            <Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-                v-model="search"
-                type="text"
-                placeholder="Search by tracking ID, title, or student..."
-                class="w-full rounded-xl border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
-            />
+        <!-- Search + Filters -->
+        <div class="rounded-2xl border border-border bg-card">
+            <div class="p-4">
+                <div class="relative">
+                    <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                        v-model="search"
+                        type="text"
+                        placeholder="Search by tracking ID, title, or student..."
+                        class="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    />
+                </div>
+            </div>
+
+            <!-- Collapsible Advanced Filters -->
+            <div class="border-t border-border">
+                <button type="button" class="flex w-full items-center justify-between px-4 py-3 text-left" @click="filtersOpen = !filtersOpen">
+                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Filter class="h-4 w-4" />
+                        Advanced Filters
+                        <span v-if="activeFilterCount > 0" class="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">{{ activeFilterCount }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button v-if="activeFilterCount > 0" type="button" class="text-xs font-semibold text-orange-500 hover:underline" @click.stop="clearAllFilters">Clear all</button>
+                        <ChevronDown :class="['h-4 w-4 text-muted-foreground transition-transform duration-200', filtersOpen ? 'rotate-180' : '']" />
+                    </div>
+                </button>
+
+                <div v-show="filtersOpen" class="space-y-4 px-4 pb-4">
+                    <!-- Class filter -->
+                    <div v-if="classes.length > 0">
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <GraduationCap class="h-3.5 w-3.5" /> Class
+                        </p>
+                        <select
+                            v-model="selectedClass"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                        >
+                            <option value="">All Classes</option>
+                            <option v-for="cls in classes" :key="cls.id" :value="String(cls.id)">
+                                {{ cls.name }}{{ cls.section ? ` · ${cls.section}` : '' }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- SDG filter -->
+                    <div v-if="sdgs.length > 0">
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Globe class="h-3.5 w-3.5" /> SDG
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', !selectedSdg ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300' : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600']" @click="selectedSdg = ''">All</button>
+                            <button v-for="sdg in sdgs" :key="sdg.id" type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', selectedSdg === String(sdg.id) ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300' : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600']" :title="sdg.name" @click="selectedSdg = String(sdg.id)">
+                                <span class="inline-block h-2 w-2 rounded-full" :style="sdg.color ? { backgroundColor: sdg.color } : {}" />
+                                SDG {{ sdg.number }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Agenda filter -->
+                    <div v-if="agendas.length > 0">
+                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Target class="h-3.5 w-3.5" /> Agenda
+                        </p>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', !selectedAgenda ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300' : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600']" @click="selectedAgenda = ''">All</button>
+                            <button v-for="agenda in agendas" :key="agenda.id" type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', selectedAgenda === String(agenda.id) ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300' : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600']" @click="selectedAgenda = String(agenda.id)">
+                                {{ agenda.name }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
+        <!-- Step Tabs -->
         <div class="flex flex-wrap gap-2">
             <button
                 v-for="tab in stepTabs"
@@ -161,7 +337,9 @@ defineOptions({
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tracking ID</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</th>
                         <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Student</th>
-                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Class</th>
+                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Class</th>
+                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">SDGs</th>
+                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Agendas</th>
                         <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Step</th>
                         <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Date</th>
                         <th class="w-24 px-4 py-3" />
@@ -176,7 +354,7 @@ defineOptions({
                         <td class="px-4 py-3 font-mono text-xs text-foreground">
                             {{ paper.tracking_id }}
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="max-w-xs px-4 py-3">
                             <p class="line-clamp-1 font-semibold text-foreground">
                                 {{ paper.title }}
                             </p>
@@ -184,10 +362,40 @@ defineOptions({
                         <td class="hidden px-4 py-3 text-muted-foreground lg:table-cell">
                             {{ paper.user?.name ?? '-' }}
                         </td>
-                        <td class="hidden px-4 py-3 text-muted-foreground xl:table-cell">
-                            {{ paper.school_class?.name ?? '-' }}
+                        <td class="hidden px-4 py-3 md:table-cell">
+                            <Badge v-if="paper.school_class?.name" variant="outline" class="text-[11px]">
+                                {{ paper.school_class.name }}
+                            </Badge>
+                            <span v-else class="text-xs text-muted-foreground">-</span>
                         </td>
-                        <td class="px-4 py-3">
+                        <td class="hidden px-4 py-3 xl:table-cell">
+                            <div v-if="paperSdgs(paper).length" class="flex flex-wrap gap-1">
+                                <Badge
+                                    v-for="sdg in paperSdgs(paper)"
+                                    :key="sdg.id"
+                                    variant="secondary"
+                                    class="text-[10px]"
+                                    :style="sdg.color ? { backgroundColor: sdg.color + '20', color: sdg.color, borderColor: sdg.color + '40' } : {}"
+                                >
+                                    SDG {{ sdg.number }}
+                                </Badge>
+                            </div>
+                            <span v-else class="text-xs text-muted-foreground">-</span>
+                        </td>
+                        <td class="hidden px-4 py-3 xl:table-cell">
+                            <div v-if="paperAgendas(paper).length" class="flex flex-wrap gap-1">
+                                <Badge
+                                    v-for="agenda in paperAgendas(paper)"
+                                    :key="agenda.id"
+                                    variant="info"
+                                    class="text-[10px]"
+                                >
+                                    {{ agenda.name }}
+                                </Badge>
+                            </div>
+                            <span v-else class="text-xs text-muted-foreground">-</span>
+                        </td>
+                        <td class="px-4 py-3 text-nowrap text-sm">
                             <span
                                 :class="[
                                     'inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
@@ -197,7 +405,7 @@ defineOptions({
                                 {{ paper.step_label ?? stepLabel(paper.current_step) }}
                             </span>
                         </td>
-                        <td class="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">
+                        <td class="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell text-nowrap">
                             {{ formatDate(paper.created_at) }}
                         </td>
                         <td class="px-4 py-3 text-right">

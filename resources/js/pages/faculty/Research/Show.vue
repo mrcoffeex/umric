@@ -1,9 +1,27 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
-import { CalendarClock, Check, Clock3, FileBarChart2, X } from 'lucide-vue-next';
-import { computed } from 'vue';
-import { getStepStatusClass } from '@/lib/step-colors';
-import { index as classesIndex } from '@/routes/faculty/classes';
+import {
+    AlertTriangle,
+    BookCheck,
+    CalendarClock,
+    Check,
+    CheckCircle2,
+    ClipboardCopy,
+    Clock3,
+    FileBarChart2,
+    FileSearch,
+    GraduationCap,
+    MessageSquare,
+    ScrollText,
+    Send,
+    Shield,
+    Trophy,
+    X,
+} from 'lucide-vue-next';
+import QrcodeVue from 'qrcode.vue';
+import { computed, ref } from 'vue';
+import { getStepBadgeClass } from '@/lib/step-colors';
+import { index as researchIndex } from '@/routes/faculty/research';
 import research from '@/routes/faculty/classes/research';
 
 interface StepRecord {
@@ -11,69 +29,126 @@ interface StepRecord {
     step: string | null;
     action: string;
     status: string | null;
+    old_status?: string | null;
     notes?: string | null;
     updated_by?: { id: number; name: string } | null;
-    performed_by?: string | null;
     created_at?: string | null;
+}
+
+interface Comment {
+    id: number;
+    body: string;
+    user: { id: number; name: string } | null;
+    created_at: string;
 }
 
 interface Paper {
     id: number;
     title: string;
-    tracking_id: string;
     abstract?: string | null;
-    proponents?: string[] | string | null;
-    sdg_ids?: number[] | null;
-    agenda_ids?: number[] | null;
-    submission_date?: string | null;
-    status?: string | null;
+    tracking_id: string;
+    status: string;
     current_step: string;
     step_label?: string;
+    submission_date?: string | null;
+    created_at: string;
+    keywords?: string | null;
+    sdg_ids?: number[] | null;
+    agenda_ids?: number[] | null;
+    proponents?: string[] | Array<{ id: number; name: string }> | string | null;
+    user_id?: number | null;
     step_ric_review?: string | null;
+    step_plagiarism?: string | null;
+    plagiarism_attempts?: number | null;
+    plagiarism_score?: number | null;
     step_outline_defense?: string | null;
     outline_defense_schedule?: string | null;
     step_rating?: string | null;
     grade?: number | null;
+    step_final_manuscript?: string | null;
     step_final_defense?: string | null;
     final_defense_schedule?: string | null;
-    student?: { id: number; name: string; email?: string } | null;
-    user?: { id: number; name: string } | null;
+    step_hard_bound?: string | null;
+    student?: { id: number; name: string; email?: string; avatar_url?: string | null } | null;
     adviser?: { id: number; name: string } | null;
     statistician?: { id: number; name: string } | null;
-    school_class?: { id: number; name: string } | null;
+    school_class?: { id: number; name: string; section?: string | null } | null;
 }
 
 interface Props {
     paper: Paper;
-    schoolClass?: { id: number; name: string } | null;
+    schoolClass?: { id: number; name: string; section?: string | null } | null;
     trackingRecords?: StepRecord[];
     stepLabels: Record<string, string>;
+    steps: string[];
+    sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
+    agendas: Array<{ id: number; name: string }>;
+    comments?: Comment[];
 }
 
 const props = defineProps<Props>();
 
 const schoolClass = computed(() => props.schoolClass ?? props.paper.school_class);
-const student = computed(() => props.paper.student ?? props.paper.user ?? null);
 
-const steps = [
-    'ric_review',
-    'plagiarism_check',
-    'outline_defense',
-    'rating',
-    'final_manuscript',
-    'final_defense',
-    'hard_bound',
-    'completed',
-];
+const sdgMap = computed(() =>
+    Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
+);
+const agendaMap = computed(() =>
+    Object.fromEntries(props.agendas.map((a) => [a.id, a])),
+);
+
+const copied = ref(false);
+
+const trackingUrl = computed(() => {
+    return `${window.location.origin}/track/${props.paper.tracking_id}`;
+});
+
+const currentStepIndex = computed(() => {
+    return props.steps.indexOf(props.paper.current_step);
+});
+
+const completedSteps = computed(() => currentStepIndex.value);
+
+const progressPercent = computed(() => {
+    if (props.steps.length <= 1) return 0;
+    return Math.round((completedSteps.value / (props.steps.length - 1)) * 100);
+});
+
+const proponents = computed(() => {
+    if (!props.paper.proponents) return [];
+    if (Array.isArray(props.paper.proponents)) {
+        return props.paper.proponents.map((p) => (typeof p === 'string' ? p : p.name));
+    }
+    return props.paper.proponents.split(',').map((v) => v.trim()).filter(Boolean);
+});
 
 const timeline = computed(() => {
     return [...(props.trackingRecords ?? [])].sort((a, b) => {
-        const left = new Date(a.created_at ?? '').getTime();
-        const right = new Date(b.created_at ?? '').getTime();
-
-        return left - right;
+        return new Date(a.created_at ?? '').getTime() - new Date(b.created_at ?? '').getTime();
     });
 });
+
+const stepDetails = computed(() => {
+    const p = props.paper;
+    return [
+        { key: 'title_proposal', icon: Send, status: 'Submitted', statusType: 'success' as const, info: null },
+        { key: 'ric_review', icon: Shield, status: statusLabel(p.step_ric_review), statusType: statusType(p.step_ric_review, ['approved'], ['rejected']), info: null },
+        { key: 'plagiarism_check', icon: FileSearch, status: statusLabel(p.step_plagiarism), statusType: statusType(p.step_plagiarism, ['passed'], ['failed']), info: `Attempts: ${p.plagiarism_attempts ?? 0} / 3${p.plagiarism_score != null ? ` · Score: ${p.plagiarism_score}%` : ''}` },
+        { key: 'outline_defense', icon: BookCheck, status: statusLabel(p.step_outline_defense), statusType: statusType(p.step_outline_defense, ['passed'], ['re_defense']), info: p.outline_defense_schedule ? `Scheduled: ${formatDateTime(p.outline_defense_schedule)}` : null },
+        { key: 'rating', icon: FileBarChart2, status: p.step_rating === 'rated' && p.grade != null ? `Rated — ${p.grade}` : statusLabel(p.step_rating), statusType: statusType(p.step_rating, ['rated'], []), info: null },
+        { key: 'final_manuscript', icon: ScrollText, status: statusLabel(p.step_final_manuscript), statusType: statusType(p.step_final_manuscript, ['submitted'], []), info: null },
+        { key: 'final_defense', icon: GraduationCap, status: statusLabel(p.step_final_defense), statusType: statusType(p.step_final_defense, ['passed'], ['re_defense']), info: p.final_defense_schedule ? `Scheduled: ${formatDateTime(p.final_defense_schedule)}` : null },
+        { key: 'hard_bound', icon: Trophy, status: statusLabel(p.step_hard_bound), statusType: statusType(p.step_hard_bound, ['submitted'], []), info: null },
+        { key: 'completed', icon: CheckCircle2, status: p.current_step === 'completed' ? 'Completed' : 'Pending', statusType: p.current_step === 'completed' ? ('success' as const) : ('neutral' as const), info: null },
+    ];
+});
+
+// --- Faculty action computeds ---
+const canRicApprove = computed(() => props.paper.current_step === 'ric_review' && (props.paper.step_ric_review ?? 'pending') === 'pending');
+const canOutlineDefense = computed(() => props.paper.current_step === 'outline_defense');
+const canRate = computed(() => props.paper.current_step === 'rating' && (props.paper.step_rating ?? 'pending') === 'pending');
+const canFinalDefense = computed(() => props.paper.current_step === 'final_defense');
+const hasAction = computed(() => canRicApprove.value || canOutlineDefense.value || canRate.value || canFinalDefense.value);
 
 const actionForm = useForm({
     step: props.paper.current_step,
@@ -83,59 +158,11 @@ const actionForm = useForm({
     notes: '',
 });
 
-const canRicApprove = computed(
-    () =>
-        props.paper.current_step === 'ric_review' &&
-        (props.paper.step_ric_review ?? 'pending') === 'pending',
-);
-
-const canOutlineDefense = computed(() => props.paper.current_step === 'outline_defense');
-
-const canRate = computed(
-    () => props.paper.current_step === 'rating' && (props.paper.step_rating ?? 'pending') === 'pending',
-);
-
-const canFinalDefense = computed(() => props.paper.current_step === 'final_defense');
-
-const proponents = computed(() => {
-    if (!props.paper.proponents) {
-        return [];
-    }
-
-    if (Array.isArray(props.paper.proponents)) {
-        return props.paper.proponents;
-    }
-
-    return props.paper.proponents
-        .split(',')
-        .map((value) => value.trim())
-        .filter(Boolean);
-});
-
-function formatDateTime(value?: string | null): string {
-    if (!value) {
-        return '-';
-    }
-
-    return new Date(value).toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-function stepLabel(step: string): string {
-    return props.stepLabels[step] ?? step;
-}
+const commentForm = useForm({ body: '' });
 
 function approveRic(): void {
     actionForm.post(
-        research.approve.url({
-            class: schoolClass.value?.id ?? 0,
-            paper: props.paper.id,
-        }),
+        research.approve.url({ class: schoolClass.value?.id ?? 0, paper: props.paper.id }),
         { preserveScroll: true },
     );
 }
@@ -144,19 +171,80 @@ function updateStep(status: string): void {
     actionForm.step = props.paper.current_step;
     actionForm.status = status;
     actionForm.patch(
-        research.updateStep.url({
-            class: schoolClass.value?.id ?? 0,
-            paper: props.paper.id,
-        }),
+        research.updateStep.url({ class: schoolClass.value?.id ?? 0, paper: props.paper.id }),
         { preserveScroll: true },
     );
+}
+
+function submitComment(): void {
+    commentForm.post(
+        research.storeComment.url({ class: schoolClass.value?.id ?? 0, paper: props.paper.id }),
+        { preserveScroll: true, onSuccess: () => commentForm.reset() },
+    );
+}
+
+function timeAgo(value: string): string {
+    const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return formatDateTime(value);
+}
+
+function statusLabel(value?: string | null): string {
+    if (!value) return 'Pending';
+    return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function statusType(value: string | null | undefined, successValues: string[], dangerValues: string[]): 'success' | 'warning' | 'danger' | 'neutral' {
+    if (!value || value === 'pending') return 'neutral';
+    if (successValues.includes(value)) return 'success';
+    if (dangerValues.includes(value)) return 'danger';
+    return 'warning';
+}
+
+const statusTypeClasses: Record<string, string> = {
+    success: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
+    warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
+    danger: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
+    neutral: 'bg-muted text-muted-foreground',
+};
+
+function formatDateTime(value?: string | null): string {
+    if (!value) return '-';
+    return new Date(value).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(value?: string | null): string {
+    if (!value) return '-';
+    return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function stepLabel(step: string): string {
+    return props.stepLabels[step] ?? step;
+}
+
+function isCompletedStep(idx: number): boolean { return currentStepIndex.value > idx; }
+function isCurrentStep(idx: number): boolean { return currentStepIndex.value === idx; }
+function isFutureStep(idx: number): boolean { return currentStepIndex.value < idx; }
+
+async function copyToClipboard(text: string): Promise<void> {
+    try {
+        await navigator.clipboard.writeText(text);
+        copied.value = true;
+        setTimeout(() => { copied.value = false; }, 2000);
+    } catch { /* clipboard API not available */ }
 }
 
 defineOptions({
     layout: {
         breadcrumbs: [
-            { title: 'My Classes', href: classesIndex() },
-            { title: 'Research', href: '' },
+            { title: 'Research', href: researchIndex() },
+            { title: 'Paper Details', href: '' },
         ],
     },
 });
@@ -166,37 +254,93 @@ defineOptions({
     <Head :title="paper.title" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
-        <section class="rounded-2xl border border-border bg-card p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 class="text-2xl font-bold text-foreground">{{ paper.title }}</h1>
+        <!-- Hero Header -->
+        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+            <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
+            <div class="flex flex-wrap items-start justify-between gap-4 p-5">
+                <div class="min-w-0 flex-1">
+                    <h1 class="text-xl font-bold text-foreground md:text-2xl">{{ paper.title }}</h1>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        {{ student?.name ?? '-' }}
+                        {{ paper.student?.name ?? 'Unknown student' }}
+                        <span v-if="schoolClass"> · {{ schoolClass.name }}</span>
+                        · Submitted {{ formatDate(paper.submission_date ?? paper.created_at) }}
                     </p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                            {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                        </span>
+                        <span class="text-xs text-muted-foreground">{{ progressPercent }}% complete</span>
+                    </div>
                 </div>
-                <span class="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                <span class="shrink-0 rounded-full border border-border bg-muted px-3 py-1 font-mono text-xs font-bold text-foreground">
                     {{ paper.tracking_id }}
                 </span>
             </div>
-
-            <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-                <div
-                    v-for="step in steps"
-                    :key="step"
-                    :class="['rounded-xl border px-3 py-2 text-center text-[11px] font-semibold', getStepStatusClass(step, paper.current_step, steps)]"
-                >
-                    {{ stepLabel(step) }}
-                </div>
-            </div>
         </section>
 
+        <!-- Body Grid -->
         <div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
-            <section class="space-y-6">
-                <div class="rounded-2xl border border-border bg-card p-5">
-                    <h2 class="text-base font-bold text-foreground">Faculty Action Panel</h2>
-                    <p class="mt-1 text-sm text-muted-foreground">Current step: {{ paper.step_label ?? stepLabel(paper.current_step) }}</p>
+            <!-- Left: Step Details + Faculty Actions + History + Comments -->
+            <div class="space-y-6">
+                <!-- Step-by-Step Status (same as student) -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <h2 class="mb-4 text-base font-bold text-foreground">Step Details</h2>
+                    <div class="space-y-3">
+                        <div
+                            v-for="(detail, idx) in stepDetails"
+                            :key="detail.key"
+                            :class="[
+                                'relative overflow-hidden rounded-xl border p-4 transition-all',
+                                isCurrentStep(idx)
+                                    ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
+                                    : isCompletedStep(idx)
+                                      ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
+                                      : 'border-border bg-card',
+                            ]"
+                        >
+                            <div v-if="isCurrentStep(idx)" class="absolute top-0 right-0 rounded-bl-lg bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white uppercase">
+                                Current
+                            </div>
+                            <div class="flex items-start gap-3">
+                                <div
+                                    :class="[
+                                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                                        isCompletedStep(idx) ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
+                                            : isCurrentStep(idx) ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
+                                              : 'bg-muted text-muted-foreground',
+                                    ]"
+                                >
+                                    <Check v-if="isCompletedStep(idx)" class="h-4 w-4" />
+                                    <component :is="detail.icon" v-else class="h-4 w-4" />
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-sm font-bold text-foreground">{{ stepLabel(detail.key) }}</span>
+                                        <span v-if="!isFutureStep(idx)" :class="['rounded-full px-2 py-0.5 text-[10px] font-semibold', statusTypeClasses[detail.statusType]]">
+                                            {{ detail.status }}
+                                        </span>
+                                    </div>
+                                    <p v-if="detail.info && !isFutureStep(idx)" class="mt-1 text-xs text-muted-foreground">{{ detail.info }}</p>
+                                    <p v-if="isFutureStep(idx)" class="mt-1 text-xs text-muted-foreground">Waiting for previous steps to complete.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-                    <div class="mt-4 space-y-4">
+                <!-- Faculty Action Panel -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <div class="mb-4 flex items-center gap-2">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30">
+                            <FileBarChart2 class="h-4 w-4 text-orange-500" />
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-foreground">Faculty Action Panel</h2>
+                            <p class="text-xs text-muted-foreground">Current step: {{ paper.step_label ?? stepLabel(paper.current_step) }}</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</label>
                             <textarea
@@ -207,169 +351,292 @@ defineOptions({
                             />
                         </div>
 
+                        <!-- RIC Review -->
                         <div v-if="canRicApprove" class="rounded-xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-800 dark:bg-teal-950/30">
-                            <p class="mb-2 text-sm font-semibold text-teal-700 dark:text-teal-300">RIC Review</p>
-                            <button
-                                type="button"
-                                @click="approveRic"
-                                :disabled="actionForm.processing"
-                                class="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50"
-                            >
-                                <Check class="h-3.5 w-3.5" />
-                                Approve for Plagiarism Check
+                            <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-300">
+                                <Shield class="h-4 w-4" /> RIC Review
+                            </p>
+                            <button type="button" @click="approveRic" :disabled="actionForm.processing" class="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-600 disabled:opacity-50">
+                                <Check class="h-3.5 w-3.5" /> Approve for Plagiarism Check
                             </button>
                         </div>
 
+                        <!-- Outline Defense -->
                         <div v-if="canOutlineDefense" class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
-                            <p class="mb-2 text-sm font-semibold text-blue-700 dark:text-blue-300">Outline Defense</p>
+                            <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                <CalendarClock class="h-4 w-4" /> Outline Defense
+                            </p>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</label>
-                            <input
-                                v-model="actionForm.schedule"
-                                type="datetime-local"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            />
+                            <input v-model="actionForm.schedule" type="datetime-local" class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <button type="button" @click="updateStep('passed')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-500 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50">
+                                <button type="button" @click="updateStep('passed')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-600 disabled:opacity-50">
                                     <Check class="h-3.5 w-3.5" /> Passed
                                 </button>
-                                <button type="button" @click="updateStep('re_defense')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50">
+                                <button type="button" @click="updateStep('re_defense')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50">
                                     <X class="h-3.5 w-3.5" /> Re-Defense
                                 </button>
                             </div>
                         </div>
 
+                        <!-- Rating -->
                         <div v-if="canRate" class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-                            <p class="mb-2 text-sm font-semibold text-amber-700 dark:text-amber-300">Rating</p>
+                            <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                                <FileBarChart2 class="h-4 w-4" /> Rating
+                            </p>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Grade</label>
-                            <input
-                                v-model="actionForm.grade"
-                                type="number"
-                                min="1"
-                                max="5"
-                                step="0.25"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            />
-                            <button type="button" @click="updateStep('rated')" :disabled="actionForm.processing" class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50">
+                            <input v-model="actionForm.grade" type="number" min="1" max="5" step="0.25" class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
+                            <button type="button" @click="updateStep('rated')" :disabled="actionForm.processing" class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50">
                                 <FileBarChart2 class="h-3.5 w-3.5" /> Submit Grade
                             </button>
                         </div>
 
+                        <!-- Final Defense -->
                         <div v-if="canFinalDefense" class="rounded-xl border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-800 dark:bg-cyan-950/30">
-                            <p class="mb-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">Final Defense</p>
+                            <p class="mb-3 flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
+                                <CalendarClock class="h-4 w-4" /> Final Defense
+                            </p>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Schedule</label>
-                            <input
-                                v-model="actionForm.schedule"
-                                type="datetime-local"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            />
+                            <input v-model="actionForm.schedule" type="datetime-local" class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <button type="button" @click="updateStep('passed')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-500 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-600 disabled:opacity-50">
+                                <button type="button" @click="updateStep('passed')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-600 disabled:opacity-50">
                                     <Check class="h-3.5 w-3.5" /> Passed
                                 </button>
-                                <button type="button" @click="updateStep('re_defense')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50">
+                                <button type="button" @click="updateStep('re_defense')" :disabled="actionForm.processing" class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50">
                                     <X class="h-3.5 w-3.5" /> Re-Defense
                                 </button>
                             </div>
                         </div>
 
-                        <p v-if="!canRicApprove && !canOutlineDefense && !canRate && !canFinalDefense" class="text-sm text-muted-foreground">
-                            No faculty action is required for this step.
-                        </p>
+                        <div v-if="!hasAction" class="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
+                            <CheckCircle2 class="h-5 w-5 shrink-0 text-green-500" />
+                            <p class="text-sm text-muted-foreground">No faculty action is required for this step.</p>
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <div class="rounded-2xl border border-border bg-card p-5">
-                    <h2 class="text-base font-bold text-foreground">Tracking History</h2>
+                <!-- Tracking History (same as student) -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <div class="mb-4 flex items-center gap-2">
+                        <Clock3 class="h-4 w-4 text-orange-500" />
+                        <h2 class="text-base font-bold text-foreground">Tracking History</h2>
+                        <span v-if="timeline.length" class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            {{ timeline.length }}
+                        </span>
+                    </div>
 
-                    <div v-if="timeline.length === 0" class="mt-3 text-sm text-muted-foreground">
+                    <div v-if="timeline.length === 0" class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                         No tracking records yet.
                     </div>
 
-                    <div v-else class="mt-4 divide-y divide-border">
-                        <div
-                            v-for="record in timeline"
-                            :key="record.id"
-                            class="py-4 first:pt-0 last:pb-0"
-                        >
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <p class="text-sm font-semibold text-foreground">{{ record.action }}</p>
-                                <span class="text-xs text-muted-foreground">{{ formatDateTime(record.created_at) }}</span>
+                    <div v-else class="relative ml-3 space-y-0 border-l-2 border-border pl-6">
+                        <div v-for="(record, idx) in timeline" :key="record.id" class="relative pb-6 last:pb-0">
+                            <div :class="['absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background', idx === timeline.length - 1 ? 'bg-orange-500' : 'bg-green-500']">
+                                <div class="h-1.5 w-1.5 rounded-full bg-white" />
                             </div>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                                Step: {{ record.step ? stepLabel(record.step) : '-' }}
-                                • Status: {{ record.status ?? '-' }}
+                            <div class="rounded-xl border border-border bg-card p-3.5 shadow-xs">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <p class="text-sm font-semibold text-foreground">{{ record.action }}</p>
+                                    <span v-if="record.step" :class="['rounded-full px-2 py-0.5 text-[10px] font-semibold', getStepBadgeClass(record.step)]">
+                                        {{ record.step ? stepLabel(record.step) : '' }}
+                                    </span>
+                                </div>
+                                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                    <span v-if="record.status" class="inline-flex items-center gap-1">
+                                        <span class="font-medium text-foreground">Status:</span> {{ record.status }}
+                                    </span>
+                                    <span class="inline-flex items-center gap-1">
+                                        <span class="font-medium text-foreground">By:</span> {{ record.updated_by?.name ?? 'System' }}
+                                    </span>
+                                    <span>{{ formatDateTime(record.created_at) }}</span>
+                                </div>
+                                <p v-if="record.notes" class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground">{{ record.notes }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Comments (faculty-specific) -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <div class="mb-4 flex items-center gap-2">
+                        <MessageSquare class="h-4 w-4 text-violet-500" />
+                        <h2 class="text-base font-bold text-foreground">Comments</h2>
+                        <span v-if="(comments ?? []).length" class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            {{ (comments ?? []).length }}
+                        </span>
+                    </div>
+
+                    <form class="mt-2" @submit.prevent="submitComment">
+                        <textarea
+                            v-model="commentForm.body"
+                            rows="3"
+                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                            placeholder="Write a comment..."
+                        />
+                        <p v-if="commentForm.errors.body" class="mt-1 text-xs text-red-500">{{ commentForm.errors.body }}</p>
+                        <div class="mt-2 flex justify-end">
+                            <button
+                                type="submit"
+                                :disabled="commentForm.processing || !commentForm.body.trim()"
+                                class="inline-flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 disabled:opacity-50"
+                            >
+                                <Send class="h-3.5 w-3.5" /> Post Comment
+                            </button>
+                        </div>
+                    </form>
+
+                    <div v-if="(comments ?? []).length === 0" class="mt-3 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                        No comments yet. Be the first to comment.
+                    </div>
+
+                    <div v-else class="mt-4 space-y-3">
+                        <div v-for="comment in comments" :key="comment.id" class="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-300">
+                                        {{ comment.user?.name.charAt(0).toUpperCase() ?? '?' }}
+                                    </div>
+                                    <p class="text-sm font-semibold text-foreground">{{ comment.user?.name ?? 'Unknown' }}</p>
+                                </div>
+                                <span class="text-[11px] text-muted-foreground">{{ timeAgo(comment.created_at) }}</span>
+                            </div>
+                            <p class="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-foreground">{{ comment.body }}</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="space-y-6">
+                <!-- QR Code & Tracking (same as student) -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <h3 class="mb-4 text-base font-bold text-foreground">QR Code</h3>
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="rounded-xl border border-border bg-white p-3">
+                            <QrcodeVue :value="trackingUrl" :size="160" level="M" />
+                        </div>
+                        <p class="text-center text-xs text-muted-foreground">Scan to view public tracking page</p>
+                    </div>
+                    <div class="my-4 border-t border-border" />
+                    <p class="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Tracking Link</p>
+                    <div class="flex items-center gap-2">
+                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">{{ trackingUrl }}</code>
+                        <button type="button" @click="copyToClipboard(trackingUrl)" class="shrink-0 rounded-lg border border-border bg-background p-2 text-foreground transition hover:bg-muted">
+                            <ClipboardCopy class="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <p v-if="copied" class="mt-1 text-xs text-green-600">Copied!</p>
+                </section>
+
+                <!-- Paper Info -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <h3 class="mb-4 flex items-center gap-2 text-base font-bold text-foreground">
+                        <FileSearch class="h-5 w-5 text-orange-500" />
+                        Paper Info
+                    </h3>
+
+                    <!-- Abstract — separate visual block -->
+                    <div v-if="paper.abstract" class="mb-4 rounded-xl border border-border bg-muted/30 p-4">
+                        <p class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Abstract</p>
+                        <p class="text-sm leading-relaxed text-foreground">{{ paper.abstract }}</p>
+                    </div>
+
+                    <!-- Key details in a definition-list style grid -->
+                    <div class="divide-y divide-border">
+                        <div v-if="proponents.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Proponents</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="name in proponents" :key="name" class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">{{ name }}</span>
+                            </div>
+                        </div>
+
+                        <div v-if="paper.student" class="flex items-start justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Student</p>
+                            <p class="text-right text-sm text-foreground">
+                                {{ paper.student.name }}
+                                <span v-if="paper.student.email" class="block text-xs text-muted-foreground">{{ paper.student.email }}</span>
                             </p>
-                            <p v-if="record.notes" class="mt-1 text-xs text-foreground">{{ record.notes }}</p>
-                            <p class="mt-1 text-[11px] text-muted-foreground">
-                                <span class="font-medium text-foreground">By</span>
-                                {{ record.updated_by?.name ?? record.performed_by ?? 'System' }}
+                        </div>
+
+                        <div v-if="paper.adviser" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Adviser</p>
+                            <p class="text-sm text-foreground">{{ paper.adviser.name }}</p>
+                        </div>
+
+                        <div v-if="paper.statistician" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Statistician</p>
+                            <p class="text-sm text-foreground">{{ paper.statistician.name }}</p>
+                        </div>
+
+                        <div v-if="schoolClass" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Class</p>
+                            <p class="text-sm text-foreground">
+                                {{ schoolClass.name }}
+                                <span v-if="schoolClass.section" class="text-muted-foreground"> · Section {{ schoolClass.section }}</span>
+                            </p>
+                        </div>
+
+                        <div v-if="paper.keywords" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Keywords</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="keyword in paper.keywords.split(',')" :key="keyword.trim()" class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
+                                    {{ keyword.trim() }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div v-if="paper.sdg_ids?.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">SDGs</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="id in paper.sdg_ids" :key="id" class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
+                                    {{ sdgMap[id] ? (sdgMap[id].number ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}` : sdgMap[id].name) : `SDG ${id}` }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div v-if="paper.agenda_ids?.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
+                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Research Agendas</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span v-for="id in paper.agenda_ids" :key="id" class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+                                    {{ agendaMap[id]?.name ?? `Agenda ${id}` }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Schedules — visually distinct callout -->
+                    <div v-if="paper.outline_defense_schedule || paper.final_defense_schedule" class="mt-4 rounded-xl border border-blue-200 bg-blue-50/50 p-3.5 dark:border-blue-900/40 dark:bg-blue-950/20">
+                        <p class="mb-2 text-[11px] font-semibold tracking-wide text-blue-600 uppercase dark:text-blue-400">Schedules</p>
+                        <div class="space-y-1.5">
+                            <p v-if="paper.outline_defense_schedule" class="flex items-center gap-2 text-xs text-foreground">
+                                <Clock3 class="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                                <span class="font-medium">Outline Defense:</span> {{ formatDateTime(paper.outline_defense_schedule) }}
+                            </p>
+                            <p v-if="paper.final_defense_schedule" class="flex items-center gap-2 text-xs text-foreground">
+                                <CalendarClock class="h-3.5 w-3.5 shrink-0 text-cyan-500" />
+                                <span class="font-medium">Final Defense:</span> {{ formatDateTime(paper.final_defense_schedule) }}
                             </p>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <section class="space-y-6">
-                <div class="rounded-2xl border border-border bg-card p-5">
-                    <h2 class="text-base font-bold text-foreground">Paper Metadata</h2>
-                    <div class="mt-3 space-y-3 text-sm">
+                <!-- Plagiarism Warning Alert -->
+                <section
+                    v-if="paper.current_step === 'plagiarism_check' && (paper.plagiarism_attempts ?? 0) >= 2"
+                    class="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/20"
+                >
+                    <div class="flex items-start gap-3">
+                        <AlertTriangle class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Abstract</p>
-                            <p class="mt-1 text-foreground">
-                                {{ paper.abstract || 'No abstract provided.' }}
+                            <p class="text-sm font-bold text-amber-700 dark:text-amber-300">Plagiarism Check Warning</p>
+                            <p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                                Student has used {{ paper.plagiarism_attempts }} of 3 attempts.
+                                <template v-if="(paper.plagiarism_attempts ?? 0) >= 3">No more attempts remaining.</template>
+                                <template v-else>1 attempt remaining.</template>
                             </p>
                         </div>
-
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Proponents</p>
-                            <div class="mt-1 flex flex-wrap gap-1.5">
-                                <span v-for="item in proponents" :key="item" class="rounded-full border border-border px-2 py-0.5 text-xs text-foreground">
-                                    {{ item }}
-                                </span>
-                                <span v-if="proponents.length === 0" class="text-xs text-muted-foreground">No proponents listed.</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SDGs</p>
-                            <div class="mt-1 flex flex-wrap gap-1.5">
-                                <span v-for="id in paper.sdg_ids ?? []" :key="`sdg-${id}`" class="rounded-full bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
-                                    SDG {{ id }}
-                                </span>
-                                <span v-if="!(paper.sdg_ids ?? []).length" class="text-xs text-muted-foreground">None</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agendas</p>
-                            <div class="mt-1 flex flex-wrap gap-1.5">
-                                <span v-for="id in paper.agenda_ids ?? []" :key="`agenda-${id}`" class="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
-                                    Agenda {{ id }}
-                                </span>
-                                <span v-if="!(paper.agenda_ids ?? []).length" class="text-xs text-muted-foreground">None</span>
-                            </div>
-                        </div>
                     </div>
-                </div>
-
-                <div class="rounded-2xl border border-border bg-card p-5 text-sm">
-                    <h2 class="text-base font-bold text-foreground">People</h2>
-                    <div class="mt-3 space-y-2">
-                        <p class="text-foreground"><span class="text-muted-foreground">Adviser:</span> {{ paper.adviser?.name ?? 'Not assigned' }}</p>
-                        <p class="text-foreground"><span class="text-muted-foreground">Statistician:</span> {{ paper.statistician?.name ?? 'Not assigned' }}</p>
-                    </div>
-                    <div class="mt-3 space-y-1 text-xs text-muted-foreground">
-                        <p class="inline-flex items-center gap-1.5">
-                            <Clock3 class="h-3.5 w-3.5 text-blue-500" />
-                            Outline schedule: {{ formatDateTime(paper.outline_defense_schedule) }}
-                        </p>
-                        <p class="inline-flex items-center gap-1.5">
-                            <CalendarClock class="h-3.5 w-3.5 text-cyan-500" />
-                            Final schedule: {{ formatDateTime(paper.final_defense_schedule) }}
-                        </p>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </div>
     </div>
 </template>

@@ -16,6 +16,7 @@ class SchoolClassController extends Controller
     public function index(): Response
     {
         $classes = SchoolClass::with(['faculty', 'subjects'])
+            ->withCount('members')
             ->orderBy('section')
             ->get()
             ->map(fn (SchoolClass $class) => [
@@ -30,6 +31,8 @@ class SchoolClassController extends Controller
                 'section' => $class->section,
                 'description' => $class->description,
                 'is_active' => $class->is_active,
+                'join_code' => $class->join_code,
+                'members_count' => $class->members_count,
                 'faculty' => $class->faculty ? [
                     'id' => $class->faculty->id,
                     'name' => $class->faculty->name,
@@ -131,7 +134,7 @@ class SchoolClassController extends Controller
         ]);
 
         return Inertia::render('admin/Classes/Show', [
-            'class' => [
+            'schoolClass' => [
                 'id' => $class->id,
                 'name' => $class->name,
                 'class_code' => $class->class_code,
@@ -151,6 +154,7 @@ class SchoolClassController extends Controller
                 ]),
             ],
             'students' => $students,
+            'researchPapersCount' => $class->researchPapers()->count(),
         ]);
     }
 
