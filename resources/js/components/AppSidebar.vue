@@ -4,6 +4,7 @@ import {
     BookMarked,
     Building2,
     CalendarDays,
+    ExternalLink,
     GraduationCap,
     LayoutGrid,
     Megaphone,
@@ -26,7 +27,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, home } from '@/routes';
 import admin from '@/routes/admin';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
 import { index as facultyDefenseCalendarIndex } from '@/routes/faculty/defense-calendar';
@@ -126,6 +127,16 @@ const studentNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton as-child>
+                        <a :href="home.url()" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
+                            <ExternalLink class="h-4 w-4" />
+                            <span>Landing Page</span>
+                        </a>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
             <div class="px-2 pb-1 group-data-[collapsible=icon]:hidden">
                 <div class="flex items-center gap-2 rounded-lg bg-sidebar-accent px-2.5 py-1.5">
                     <span class="size-1.5 shrink-0 rounded-full" :class="roleBadge.dot" />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ArrowRight, Search, Zap, ChevronDown } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { ArrowRight, ChevronDown, Search } from 'lucide-vue-next';
+import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { register, dashboard } from '@/routes';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 import { useCountUp } from '@/composables/useCountUp';
@@ -65,12 +65,150 @@ const stats = [
     { key: 'depts', suffix: '+', label: 'Departments', color: 'text-orange-500' },
     { key: 'stages', value: '6', label: 'Research Stages', color: 'text-teal-500' },
 ];
+
+// Reactive particle canvas
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+
+interface Particle {
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    radius: number;
+    colorBase: string;
+}
+
+const mouse = { x: -9999, y: -9999 };
+let animationId = 0;
+
+function setupCanvas() {
+    const canvas = canvasRef.value;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+
+    const COLOR_BASES = ['249,115,22', '20,184,166', '148,163,184'];
+    const PARTICLE_COUNT = 80;
+    const CONNECTION_DISTANCE = 130;
+    const REPEL_RADIUS = 120;
+    const REPEL_FORCE = 0.6;
+
+    let particles: Particle[] = [];
+    let w = 0;
+    let h = 0;
+
+    function resize() {
+        w = window.innerWidth;
+        h = canvas!.closest('section')?.offsetHeight ?? window.innerHeight;
+        canvas!.width = w;
+        canvas!.height = h;
+    }
+
+    function spawn(): Particle {
+        return {
+            x: Math.random() * w,
+            y: Math.random() * h,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: (Math.random() - 0.5) * 0.5,
+            radius: Math.random() * 2 + 1,
+            colorBase: COLOR_BASES[Math.floor(Math.random() * COLOR_BASES.length)],
+        };
+    }
+
+    function init() {
+        particles = Array.from({ length: PARTICLE_COUNT }, spawn);
+    }
+
+    function tick() {
+        ctx.clearRect(0, 0, w, h);
+
+        for (const p of particles) {
+            const dx = p.x - mouse.x;
+            const dy = p.y - mouse.y;
+            const d = Math.sqrt(dx * dx + dy * dy);
+            if (d < REPEL_RADIUS && d > 0) {
+                const f = (REPEL_RADIUS - d) / REPEL_RADIUS;
+                p.vx += (dx / d) * f * REPEL_FORCE;
+                p.vy += (dy / d) * f * REPEL_FORCE;
+            }
+            p.vx *= 0.97;
+            p.vy *= 0.97;
+            const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+            if (speed > 2) {
+                p.vx = (p.vx / speed) * 2;
+                p.vy = (p.vy / speed) * 2;
+            }
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x <= 0 || p.x >= w) {
+                p.vx *= -1;
+                p.x = Math.max(0, Math.min(w, p.x));
+            }
+            if (p.y <= 0 || p.y >= h) {
+                p.vy *= -1;
+                p.y = Math.max(0, Math.min(h, p.y));
+            }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${p.colorBase},0.55)`;
+            ctx.fill();
+        }
+
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < CONNECTION_DISTANCE) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(148,163,184,${(1 - d / CONNECTION_DISTANCE) * 0.25})`;
+                    ctx.lineWidth = 0.6;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        animationId = requestAnimationFrame(tick);
+    }
+
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            resize();
+            init();
+        }, 150);
+    });
+
+    resize();
+    init();
+    tick();
+}
+
+function onMouseMove(e: MouseEvent) {
+    const canvas = canvasRef.value;
+    if (!canvas) return;
+    const rect = canvas.parentElement!.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+}
+
+function onMouseLeave() {
+    mouse.x = -9999;
+    mouse.y = -9999;
+}
+
+onMounted(() => nextTick(setupCanvas));
+onUnmounted(() => cancelAnimationFrame(animationId));
 </script>
 
 <template>
     <section
         id="hero"
         class="relative flex min-h-screen flex-col justify-center overflow-hidden px-4 pt-30 pb-16 sm:px-6 lg:px-8"
+        @mousemove="onMouseMove"
+        @mouseleave="onMouseLeave"
     >
         <!-- Animated gradient background -->
         <div class="absolute inset-0 -z-10">
@@ -111,14 +249,17 @@ const stats = [
                 class="animate-blob absolute bottom-1/4 left-1/3 h-64 w-64 rounded-full bg-orange-300/15 blur-3xl dark:bg-orange-600/8"
                 style="animation-delay: 6s"
             />
+            <!-- Reactive particles canvas -->
+            <!-- canvas moved to section level for reliable sizing -->
         </div>
 
+        <!-- Reactive particles canvas -->
+        <canvas ref="canvasRef" class="pointer-events-none absolute inset-0" style="z-index:0" />
+
         <div
-            class="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center"
+            class="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center"
         >
-            <div class="grid items-center gap-16 lg:grid-cols-2 lg:gap-12">
-                <!-- Left: Text content -->
-                <div class="text-center lg:text-left">
+            <div class="w-full text-center">
                     <!-- Headline -->
                     <h1
                         class="hero-stagger-1 mb-6 text-4xl leading-[1.05] font-black tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
@@ -132,7 +273,7 @@ const stats = [
 
                     <!-- Subtext -->
                     <p
-                        class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl lg:mx-0 dark:text-slate-400"
+                        class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400"
                     >
                         Track every milestone of your student research — from
                         title proposal and chapter submissions, through panel
@@ -142,7 +283,7 @@ const stats = [
 
                     <!-- CTAs -->
                     <div
-                        class="hero-stagger-3 mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start"
+                        class="hero-stagger-3 mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row"
                     >
                         <template v-if="!page.props.auth.user">
                             <Link v-if="canRegister" :href="register.url()">
@@ -173,12 +314,12 @@ const stats = [
                     <!-- Stats row -->
                     <div
                         ref="statsRef"
-                        class="hero-stagger-4 mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4 lg:mx-0"
+                        class="hero-stagger-4 mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4"
                     >
                         <div
                             v-for="stat in stats"
                             :key="stat.label"
-                            class="text-center lg:text-left"
+                            class="text-center"
                         >
                             <div :class="['text-2xl font-black tabular-nums', stat.color]">
                                 <template v-if="stat.key === 'papers'">{{ paperCount.toLocaleString() }}{{ stat.suffix }}</template>
@@ -193,210 +334,11 @@ const stats = [
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Right: Floating UI showcase -->
-                <div
-                    class="relative hidden justify-center lg:flex lg:justify-end"
-                >
-                    <!-- Main card -->
-                    <div class="hero-card-enter animate-float relative w-full max-w-md">
-                        <!-- Browser chrome frame -->
-                        <div
-                            class="overflow-hidden rounded-2xl border border-slate-200/60 shadow-2xl shadow-slate-900/20 dark:border-slate-700/60 dark:shadow-black/50"
-                        >
-                            <!-- Title bar -->
-                            <div
-                                class="flex items-center gap-2 border-b border-slate-200/60 bg-slate-100 px-4 py-3 dark:border-slate-700/60 dark:bg-slate-800"
-                            >
-                                <div class="flex gap-1.5">
-                                    <div
-                                        class="h-3 w-3 rounded-full bg-red-400/70"
-                                    />
-                                    <div
-                                        class="h-3 w-3 rounded-full bg-yellow-400/70"
-                                    />
-                                    <div
-                                        class="h-3 w-3 rounded-full bg-green-400/70"
-                                    />
-                                </div>
-                                <div
-                                    class="mx-3 flex-1 rounded-md bg-white/60 px-3 py-1 font-mono text-xs text-slate-400 dark:bg-slate-900/60 dark:text-slate-500"
-                                >
-                                    umric.university.edu
-                                </div>
-                            </div>
-                            <!-- Content -->
-                            <div
-                                class="space-y-4 bg-white p-5 dark:bg-slate-900"
-                            >
-                                <!-- Header -->
-                                <div class="flex items-center justify-between">
-                                    <h3
-                                        class="text-sm font-bold text-slate-800 dark:text-slate-200"
-                                    >
-                                        Track Paper
-                                    </h3>
-                                    <span
-                                        class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-950/50 dark:text-green-400"
-                                        >Live</span
-                                    >
-                                </div>
-                                <!-- Paper card -->
-                                <div
-                                    class="rounded-xl border border-orange-100 bg-gradient-to-br from-orange-50 to-teal-50/50 p-4 dark:border-orange-900/40 dark:from-orange-950/30 dark:to-teal-950/20"
-                                >
-                                    <div
-                                        class="mb-1 text-xs font-semibold text-orange-600 dark:text-orange-400"
-                                    >
-                                        RP-2026-IT-0047
-                                    </div>
-                                    <div
-                                        class="mb-3 text-sm leading-snug font-semibold text-slate-800 dark:text-slate-200"
-                                    >
-                                        Smart Attendance System Using Face
-                                        Recognition for UMDC
-                                    </div>
-                                    <!-- Status timeline -->
-                                    <div class="flex items-center gap-1.5">
-                                        <div
-                                            v-for="(step, i) in [
-                                                'Proposal',
-                                                'Chapters',
-                                                'Panel Review',
-                                                'Defense',
-                                            ]"
-                                            :key="step"
-                                            class="flex items-center gap-1.5"
-                                        >
-                                            <div
-                                                :class="[
-                                                    'h-2.5 w-2.5 rounded-full border-2 transition-all',
-                                                    i <= 2
-                                                        ? 'border-orange-500 bg-orange-500'
-                                                        : 'border-slate-300 bg-transparent dark:border-slate-600',
-                                                ]"
-                                            />
-                                            <div
-                                                v-if="i < 3"
-                                                :class="[
-                                                    'h-0.5 w-6',
-                                                    i < 2
-                                                        ? 'bg-orange-400'
-                                                        : 'bg-slate-200 dark:bg-slate-700',
-                                                ]"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div class="mt-1 flex justify-between">
-                                        <div
-                                            v-for="step in [
-                                                'Proposal',
-                                                'Chapters',
-                                                'Panel Review',
-                                                'Defense',
-                                            ]"
-                                            :key="step"
-                                            class="text-[9px] text-slate-500 dark:text-slate-500"
-                                        >
-                                            {{ step }}
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Activity feed -->
-                                <div class="space-y-2">
-                                    <div
-                                        v-for="item in [
-                                            {
-                                                text: 'Panel review scheduled by Dr. Santos',
-                                                time: '2h ago',
-                                                color: 'bg-teal-400',
-                                            },
-                                            {
-                                                text: 'Chapter 3 revision requested',
-                                                time: '1d ago',
-                                                color: 'bg-orange-400',
-                                            },
-                                            {
-                                                text: 'Title proposal approved',
-                                                time: '2w ago',
-                                                color: 'bg-blue-400',
-                                            },
-                                        ]"
-                                        :key="item.text"
-                                        class="flex items-start gap-2.5 text-xs"
-                                    >
-                                        <div
-                                            :class="[
-                                                'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
-                                                item.color,
-                                            ]"
-                                        />
-                                        <span
-                                            class="flex-1 text-slate-600 dark:text-slate-400"
-                                            >{{ item.text }}</span
-                                        >
-                                        <span
-                                            class="shrink-0 text-slate-400 dark:text-slate-600"
-                                            >{{ item.time }}</span
-                                        >
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Floating badge card -->
-                        <div
-                            class="glass-card animate-float-slow absolute -bottom-5 -left-6 rounded-xl px-4 py-3 shadow-xl"
-                            style="animation-delay: 1.5s"
-                        >
-                            <div class="flex items-center gap-2">
-                                <div
-                                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-teal-600"
-                                >
-                                    <Zap class="h-4 w-4 text-white" />
-                                </div>
-                                <div>
-                                    <div
-                                        class="text-xs font-bold text-slate-800 dark:text-slate-200"
-                                    >
-                                        Real-time Updates
-                                    </div>
-                                    <div
-                                        class="text-[10px] text-slate-500 dark:text-slate-500"
-                                    >
-                                        No refresh needed
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Floating stat card -->
-                        <div
-                            class="glass-card animate-float-slow absolute -top-4 -right-4 rounded-xl px-4 py-3 shadow-xl"
-                            style="animation-delay: 0.8s"
-                        >
-                            <div
-                                class="mb-0.5 text-xs font-medium text-slate-500 dark:text-slate-500"
-                            >
-                                New this month
-                            </div>
-                            <div class="text-2xl font-black text-orange-500">
-                                +142
-                            </div>
-                            <div
-                                class="text-[10px] text-slate-500 dark:text-slate-500"
-                            >
-                                papers submitted
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
         <!-- Quick track widget -->
-        <div class="hero-stagger-5 mx-auto mt-14 w-full max-w-2xl px-1">
+        <div class="hero-stagger-5 relative z-10 mx-auto mt-14 w-full max-w-2xl px-1">
             <div
                 class="relative flex gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-lg shadow-slate-900/5 dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-black/20"
             >
@@ -434,7 +376,7 @@ const stats = [
         </div>
 
         <!-- Scroll indicator -->
-        <div class="mt-16 flex justify-center">
+        <div class="relative z-10 mt-16 flex justify-center">
             <button
                 @click="scrollToFeatures"
                 class="flex flex-col items-center gap-2 text-slate-400 transition-colors hover:text-orange-500"
