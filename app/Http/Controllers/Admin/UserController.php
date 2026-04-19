@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,6 +45,36 @@ class UserController extends Controller
             'programs' => Program::orderBy('name')->get(['id', 'name', 'department_id']),
             'filters' => $request->only('search', 'role'),
         ]);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('admin/Users/Create');
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'role' => ['required', 'in:admin,staff'],
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        $user->profile()->create([
+            'role' => $validated['role'],
+            'approved_at' => now(),
+        ]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name} has been created as {$validated['role']}."]);
+
+        return redirect()->route('admin.users.index');
     }
 
     public function update(Request $request, User $user): RedirectResponse

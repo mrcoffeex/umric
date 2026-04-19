@@ -126,16 +126,15 @@ const formatDate = (date: string) => {
                             class="mt-3 h-3 w-3 shrink-0 rounded-full border-2 border-orange-500 bg-white dark:bg-gray-900"
                         />
                         <div
-                            v-if="idx < tracking.length - 1"
                             class="w-0.5 flex-1 bg-gray-200 dark:bg-gray-700"
                         />
                     </div>
                     <!-- Right: content card -->
-                    <div class="flex-1 pb-4 last:pb-0">
+                    <div class="flex-1 pb-4">
                         <div class="rounded-lg border border-gray-200 bg-gray-50/50 px-4 py-3 dark:border-gray-800 dark:bg-gray-800/30">
                             <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <span class="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
                                         {{ record.action ?? (stepLabels[record.step ?? ''] ?? record.status ?? record.step) }}
                                     </span>
                                     <span v-if="record.step && record.action" class="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-700 dark:bg-orange-500/10 dark:text-orange-400">

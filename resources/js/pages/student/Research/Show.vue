@@ -10,6 +10,8 @@ import {
     FileBarChart2,
     FileSearch,
     GraduationCap,
+    Link2,
+    PackageCheck,
     Pencil,
     ScrollText,
     Send,
@@ -20,6 +22,7 @@ import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import student from '@/routes/student';
+import { receive as receiveRoute } from '@/routes/admin/research';
 
 interface StepRecord {
     id: number;
@@ -88,9 +91,14 @@ const agendaMap = computed(() =>
 );
 
 const copied = ref(false);
+const qrMode = ref<'tracking' | 'receiving'>('tracking');
 
 const trackingUrl = computed(() => {
     return `${window.location.origin}/track/${props.paper.tracking_id}`;
+});
+
+const receivingUrl = computed(() => {
+    return `${window.location.origin}${receiveRoute.url({ paper: props.paper.id })}`;
 });
 
 const currentStepIndex = computed(() => {
@@ -378,6 +386,56 @@ setLayoutProps({
             </div>
         </section>
 
+        <!-- QR Code Panel -->
+        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+            <div class="flex items-start gap-3 p-4">
+                <div :class="['shrink-0 rounded-xl border-2 bg-white p-2', qrMode === 'receiving' ? 'border-teal-400' : 'border-border']">
+                    <QrcodeVue :value="qrMode === 'tracking' ? trackingUrl : receivingUrl" :size="72" level="M" />
+                </div>
+                <div class="min-w-0 flex-1 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-semibold text-foreground">
+                                {{ qrMode === 'tracking' ? 'Tracking QR' : 'Receiving QR' }}
+                            </span>
+                            <span v-if="qrMode === 'receiving'" class="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400">Admin-only</span>
+                        </div>
+                        <div class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5">
+                            <button
+                                type="button"
+                                @click="qrMode = 'tracking'"
+                                :class="[
+                                    'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition',
+                                    qrMode === 'tracking' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                                ]"
+                            >
+                                <Link2 class="h-3 w-3" /> Track
+                            </button>
+                            <button
+                                type="button"
+                                @click="qrMode = 'receiving'"
+                                :class="[
+                                    'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition',
+                                    qrMode === 'receiving' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                                ]"
+                            >
+                                <PackageCheck class="h-3 w-3" /> Receive
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-1.5 font-mono text-xs text-muted-foreground">
+                            {{ qrMode === 'tracking' ? trackingUrl : receivingUrl }}
+                        </code>
+                        <button type="button" @click="copyToClipboard(qrMode === 'tracking' ? trackingUrl : receivingUrl)" class="shrink-0 rounded-lg border border-border bg-background p-1.5 text-foreground transition hover:bg-muted">
+                            <ClipboardCopy class="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                    <p v-if="copied" class="text-xs text-green-600">Copied!</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Body Grid -->
         <div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
             <!-- Left: Step Details + History -->
@@ -586,52 +644,6 @@ setLayoutProps({
 
             <!-- Right Sidebar -->
             <div class="space-y-6">
-                <!-- QR Code & Tracking -->
-                <section class="rounded-2xl border border-border bg-card p-5">
-                    <h3 class="mb-4 text-base font-bold text-foreground">
-                        QR Code
-                    </h3>
-                    <div class="flex flex-col items-center gap-3">
-                        <div
-                            class="rounded-xl border border-border bg-white p-3"
-                        >
-                            <QrcodeVue
-                                :value="trackingUrl"
-                                :size="160"
-                                level="M"
-                            />
-                        </div>
-                        <p class="text-center text-xs text-muted-foreground">
-                            Scan to view public tracking page
-                        </p>
-                    </div>
-
-                    <div class="my-4 border-t border-border" />
-
-                    <p
-                        class="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                    >
-                        Tracking Link
-                    </p>
-                    <div class="flex items-center gap-2">
-                        <code
-                            class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
-                        >
-                            {{ trackingUrl }}
-                        </code>
-                        <button
-                            type="button"
-                            @click="copyToClipboard(trackingUrl)"
-                            class="shrink-0 rounded-lg border border-border bg-background p-2 text-foreground transition hover:bg-muted"
-                        >
-                            <ClipboardCopy class="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                    <p v-if="copied" class="mt-1 text-xs text-green-600">
-                        Copied!
-                    </p>
-                </section>
-
                 <!-- Paper Info -->
                 <section class="rounded-2xl border border-border bg-card p-5">
                     <h3 class="mb-4 flex items-center gap-2 text-base font-bold text-foreground">

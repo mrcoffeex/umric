@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import {
     Ban,
     ChevronLeft,
@@ -10,10 +10,12 @@ import {
     ShieldCheck,
     Trash2,
     User as UserIcon,
+    UserPlus,
     X,
 } from 'lucide-vue-next';
 import { onMounted, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
+import FormSelect from '@/components/FormSelect.vue';
 import admin from '@/routes/admin';
 
 interface UserRow {
@@ -216,9 +218,13 @@ function doReject() {
                     Manage user accounts, roles, and affiliations.
                 </p>
             </div>
-            <div class="text-sm text-muted-foreground">
-                {{ users.total }} user{{ users.total !== 1 ? 's' : '' }}
-            </div>
+            <Link
+                :href="admin.users.create()"
+                class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-3.5 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+            >
+                <UserPlus class="h-4 w-4" />
+                Create User
+            </Link>
         </div>
 
         <!-- Toolbar -->
@@ -234,16 +240,13 @@ function doReject() {
                     class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-slate-800 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-sidebar-border dark:bg-sidebar dark:text-slate-200"
                 />
             </div>
-            <select
-                v-model="roleFilter"
-                class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-sidebar-border dark:bg-sidebar dark:text-slate-300"
-            >
+            <FormSelect v-model="roleFilter" class="py-2.5">
                 <option value="">All roles</option>
                 <option value="admin">Admin</option>
                 <option value="staff">Staff</option>
                 <option value="faculty">Faculty</option>
                 <option value="student">Student</option>
-            </select>
+            </FormSelect>
         </div>
 
         <!-- Table -->
@@ -551,17 +554,13 @@ function doReject() {
                             class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
                             >Role <span class="text-orange-500">*</span></label
                         >
-                        <select
-                            v-model="roleForm.role"
-                            required
-                            class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-800 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                        >
+                        <FormSelect v-model="roleForm.role" required>
                             <option value="">Select role…</option>
                             <option value="admin">Admin</option>
                             <option value="staff">Staff</option>
                             <option value="faculty">Faculty</option>
                             <option value="student">Student</option>
-                        </select>
+                        </FormSelect>
                         <p
                             v-if="roleForm.errors.role"
                             class="mt-1 text-xs text-red-500"

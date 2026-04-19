@@ -60,7 +60,7 @@ class DashboardController extends Controller
                 'pendingReview' => ResearchPaper::pendingReview()->count(),
                 'completed' => $completedCount,
                 'totalUsers' => User::count(),
-                'pendingApproval' => User::whereHas('profile', fn ($q) => $q->whereNull('approved_at'))->count(),
+                'pendingApproval' => User::whereHas('profile', fn ($q) => $q->where('role', 'faculty')->whereNull('approved_at'))->count(),
                 'completionRate' => $totalPapers > 0 ? round(($completedCount / $totalPapers) * 100) : 0,
             ],
             'stepCounts' => $stepCounts,
@@ -91,8 +91,17 @@ class DashboardController extends Controller
             ->withCount(['members', 'researchPapers'])
             ->get();
 
-        $myPapers = ResearchPaper::whereHas('schoolClass', fn ($q) => $q->where('faculty_id', $user->id))
-            ->orWhere('adviser_id', $user->id);
+        $classIds = $classes->pluck('id');
+
+        $studentIds = DB::table('school_class_members')
+            ->whereIn('school_class_id', $classIds)
+            ->pluck('student_id')
+            ->unique();
+
+        $myPapers = ResearchPaper::where(function (Builder $q) use ($studentIds, $user) {
+            $q->whereIn('user_id', $studentIds)
+                ->orWhere('adviser_id', $user->id);
+        });
 
         $stepCounts = [];
         foreach (ResearchPaper::STEPS as $step) {
@@ -105,7 +114,7 @@ class DashboardController extends Controller
         return [
             'stats' => [
                 'totalClasses' => $classes->count(),
-                'totalStudents' => $classes->sum('members_count'),
+                'totalStudents' => $studentIds->count(),
                 'totalPapers' => $totalPapers,
                 'pendingActions' => (clone $myPapers)->whereIn('current_step', ['outline_defense', 'rating', 'final_defense'])->count(),
                 'completionRate' => $totalPapers > 0 ? round(($completedCount / $totalPapers) * 100) : 0,

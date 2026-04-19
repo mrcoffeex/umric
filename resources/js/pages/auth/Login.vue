@@ -19,7 +19,7 @@ defineOptions({
     },
 });
 
-defineProps<{
+const props = defineProps<{
     status?: string;
     canResetPassword: boolean;
     canRegister: boolean;
@@ -34,18 +34,6 @@ function redirectToGoogle() {
 
 <template>
     <Head title="Log in" />
-
-    <div
-        v-if="status"
-        class="mb-4 rounded-lg px-4 py-3 text-sm font-medium"
-        :class="
-            status.includes('pending') || status.includes('approval')
-                ? 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300'
-                : 'text-center text-green-600'
-        "
-    >
-        {{ status }}
-    </div>
 
     <!-- Role toggle -->
     <div
@@ -148,9 +136,14 @@ function redirectToGoogle() {
                 :tabindex="1"
                 autocomplete="email"
                 placeholder="you@umindanao.edu.ph"
-                class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                class="h-10 w-full rounded-lg border bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                :class="
+                    errors.email || props.status
+                        ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20 dark:border-red-500'
+                        : 'border-gray-200 focus:border-orange-400 focus:ring-orange-400/20 dark:border-gray-600'
+                "
             />
-            <InputError :message="errors.email" />
+            <InputError :message="errors.email || props.status" />
         </div>
 
         <div class="grid gap-1.5">

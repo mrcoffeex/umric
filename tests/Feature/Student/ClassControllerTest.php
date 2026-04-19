@@ -58,7 +58,7 @@ it('shows empty classes list when student has no classes', function () {
 
 it('denies access to non-student users', function () {
     $user = User::factory()->create();
-    UserProfile::factory()->create(['user_id' => $user->id, 'role' => 'faculty']);
+    UserProfile::factory()->create(['user_id' => $user->id, 'role' => 'faculty', 'approved_at' => now()]);
 
     $this->actingAs($user)
         ->get(route('student.classes.index'))

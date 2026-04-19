@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { AlertTriangle, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
+import { watchDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import student from '@/routes/student';
@@ -38,13 +39,15 @@ defineOptions({
 });
 
 const searchQuery = ref('');
+const debouncedSearch = ref('');
+watchDebounced(searchQuery, (val) => { debouncedSearch.value = val; }, { debounce: 300 });
 
 const filteredPapers = computed(() => {
-    if (!searchQuery.value) {
+    if (!debouncedSearch.value) {
         return props.papers;
     }
 
-    const q = searchQuery.value.toLowerCase();
+    const q = debouncedSearch.value.toLowerCase();
 
     return props.papers.filter(
         (p) => p.title.toLowerCase().includes(q) || p.tracking_id.toLowerCase().includes(q),

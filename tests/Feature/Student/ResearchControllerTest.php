@@ -248,3 +248,22 @@ it('shows student home with announcements, classes, and paper data', function ()
             ->has('steps')
         );
 });
+
+it('shows co-proponent paper on student home', function () {
+    $owner = studentActor();
+    $coProponent = studentActor();
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $owner->id,
+        'proponents' => [['id' => (string) $coProponent->id, 'name' => $coProponent->name]],
+        'current_step' => 'ric_review',
+    ]);
+
+    $this->actingAs($coProponent)
+        ->get(route('student.home'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('student/Home')
+            ->where('paper.id', $paper->id)
+        );
+});

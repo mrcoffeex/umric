@@ -27,13 +27,14 @@ import {
     Users,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { Bar, Doughnut } from 'vue-chartjs';
+import { Bar, Doughnut, Line } from 'vue-chartjs';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getStepBadgeClass, getStepBarClass } from '@/lib/step-colors';
+import { getStepBadgeClass } from '@/lib/step-colors';
 import { dashboard } from '@/routes';
 import admin from '@/routes/admin';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
+import { index as facultyResearchIndex } from '@/routes/faculty/research';
 import {
     create as papersCreate,
     index as papersIndex,
@@ -101,7 +102,6 @@ interface Props {
     stepLabels: Record<string, string>;
     stats: Record<string, number | string | boolean | null>;
     stepCounts?: Record<string, number>;
-    statusCounts?: Record<string, number>;
     submissionsOverTime?: SubmissionPoint[];
     recentPapers?: DashboardPaper[];
     classes?: ClassSummary[];
@@ -136,8 +136,6 @@ const maxStepCount = computed(() => {
 const totalStepPapers = computed(() =>
     Object.values(props.stepCounts ?? {}).reduce((a, b) => a + b, 0),
 );
-
-const completionRate = computed(() => Number(props.stats.completionRate ?? 0));
 
 // Chart data for submissions over time
 const submissionsChartData = computed(() => ({
@@ -185,57 +183,81 @@ const submissionsChartOptions = computed(() => ({
     },
 }));
 
-// Chart data for status distribution (doughnut)
-const statusChartColors: Record<string, string> = {
-    active: 'rgb(59, 130, 246)',
-    draft: 'rgb(156, 163, 175)',
-    completed: 'rgb(34, 197, 94)',
-    archived: 'rgb(107, 114, 128)',
-    rejected: 'rgb(239, 68, 68)',
-    under_review: 'rgb(234, 179, 8)',
+// Chart data for step distribution (doughnut)
+// Uses the same stepCounts data already computed on the backend,
+// mapped to each step's canonical color from the design system.
+const stepChartRgb: Record<string, string> = {
+    title_proposal:  'rgb(249, 115, 22)',
+    ric_review:      'rgb(20, 184, 166)',
+    plagiarism_check:'rgb(168, 85, 247)',
+    outline_defense: 'rgb(59, 130, 246)',
+    rating:          'rgb(245, 158, 11)',
+    final_manuscript:'rgb(99, 102, 241)',
+    final_defense:   'rgb(6, 182, 212)',
+    hard_bound:      'rgb(132, 204, 22)',
+    completed:       'rgb(34, 197, 94)',
 };
 
-const statusChartData = computed(() => {
-    const counts = props.statusCounts ?? {};
-    const labels = Object.keys(counts);
-    const data = Object.values(counts);
-    const colors = labels.map(s => statusChartColors[s] ?? 'rgb(156, 163, 175)');
+const stepDistributionData = computed(() => {
+    const counts = props.stepCounts ?? {};
+    const labels = props.stepLabels ?? {};
+
+    // Only include steps that actually have papers
+    const activeSteps = Object.entries(counts).filter(([, v]) => v > 0);
+
+    const stepKeys = activeSteps.map(([k]) => k);
+    const data = activeSteps.map(([, v]) => v);
+    const colors = stepKeys.map(k => stepChartRgb[k] ?? 'rgb(156, 163, 175)');
 
     return {
-        labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1).replace('_', ' ')),
+        labels: stepKeys.map(k => labels[k] ?? k),
         datasets: [
             {
                 data,
-                backgroundColor: colors.map(c => c.replace('rgb', 'rgba').replace(')', ', 0.2)')),
+                backgroundColor: colors.map(c => c.replace('rgb(', 'rgba(').replace(')', ', 0.25)')),
                 borderColor: colors,
-                borderWidth: 2,
-                hoverOffset: 4,
+                borderWidth: 2.5,
+                hoverOffset: 6,
+                hoverBorderWidth: 3,
             },
         ],
     };
 });
 
-const statusChartOptions = {
+const stepDistributionHasData = computed(() =>
+    Object.values(props.stepCounts ?? {}).some(v => v > 0),
+);
+
+const stepDistributionOptions = computed(() => ({
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '65%',
+    cutout: '68%',
     plugins: {
         legend: {
             position: 'bottom' as const,
             labels: {
-                padding: 16,
+                padding: 12,
                 usePointStyle: true,
-                pointStyleWidth: 8,
-                font: { size: 11 },
+                pointStyleWidth: 7,
+                font: { size: 10 },
+                color: '#6b7280',
+                boxHeight: 7,
             },
         },
         tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
+            backgroundColor: 'rgba(15, 15, 15, 0.88)',
             padding: 10,
             cornerRadius: 8,
+            callbacks: {
+                label: (ctx: any) => {
+                    const total = (ctx.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
+                    const pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+                    return `  ${ctx.parsed} paper${ctx.parsed !== 1 ? 's' : ''} (${pct}%)`;
+                },
+            },
         },
     },
-};
+}));
 
 const adminStaffStatCards = computed(() => [
     {
@@ -245,6 +267,7 @@ const adminStaffStatCards = computed(() => [
         iconBg: 'bg-orange-100 dark:bg-orange-950/40',
         iconClass: 'text-orange-600 dark:text-orange-400',
         accent: 'from-orange-500/10 to-transparent',
+        href: admin.research.index.url(),
     },
     {
         label: 'Pending Review',
@@ -253,6 +276,7 @@ const adminStaffStatCards = computed(() => [
         iconBg: 'bg-teal-100 dark:bg-teal-950/40',
         iconClass: 'text-teal-600 dark:text-teal-400',
         accent: 'from-teal-500/10 to-transparent',
+        href: admin.research.index.url({ query: { step: 'ric_review' } }),
     },
     {
         label: 'Completed',
@@ -261,6 +285,7 @@ const adminStaffStatCards = computed(() => [
         iconBg: 'bg-green-100 dark:bg-green-950/40',
         iconClass: 'text-green-600 dark:text-green-400',
         accent: 'from-green-500/10 to-transparent',
+        href: admin.research.index.url({ query: { step: 'completed' } }),
     },
     {
         label: 'Total Users',
@@ -269,6 +294,7 @@ const adminStaffStatCards = computed(() => [
         iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
         iconClass: 'text-indigo-600 dark:text-indigo-400',
         accent: 'from-indigo-500/10 to-transparent',
+        href: admin.users.index.url(),
     },
     {
         label: 'Pending Approval',
@@ -277,6 +303,7 @@ const adminStaffStatCards = computed(() => [
         iconBg: 'bg-amber-100 dark:bg-amber-950/40',
         iconClass: 'text-amber-600 dark:text-amber-400',
         accent: 'from-amber-500/10 to-transparent',
+        href: admin.users.index.url({ query: { role: 'faculty' } }),
     },
 ]);
 
@@ -288,6 +315,7 @@ const facultyStatCards = computed(() => [
         iconBg: 'bg-orange-100 dark:bg-orange-950/40',
         iconClass: 'text-orange-600 dark:text-orange-400',
         accent: 'from-orange-500/10 to-transparent',
+        href: facultyClassesIndex.url(),
     },
     {
         label: 'Students',
@@ -296,6 +324,7 @@ const facultyStatCards = computed(() => [
         iconBg: 'bg-teal-100 dark:bg-teal-950/40',
         iconClass: 'text-teal-600 dark:text-teal-400',
         accent: 'from-teal-500/10 to-transparent',
+        href: facultyClassesIndex.url(),
     },
     {
         label: 'Papers',
@@ -304,6 +333,7 @@ const facultyStatCards = computed(() => [
         iconBg: 'bg-blue-100 dark:bg-blue-950/40',
         iconClass: 'text-blue-600 dark:text-blue-400',
         accent: 'from-blue-500/10 to-transparent',
+        href: facultyResearchIndex.url(),
     },
     {
         label: 'Pending Actions',
@@ -312,6 +342,7 @@ const facultyStatCards = computed(() => [
         iconBg: 'bg-amber-100 dark:bg-amber-950/40',
         iconClass: 'text-amber-600 dark:text-amber-400',
         accent: 'from-amber-500/10 to-transparent',
+        href: facultyResearchIndex.url({ query: { step: 'ric_review' } }),
     },
 ]);
 
@@ -323,6 +354,7 @@ const studentCards = computed(() => [
         iconBg: 'bg-orange-100 dark:bg-orange-950/40',
         iconClass: 'text-orange-600 dark:text-orange-400',
         accent: 'from-orange-500/10 to-transparent',
+        href: undefined as string | undefined,
     },
     {
         label: 'Paper Submitted',
@@ -339,6 +371,7 @@ const studentCards = computed(() => [
         iconBg: 'bg-indigo-100 dark:bg-indigo-950/40',
         iconClass: 'text-indigo-600 dark:text-indigo-400',
         accent: 'from-indigo-500/10 to-transparent',
+        href: undefined as string | undefined,
     },
 ]);
 
@@ -348,12 +381,62 @@ const statCards = computed(() => {
     return studentCards.value;
 });
 
-function isStepActive(step: string): boolean {
-    return (props.paper?.current_step ?? '') === step;
-}
+// Workflow pipeline line chart
+const pipelineChartData = computed(() => ({
+    labels: Object.values(props.stepLabels ?? {}),
+    datasets: [
+        {
+            label: 'Papers',
+            data: Object.keys(props.stepLabels ?? {}).map((s) => stepCount(s)),
+            borderColor: 'rgb(249, 115, 22)',
+            backgroundColor: 'rgba(249, 115, 22, 0.12)',
+            borderWidth: 2.5,
+            pointBackgroundColor: 'rgb(249, 115, 22)',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            fill: true,
+            tension: 0.4,
+        },
+    ],
+}));
+
+const pipelineChartOptions = computed(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleFont: { size: 12 },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+                label: (ctx: any) => ` ${ctx.parsed.y} papers`,
+            },
+        },
+    },
+    scales: {
+        x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 }, color: '#9ca3af', maxRotation: 30 },
+        },
+        y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, font: { size: 11 }, color: '#9ca3af' },
+            grid: { color: 'rgba(156, 163, 175, 0.1)' },
+        },
+    },
+}));
 
 function stepCount(step: string): number {
     return Number(props.stepCounts?.[step] ?? 0);
+}
+
+function isStepActive(step: string): boolean {
+    return (props.paper?.current_step ?? '') === step;
 }
 
 function formatDate(date: string | null | undefined): string {
@@ -460,13 +543,14 @@ defineOptions({
 
         <!-- Stat Cards -->
         <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <Card
+            <Link
                 v-for="card in statCards"
                 :key="card.label"
-                class="group relative overflow-hidden transition-shadow hover:shadow-md"
+                :href="card.href ?? '#'"
+                class="group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
             >
                 <div :class="['pointer-events-none absolute inset-0 bg-gradient-to-br', card.accent]" />
-                <CardContent class="relative p-4">
+                <div class="relative p-4">
                     <div class="flex items-center justify-between">
                         <div :class="['rounded-lg p-2', card.iconBg]">
                             <component :is="card.icon" :class="['h-4 w-4', card.iconClass]" />
@@ -481,8 +565,8 @@ defineOptions({
                             {{ card.label }}
                         </p>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </Link>
         </section>
 
         <!-- Charts Row (admin/staff/faculty) -->
@@ -513,30 +597,30 @@ defineOptions({
                 </CardContent>
             </Card>
 
-            <!-- Status Distribution -->
+            <!-- Step Distribution -->
             <Card class="lg:col-span-2">
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm font-semibold">Status Distribution</CardTitle>
+                    <CardTitle class="text-sm font-semibold">Step Distribution</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div class="relative h-56">
                         <Doughnut
-                            v-if="statusCounts && Object.keys(statusCounts).length > 0"
-                            :data="statusChartData"
-                            :options="statusChartOptions"
+                            v-if="stepDistributionHasData"
+                            :data="stepDistributionData"
+                            :options="stepDistributionOptions"
                         />
                         <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
-                            No status data yet.
+                            No pipeline data yet.
                         </div>
-                        <!-- Center label -->
+                        <!-- Center: total paper count -->
                         <div
-                            v-if="statusCounts && Object.keys(statusCounts).length > 0"
-                            class="pointer-events-none absolute inset-0 flex items-center justify-center"
-                            style="margin-bottom: 2.5rem"
+                            v-if="stepDistributionHasData"
+                            class="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center"
+                            style="height: calc(100% - 3.5rem)"
                         >
                             <div class="text-center">
-                                <p class="text-2xl font-bold text-foreground">{{ completionRate }}%</p>
-                                <p class="text-[10px] font-medium text-muted-foreground">Complete</p>
+                                <p class="text-2xl font-bold tabular-nums text-foreground">{{ totalStepPapers }}</p>
+                                <p class="text-[10px] font-medium text-muted-foreground">Total</p>
                             </div>
                         </div>
                     </div>
@@ -563,24 +647,14 @@ defineOptions({
                     </Link>
                 </CardHeader>
                 <CardContent>
-                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                        <div
-                            v-for="[step, label] in orderedStepEntries"
-                            :key="step"
-                            class="group flex items-center gap-3 rounded-lg border border-border bg-background p-3 transition-colors hover:bg-muted/50"
-                        >
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center justify-between gap-2">
-                                    <span class="truncate text-xs font-medium text-foreground">{{ label }}</span>
-                                    <span class="shrink-0 text-sm font-bold tabular-nums text-foreground">{{ stepCount(step) }}</span>
-                                </div>
-                                <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                                    <div
-                                        :class="['h-full rounded-full transition-all duration-500', getStepBarClass(step)]"
-                                        :style="{ width: `${(stepCount(step) / maxStepCount) * 100}%` }"
-                                    />
-                                </div>
-                            </div>
+                    <div class="h-64">
+                        <Line
+                            v-if="totalStepPapers > 0"
+                            :data="pipelineChartData"
+                            :options="pipelineChartOptions"
+                        />
+                        <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
+                            No pipeline data yet.
                         </div>
                     </div>
                 </CardContent>

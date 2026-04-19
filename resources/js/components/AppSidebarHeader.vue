@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Monitor, Moon, Sun } from 'lucide-vue-next';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
+import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAppearance } from '@/composables/useAppearance';
 import type { BreadcrumbItem } from '@/types';
@@ -30,6 +31,7 @@ const options = [
         <div class="flex items-center gap-2">
             <SidebarTrigger class="-ml-1" />
             <template v-if="breadcrumbs && breadcrumbs.length > 0">
+                <Separator orientation="vertical" class="mx-1 h-4" />
                 <Breadcrumbs :breadcrumbs="breadcrumbs" />
             </template>
         </div>

@@ -426,9 +426,9 @@ defineOptions({
                 Showing {{ papers.from }}-{{ papers.to }} of {{ papers.total }}
             </p>
             <div class="flex items-center gap-1">
-                <template v-for="link in papers.links" :key="link.label">
+                <template v-for="(link, index) in papers.links" :key="link.label">
                     <button
-                        v-if="link.label === '&laquo; Previous'"
+                        v-if="index === 0"
                         :disabled="!link.url"
                         @click="link.url && router.get(link.url)"
                         class="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -436,7 +436,7 @@ defineOptions({
                         <ChevronLeft class="h-4 w-4" />
                     </button>
                     <button
-                        v-else-if="link.label === 'Next &raquo;'"
+                        v-else-if="index === papers.links.length - 1"
                         :disabled="!link.url"
                         @click="link.url && router.get(link.url)"
                         class="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"

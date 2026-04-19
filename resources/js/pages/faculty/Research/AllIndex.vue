@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { ChevronDown, FileSearch, Filter, Globe, GraduationCap, ScrollText, Search, Target } from 'lucide-vue-next';
+import { watchDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
@@ -53,6 +54,8 @@ interface Props {
 const props = defineProps<Props>();
 
 const searchQuery = ref('');
+const debouncedSearch = ref('');
+watchDebounced(searchQuery, (val) => { debouncedSearch.value = val; }, { debounce: 300 });
 const filtersOpen = ref(false);
 const activeStep = ref<string>('all');
 const activeClass = ref<number | 'all'>('all');
@@ -74,7 +77,7 @@ const orderedSteps = [
 const baseFilteredPapers = computed(() => {
     let result = props.papers as Paper[];
 
-    const q = searchQuery.value.trim().toLowerCase();
+    const q = debouncedSearch.value.trim().toLowerCase();
     if (q) {
         result = result.filter(
             (p) =>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { FileSearch, Filter, Search, ScrollText, Users } from 'lucide-vue-next';
+import { watchDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
@@ -39,6 +40,8 @@ const props = defineProps<Props>();
 const schoolClass = computed(() => props.schoolClass ?? props.class);
 const activeStep = ref<string>('all');
 const searchQuery = ref('');
+const debouncedSearch = ref('');
+watchDebounced(searchQuery, (val) => { debouncedSearch.value = val; }, { debounce: 300 });
 
 const orderedSteps = [
     'title_proposal',
@@ -72,7 +75,7 @@ const filteredPapers = computed(() => {
         list = list.filter((p) => p.current_step === activeStep.value);
     }
 
-    const q = searchQuery.value.trim().toLowerCase();
+    const q = debouncedSearch.value.trim().toLowerCase();
     if (q) {
         list = list.filter((p) =>
             p.title.toLowerCase().includes(q) ||

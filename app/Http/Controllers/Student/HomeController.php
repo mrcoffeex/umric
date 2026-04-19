@@ -29,8 +29,13 @@ class HomeController extends Controller
             ->with('subjects.program')
             ->get();
 
+        $userId = $request->user()->id;
+
         $paper = ResearchPaper::query()
-            ->where('user_id', $request->user()->id)
+            ->where(function ($query) use ($userId) {
+                $query->where('user_id', $userId)
+                    ->orWhereRaw('"proponents"::jsonb @> ?::jsonb', [json_encode([['id' => (string) $userId]])]);
+            })
             ->first();
 
         return Inertia::render('student/Home', [

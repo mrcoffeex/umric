@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { Bell, Megaphone, Pencil, Pin, Plus, Search, Trash2 } from 'lucide-vue-next';
+import { watchDebounced } from '@vueuse/core';
 import { computed, onMounted, ref } from 'vue';
+import FormSelect from '@/components/FormSelect.vue';
 import admin from '@/routes/admin';
 
 interface AnnouncementItem {
@@ -37,12 +39,14 @@ const typeColors: Record<AnnouncementItem['type'], string> = {
 };
 
 const searchQuery = ref('');
+const debouncedSearch = ref('');
+watchDebounced(searchQuery, (val) => { debouncedSearch.value = val; }, { debounce: 300 });
 const activeType = ref<string>('all');
 
 const filteredAnnouncements = computed(() => {
     let result = props.announcements as AnnouncementItem[];
 
-    const q = searchQuery.value.trim().toLowerCase();
+    const q = debouncedSearch.value.trim().toLowerCase();
     if (q) {
         result = result.filter(
             (a) => a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q),
@@ -346,12 +350,12 @@ defineOptions({
                 <div class="grid gap-4 md:grid-cols-2">
                     <div>
                         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</label>
-                        <select v-model="form.type" class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30">
+                        <FormSelect v-model="form.type">
                             <option value="info">Info</option>
                             <option value="success">Success</option>
                             <option value="warning">Warning</option>
                             <option value="danger">Danger</option>
-                        </select>
+                        </FormSelect>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">

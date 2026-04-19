@@ -17,6 +17,7 @@ import {
 import { computed, ref, watch } from 'vue';
 import SchoolClassController from '@/actions/App/Http/Controllers/Faculty/SchoolClassController';
 import InputError from '@/components/InputError.vue';
+import FormSelect from '@/components/FormSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -526,22 +527,22 @@ function semesterLabel(semester: number | null): string {
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <Label for="f-semester">Semester</Label>
-                            <select id="f-semester" v-model="form.semester" class="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30">
+                            <FormSelect id="f-semester" v-model="form.semester" class="mt-1.5">
                                 <option value="">—</option>
                                 <option value="1">1st Semester</option>
                                 <option value="2">2nd Semester</option>
                                 <option value="3">3rd Semester</option>
-                            </select>
+                            </FormSelect>
                             <InputError class="mt-2" :message="form.errors.semester" />
                         </div>
                         <div>
                             <Label for="f-term">Term</Label>
-                            <select id="f-term" v-model="form.term" class="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30">
+                            <FormSelect id="f-term" v-model="form.term" class="mt-1.5">
                                 <option value="">—</option>
                                 <option value="1st">1st</option>
                                 <option value="2nd">2nd</option>
                                 <option value="3rd">3rd</option>
-                            </select>
+                            </FormSelect>
                             <InputError class="mt-2" :message="form.errors.term" />
                         </div>
                     </div>

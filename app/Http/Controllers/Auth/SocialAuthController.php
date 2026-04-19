@@ -79,6 +79,13 @@ class SocialAuthController extends Controller
 
             Auth::login($existing, true);
 
+            if ($existing->isFaculty() && ! $existing->isApproved()) {
+                Auth::logout();
+
+                return redirect()->route('login')
+                    ->with('status', 'This account is not approved yet');
+            }
+
             return redirect()->intended(route('dashboard'));
         }
 
@@ -95,6 +102,13 @@ class SocialAuthController extends Controller
         $user->profile()->create(['role' => $role]);
 
         Auth::login($user, true);
+
+        if ($user->isFaculty() && ! $user->isApproved()) {
+            Auth::logout();
+
+            return redirect()->route('login')
+                ->with('status', 'This account is not approved yet');
+        }
 
         return redirect()->intended(route('dashboard'));
     }

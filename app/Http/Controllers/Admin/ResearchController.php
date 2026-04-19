@@ -325,6 +325,24 @@ class ResearchController extends Controller
         return back();
     }
 
+    public function receive(Request $request, ResearchPaper $paper): RedirectResponse
+    {
+        TrackingRecord::log(
+            $paper->id,
+            'document_received',
+            'Document Received',
+            'received',
+            null,
+            $request->user()->id,
+            'Received by ' . $request->user()->name,
+            ['received_at' => now()->toISOString()],
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Document receipt recorded for ' . $request->user()->name . '.']);
+
+        return redirect()->route('admin.research.show', $paper);
+    }
+
     public function advanceStep(Request $request, ResearchPaper $paper): RedirectResponse
     {
         if (! $paper->canProceedToNextStep()) {

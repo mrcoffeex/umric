@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AgendaController;
 use App\Http\Controllers\Admin\AnnouncementController;
+use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
+use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
 use App\Http\Controllers\Admin\ApproveUserController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ProgramController;
@@ -36,7 +38,7 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::get('papers/proponents/search', [ResearchPaperController::class, 'searchProponents'])
@@ -58,7 +60,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('classes/{class}/students/{student}', [SchoolClassController::class, 'removeStudent'])->name('classes.remove-student');
         Route::resource('sdgs', SdgController::class)->except(['create', 'edit', 'show']);
         Route::resource('agendas', AgendaController::class)->except(['create', 'edit', 'show']);
-        Route::resource('users', UserController::class)->except(['create', 'edit', 'show', 'store']);
+        Route::resource('users', UserController::class)->except(['edit', 'show']);
 
         // Admin Research
         Route::get('research', [ResearchController::class, 'index'])->name('research.index');
@@ -66,6 +68,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('research/{paper}/step', [ResearchController::class, 'updateStep'])->name('research.update-step');
         Route::post('research/{paper}/assign', [ResearchController::class, 'assign'])->name('research.assign');
         Route::post('research/{paper}/comments', [ResearchController::class, 'storeComment'])->name('research.store-comment');
+        Route::get('research/{paper}/receive', [ResearchController::class, 'receive'])->name('research.receive');
 
         // Admin Announcements
         Route::resource('announcements', AnnouncementController::class)->except(['create', 'edit', 'show']);
@@ -73,6 +76,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('users/{user}/approve', [ApproveUserController::class, 'approve'])->name('users.approve');
         Route::post('users/{user}/reject', [ApproveUserController::class, 'reject'])->name('users.reject');
         Route::post('users/{user}/block', [UserController::class, 'block'])->name('users.block');
+
+        // Admin Defense Calendar
+        Route::get('defense-calendar', [AdminDefenseCalendarController::class, 'index'])->name('defense-calendar.index');
     });
 
     // Faculty class management
@@ -93,6 +99,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('classes/{class}/research/{paper}/comments', [App\Http\Controllers\Faculty\ResearchController::class, 'storeComment'])->name('classes.research.store-comment');
         Route::patch('classes/{class}/research/{paper}/step', [App\Http\Controllers\Faculty\ResearchController::class, 'updateStep'])->name('classes.research.update-step');
         Route::post('classes/{class}/research/{paper}/approve', [App\Http\Controllers\Faculty\ResearchController::class, 'approve'])->name('classes.research.approve');
+
+        // Faculty Defense Calendar
+        Route::get('defense-calendar', [FacultyDefenseCalendarController::class, 'index'])->name('defense-calendar.index');
     });
 
     Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {

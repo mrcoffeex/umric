@@ -46,13 +46,8 @@ const role = computed(() => (props.user as any).role as string | undefined);
         <span v-if="showEmail" class="truncate text-xs text-muted-foreground">{{
             user.email
         }}</span>
-        <span
-            v-else-if="role"
-            :class="[
-                'mt-0.5 inline-flex w-fit rounded px-1.5 py-0 text-[10px] leading-4 font-semibold capitalize',
-                roleColors[role] ?? 'bg-slate-100 text-slate-600',
-            ]"
-            >{{ role }}</span
-        >
+        <span v-else-if="role" class="truncate text-xs text-muted-foreground">{{
+            user.email
+        }}</span>
     </div>
 </template>

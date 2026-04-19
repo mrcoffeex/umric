@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
+use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\Subject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -137,6 +139,12 @@ class SchoolClassController extends Controller
                 'joined_at' => $student->pivot->joined_at,
             ]);
 
+        $studentIds = DB::table('school_class_members')
+            ->where('school_class_id', $class->id)
+            ->pluck('student_id');
+
+        $researchPapersCount = ResearchPaper::whereIn('user_id', $studentIds)->count();
+
         $class->load('subjects.program');
 
         return Inertia::render('faculty/Classes/Show', [
@@ -158,7 +166,7 @@ class SchoolClassController extends Controller
                 ]),
             ],
             'students' => $students,
-            'researchPapersCount' => $class->researchPapers()->count(),
+            'researchPapersCount' => $researchPapersCount,
         ]);
     }
 

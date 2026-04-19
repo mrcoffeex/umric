@@ -45,6 +45,7 @@ class UserProfileFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'role' => 'faculty',
+            'approved_at' => now(),
         ]);
     }
 
