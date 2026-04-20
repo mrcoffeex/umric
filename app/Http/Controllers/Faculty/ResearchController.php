@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ResearchStatusUpdated;
 use App\Models\Agenda;
 use App\Models\Comment;
 use App\Models\ResearchPaper;
@@ -11,6 +12,7 @@ use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,7 +24,7 @@ class ResearchController extends Controller
         $this->ensureFacultyOwnsClass($request, $class);
 
         // Get student IDs enrolled in this class
-        $studentIds = \DB::table('school_class_members')
+        $studentIds = DB::table('school_class_members')
             ->where('school_class_id', $class->id)
             ->pluck('student_id');
 
@@ -256,6 +258,14 @@ class ResearchController extends Controller
             $metadata ?: null,
         );
 
+        ResearchStatusUpdated::dispatch(
+            $paper->fresh(),
+            $step,
+            ResearchPaper::STEP_LABELS[$step] ?? ucfirst(str_replace('_', ' ', $step)),
+            $status,
+            $validated['notes'] ?? null,
+        );
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Status updated.']);
 
         return back();
@@ -325,7 +335,7 @@ class ResearchController extends Controller
 
     private function ensurePaperBelongsToClass(SchoolClass $class, ResearchPaper $paper): void
     {
-        $isMember = \DB::table('school_class_members')
+        $isMember = DB::table('school_class_members')
             ->where('school_class_id', $class->id)
             ->where('student_id', $paper->user_id)
             ->exists();

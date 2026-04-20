@@ -275,8 +275,8 @@ onUnmounted(() => cancelAnimationFrame(animationId));
                     <p
                         class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400"
                     >
-                        Track every milestone of your student research — from
-                        title proposal and chapter submissions, through panel
+                        Track every milestone of your <strong class="dark: text-white">student research</strong> — from
+                        <strong class="dark: text-white">title proposal</strong> and <strong class="dark: text-white">chapter submissions</strong>, through panel
                         review and oral defense, all the way to final
                         publication.
                     </p>

@@ -142,6 +142,7 @@ class ResearchController extends Controller
             abort(403);
         }
 
+        // Only allow editing if it's still a title proposal
         if ($paper->current_step !== 'title_proposal') {
             abort(403);
         }

@@ -49,6 +49,7 @@ class ResearchPaper extends Model
     ];
 
     protected $casts = [
+        'user_id' => 'integer',
         'submission_date' => 'date',
         'publication_date' => 'date',
         'outline_defense_schedule' => 'datetime',

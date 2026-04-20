@@ -136,7 +136,7 @@ const proponents = computed(() => {
 
 const timeline = computed(() => {
     return [...(props.trackingRecords ?? [])].sort((a, b) => {
-        return new Date(a.created_at ?? '').getTime() - new Date(b.created_at ?? '').getTime();
+        return new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime();
     });
 });
 
@@ -554,7 +554,7 @@ defineOptions({
 
                     <div v-else class="relative ml-3 space-y-0 border-l-2 border-border pl-6">
                         <div v-for="(record, idx) in timeline" :key="record.id" class="relative pb-6 last:pb-0">
-                            <div :class="['absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background', idx === timeline.length - 1 ? 'bg-orange-500' : 'bg-green-500']">
+                            <div :class="['absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background', idx === 0 ? 'bg-orange-500' : 'bg-green-500']">
                                 <div class="h-1.5 w-1.5 rounded-full bg-white" />
                             </div>
                             <div class="rounded-xl border border-border bg-card p-3.5 shadow-xs">

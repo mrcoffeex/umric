@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ResearchStatusUpdated;
 use App\Models\Agenda;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
@@ -318,6 +319,14 @@ class ResearchController extends Controller
             $request->user()->id,
             $notes,
             $metadata ?: null,
+        );
+
+        ResearchStatusUpdated::dispatch(
+            $paper->fresh(),
+            $step,
+            ResearchPaper::STEP_LABELS[$step] ?? ucfirst(str_replace('_', ' ', $step)),
+            $status,
+            $notes,
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Status updated.']);

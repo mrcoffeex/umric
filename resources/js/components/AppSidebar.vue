@@ -76,9 +76,9 @@ const AdminSettingsItems: NavItem[] = [
 ];
 
 const facultyNavItems: NavItem[] = [
-    { title: 'My Research', href: facultyResearchIndex(), icon: ScrollText },
-    { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
+    { title: 'Research Papers', href: facultyResearchIndex(), icon: ScrollText },
     { title: 'Defense Calendar', href: facultyDefenseCalendarIndex(), icon: CalendarDays },
+    { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
 ];
 
 const studentNavItems: NavItem[] = [

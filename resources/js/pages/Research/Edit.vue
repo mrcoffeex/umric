@@ -311,13 +311,19 @@ function submit() {
                     </h2>
 
                     <div class="space-y-2">
+                        <!-- Slot 0: lead proponent — always locked -->
                         <div class="flex items-center gap-2">
                             <div
                                 class="flex h-10 flex-1 items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-foreground"
                             >
                                 <span
+                                    v-if="form.proponents[0]?.id === auth_user.id"
                                     class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
                                     >You</span
+                                >
+                                <span
+                                    class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                                    >Lead</span
                                 >
                                 {{ form.proponents[0]?.name }}
                             </div>
@@ -327,7 +333,19 @@ function submit() {
                             :key="idx + 1"
                             class="relative flex items-center gap-2"
                         >
-                            <template v-if="activeSearchSlot !== idx + 1">
+                            <!-- Co-proponent locked when it's the logged-in user -->
+                            <template v-if="proponent.id === auth_user.id">
+                                <div
+                                    class="flex h-10 flex-1 items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-foreground"
+                                >
+                                    <span
+                                        class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
+                                        >You</span
+                                    >
+                                    {{ proponent.name }}
+                                </div>
+                            </template>
+                            <template v-else-if="activeSearchSlot !== idx + 1">
                                 <div
                                     class="flex h-10 flex-1 cursor-pointer items-center rounded-lg border border-input bg-background px-3 py-2 text-sm transition hover:border-orange-400"
                                     @click="openSearch(idx + 1)"
@@ -385,6 +403,7 @@ function submit() {
                                 </div>
                             </template>
                             <button
+                                v-if="proponent.id !== auth_user.id"
                                 type="button"
                                 class="h-10 w-10 text-muted-foreground transition hover:text-red-500"
                                 @click="removeProponent(idx + 1)"

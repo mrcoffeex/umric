@@ -49,7 +49,16 @@ class ResearchPaperPolicy
      */
     public function update(User $user, ResearchPaper $researchPaper): bool
     {
-        return $user->id === $researchPaper->user_id;
+        if ($user->id === $researchPaper->user_id) {
+            return true;
+        }
+
+        $proponentIds = collect($researchPaper->proponents)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return in_array($user->id, $proponentIds, true);
     }
 
     /**

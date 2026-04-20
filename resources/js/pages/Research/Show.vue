@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { ClipboardCopy, Link2, Maximize2, X } from 'lucide-vue-next';
+import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import StatusBadge from '@/components/StatusBadge.vue';
 import TrackingTimeline from '@/components/TrackingTimeline.vue';
@@ -95,6 +97,7 @@ defineOptions({
 });
 
 const copied = ref(false);
+const qrModalOpen = ref(false);
 
 const publicTrackingUrl = computed(
     () =>
@@ -499,8 +502,22 @@ const copyToClipboard = async (text: string) => {
                     >
                         Share & Track
                     </h3>
+                    <!-- QR Code -->
+                    <div class="mb-4 flex flex-col items-center gap-3">
+                        <div
+                            class="relative cursor-pointer rounded-xl border-2 border-border bg-white p-2 transition hover:border-orange-400"
+                            @click="qrModalOpen = true"
+                            title="Click to enlarge"
+                        >
+                            <QrcodeVue :value="publicTrackingUrl" :size="120" level="M" />
+                            <span class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5">
+                                <Maximize2 class="h-2.5 w-2.5 text-white" />
+                            </span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Scan to track publicly</p>
+                    </div>
 
-                    <!-- Tracking ID -->
+                    <div class="my-3 border-t border-border" />
                     <p
                         class="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                     >
@@ -548,4 +565,55 @@ const copyToClipboard = async (text: string) => {
             </div>
         </div>
     </div>
+
+    <!-- QR Modal -->
+    <Teleport to="body">
+        <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="qrModalOpen"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                @click.self="qrModalOpen = false"
+            >
+                <div class="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8 shadow-2xl">
+                    <button
+                        type="button"
+                        class="absolute top-3 right-3 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        @click="qrModalOpen = false"
+                    >
+                        <X class="h-4 w-4" />
+                    </button>
+
+                    <div class="text-center">
+                        <h2 class="text-base font-bold text-foreground">Tracking QR Code</h2>
+                        <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ paper.tracking_id }}</p>
+                    </div>
+
+                    <div class="rounded-2xl border-4 border-orange-400 bg-white p-4">
+                        <QrcodeVue :value="publicTrackingUrl" :size="220" level="H" />
+                    </div>
+
+                    <div class="flex w-full items-center gap-2">
+                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
+                            {{ publicTrackingUrl }}
+                        </code>
+                        <button
+                            type="button"
+                            @click="copyToClipboard(publicTrackingUrl)"
+                            class="shrink-0 rounded-lg border border-border bg-background p-2 text-foreground transition hover:bg-muted"
+                        >
+                            <ClipboardCopy class="h-4 w-4" />
+                        </button>
+                    </div>
+                    <p v-if="copied" class="text-xs text-green-600">Copied!</p>
+                </div>
+            </div>
+        </Transition>
+    </Teleport>
 </template>

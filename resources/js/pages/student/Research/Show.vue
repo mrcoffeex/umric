@@ -11,12 +11,14 @@ import {
     FileSearch,
     GraduationCap,
     Link2,
+    Maximize2,
     PackageCheck,
     Pencil,
     ScrollText,
     Send,
     Shield,
     Trophy,
+    X,
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
@@ -79,9 +81,13 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const authUserId = computed(() => (page.props.auth as { user: { id: number } }).user.id);
-const canEdit = computed(
-    () => props.paper.user_id === authUserId.value && props.paper.current_step === 'title_proposal',
-);
+const canEdit = computed(() => {
+    if (props.paper.current_step !== 'title_proposal') return false;
+    if (props.paper.user_id === authUserId.value) return true;
+    const proponents = props.paper.proponents;
+    if (!Array.isArray(proponents)) return false;
+    return proponents.some((p) => typeof p === 'object' && p.id === authUserId.value);
+});
 
 const sdgMap = computed(() =>
     Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
@@ -92,6 +98,7 @@ const agendaMap = computed(() =>
 
 const copied = ref(false);
 const qrMode = ref<'tracking' | 'receiving'>('tracking');
+const qrModalOpen = ref(false);
 
 const trackingUrl = computed(() => {
     return `${window.location.origin}/track/${props.paper.tracking_id}`;
@@ -134,10 +141,7 @@ const proponents = computed(() => {
 
 const timeline = computed(() => {
     return [...(props.trackingLog ?? [])].sort((a, b) => {
-        const left = new Date(a.created_at ?? '').getTime();
-        const right = new Date(b.created_at ?? '').getTime();
-
-        return left - right;
+        return new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime();
     });
 });
 
@@ -389,8 +393,15 @@ setLayoutProps({
         <!-- QR Code Panel -->
         <section class="overflow-hidden rounded-2xl border border-border bg-card">
             <div class="flex items-start gap-3 p-4">
-                <div :class="['shrink-0 rounded-xl border-2 bg-white p-2', qrMode === 'receiving' ? 'border-teal-400' : 'border-border']">
+                <div
+                    :class="['relative shrink-0 cursor-pointer rounded-xl border-2 bg-white p-2 transition hover:border-orange-400', qrMode === 'receiving' ? 'border-teal-400' : 'border-border']"
+                    @click="qrModalOpen = true"
+                    title="Click to enlarge"
+                >
                     <QrcodeVue :value="qrMode === 'tracking' ? trackingUrl : receivingUrl" :size="72" level="M" />
+                    <span class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5">
+                        <Maximize2 class="h-2.5 w-2.5 text-white" />
+                    </span>
                 </div>
                 <div class="min-w-0 flex-1 space-y-2">
                     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -566,7 +577,7 @@ setLayoutProps({
                             <div
                                 :class="[
                                     'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
-                                    idx === timeline.length - 1
+                                    idx === 0
                                         ? 'bg-orange-500'
                                         : 'bg-green-500',
                                 ]"
@@ -748,4 +759,89 @@ setLayoutProps({
             </div>
         </div>
     </div>
+
+    <!-- QR Full-Page Modal -->
+    <Teleport to="body">
+        <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="qrModalOpen"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                @click.self="qrModalOpen = false"
+            >
+                <div class="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8 shadow-2xl">
+                    <!-- Close -->
+                    <button
+                        type="button"
+                        class="absolute top-3 right-3 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        @click="qrModalOpen = false"
+                    >
+                        <X class="h-4 w-4" />
+                    </button>
+
+                    <!-- Title -->
+                    <div class="text-center">
+                        <h2 class="text-base font-bold text-foreground">
+                            {{ qrMode === 'tracking' ? 'Tracking QR Code' : 'Receiving QR Code' }}
+                        </h2>
+                        <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ paper.tracking_id }}</p>
+                    </div>
+
+                    <!-- QR -->
+                    <div :class="['rounded-2xl border-4 bg-white p-4', qrMode === 'receiving' ? 'border-teal-400' : 'border-orange-400']">
+                        <QrcodeVue :value="qrMode === 'tracking' ? trackingUrl : receivingUrl" :size="220" level="H" />
+                    </div>
+
+                    <!-- Toggle -->
+                    <div class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5">
+                        <button
+                            type="button"
+                            @click="qrMode = 'tracking'"
+                            :class="[
+                                'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-semibold transition',
+                                qrMode === 'tracking' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                            ]"
+                        >
+                            <Link2 class="h-3.5 w-3.5" /> Tracking
+                        </button>
+                        <button
+                            type="button"
+                            @click="qrMode = 'receiving'"
+                            :class="[
+                                'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-semibold transition',
+                                qrMode === 'receiving' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                            ]"
+                        >
+                            <PackageCheck class="h-3.5 w-3.5" /> Receive
+                        </button>
+                    </div>
+
+                    <!-- URL + copy -->
+                    <div class="flex w-full items-center gap-2">
+                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
+                            {{ qrMode === 'tracking' ? trackingUrl : receivingUrl }}
+                        </code>
+                        <button
+                            type="button"
+                            @click="copyToClipboard(qrMode === 'tracking' ? trackingUrl : receivingUrl)"
+                            class="shrink-0 rounded-lg border border-border bg-background p-2 text-foreground transition hover:bg-muted"
+                        >
+                            <ClipboardCopy class="h-4 w-4" />
+                        </button>
+                    </div>
+                    <p v-if="copied" class="text-xs text-green-600">Copied!</p>
+
+                    <span v-if="qrMode === 'receiving'" class="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400">
+                        Admin-only · Receiving QR
+                    </span>
+                </div>
+            </div>
+        </Transition>
+    </Teleport>
 </template>
