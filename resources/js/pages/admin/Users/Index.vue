@@ -14,8 +14,8 @@ import {
     X,
 } from 'lucide-vue-next';
 import { onMounted, ref, watch } from 'vue';
-import { Button } from '@/components/ui/button';
 import FormSelect from '@/components/FormSelect.vue';
+import { Button } from '@/components/ui/button';
 import admin from '@/routes/admin';
 
 interface UserRow {

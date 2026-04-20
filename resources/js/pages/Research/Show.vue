@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ClipboardCopy, Link2, Maximize2, X } from 'lucide-vue-next';
+import { ClipboardCopy, Maximize2, X } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -509,12 +509,20 @@ const copyToClipboard = async (text: string) => {
                             @click="qrModalOpen = true"
                             title="Click to enlarge"
                         >
-                            <QrcodeVue :value="publicTrackingUrl" :size="120" level="M" />
-                            <span class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5">
+                            <QrcodeVue
+                                :value="publicTrackingUrl"
+                                :size="120"
+                                level="M"
+                            />
+                            <span
+                                class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5"
+                            >
                                 <Maximize2 class="h-2.5 w-2.5 text-white" />
                             </span>
                         </div>
-                        <p class="text-xs text-muted-foreground">Scan to track publicly</p>
+                        <p class="text-xs text-muted-foreground">
+                            Scan to track publicly
+                        </p>
                     </div>
 
                     <div class="my-3 border-t border-border" />
@@ -578,10 +586,12 @@ const copyToClipboard = async (text: string) => {
         >
             <div
                 v-if="qrModalOpen"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
                 @click.self="qrModalOpen = false"
             >
-                <div class="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8 shadow-2xl">
+                <div
+                    class="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8 shadow-2xl"
+                >
                     <button
                         type="button"
                         class="absolute top-3 right-3 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -591,16 +601,30 @@ const copyToClipboard = async (text: string) => {
                     </button>
 
                     <div class="text-center">
-                        <h2 class="text-base font-bold text-foreground">Tracking QR Code</h2>
-                        <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ paper.tracking_id }}</p>
+                        <h2 class="text-base font-bold text-foreground">
+                            Tracking QR Code
+                        </h2>
+                        <p
+                            class="mt-0.5 font-mono text-xs text-muted-foreground"
+                        >
+                            {{ paper.tracking_id }}
+                        </p>
                     </div>
 
-                    <div class="rounded-2xl border-4 border-orange-400 bg-white p-4">
-                        <QrcodeVue :value="publicTrackingUrl" :size="220" level="H" />
+                    <div
+                        class="rounded-2xl border-4 border-orange-400 bg-white p-4"
+                    >
+                        <QrcodeVue
+                            :value="publicTrackingUrl"
+                            :size="220"
+                            level="H"
+                        />
                     </div>
 
                     <div class="flex w-full items-center gap-2">
-                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <code
+                            class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
+                        >
                             {{ publicTrackingUrl }}
                         </code>
                         <button

@@ -54,7 +54,10 @@ const page = usePage();
 const joinCode = ref('');
 
 const userName = computed(() => {
-    return String((page.props as { auth?: { user?: { name?: string } } }).auth?.user?.name ?? 'Student');
+    return String(
+        (page.props as { auth?: { user?: { name?: string } } }).auth?.user
+            ?.name ?? 'Student',
+    );
 });
 
 const greeting = computed(() => {
@@ -98,7 +101,9 @@ const progressPercent = computed(() => {
         return 0;
     }
 
-    return Math.round((currentStepIndex.value / (props.steps.length - 1)) * 100);
+    return Math.round(
+        (currentStepIndex.value / (props.steps.length - 1)) * 100,
+    );
 });
 
 function stepLabel(step: string): string {
@@ -145,12 +150,22 @@ defineOptions({
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
         <!-- Hero Welcome -->
-        <section class="overflow-hidden rounded-2xl border border-border bg-card">
-            <div class="h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-teal-500" />
-            <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <section
+            class="overflow-hidden rounded-2xl border border-border bg-card"
+        >
+            <div
+                class="h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-teal-500"
+            />
+            <div
+                class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <div>
-                    <h1 class="text-2xl font-bold text-foreground">{{ greeting }}, {{ userName }}</h1>
-                    <p class="mt-1 text-sm text-muted-foreground">Here's an overview of your academic progress.</p>
+                    <h1 class="text-2xl font-bold text-foreground">
+                        {{ greeting }}, {{ userName }}
+                    </h1>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        Here's an overview of your academic progress.
+                    </p>
                 </div>
                 <div class="flex gap-2">
                     <Link
@@ -173,41 +188,69 @@ defineOptions({
 
         <!-- Quick Stats -->
         <div class="grid gap-3 sm:grid-cols-3">
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30"
+                >
                     <ScrollText class="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Research</p>
-                    <p class="text-lg font-bold text-foreground">{{ paper ? `${progressPercent}%` : 'None' }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Research
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ paper ? `${progressPercent}%` : 'None' }}
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30"
+                >
                     <School class="h-5 w-5 text-teal-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Classes</p>
-                    <p class="text-lg font-bold text-foreground">{{ classes.length }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Classes
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ classes.length }}
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/30"
+                >
                     <Bell class="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Announcements</p>
-                    <p class="text-lg font-bold text-foreground">{{ announcements.length }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Announcements
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ announcements.length }}
+                    </p>
                 </div>
             </div>
         </div>
 
         <!-- Research Progress -->
         <section class="rounded-2xl border border-border bg-card">
-            <div class="flex items-center justify-between border-b border-border p-5">
+            <div
+                class="flex items-center justify-between border-b border-border p-5"
+            >
                 <div class="flex items-center gap-2">
                     <ScrollText class="h-4 w-4 text-orange-500" />
-                    <h2 class="text-base font-bold text-foreground">Research Progress</h2>
+                    <h2 class="text-base font-bold text-foreground">
+                        Research Progress
+                    </h2>
                 </div>
                 <Link
                     :href="student.research.index.url()"
@@ -219,12 +262,21 @@ defineOptions({
             </div>
 
             <div class="p-5">
-                <div v-if="!paper" class="flex flex-col items-center rounded-xl border border-dashed border-border py-8">
-                    <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30">
+                <div
+                    v-if="!paper"
+                    class="flex flex-col items-center rounded-xl border border-dashed border-border py-8"
+                >
+                    <div
+                        class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
+                    >
                         <BookOpen class="h-6 w-6 text-orange-400" />
                     </div>
-                    <p class="text-sm font-semibold text-foreground">No research paper yet</p>
-                    <p class="mt-1 text-sm text-muted-foreground">Submit your title proposal to start.</p>
+                    <p class="text-sm font-semibold text-foreground">
+                        No research paper yet
+                    </p>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        Submit your title proposal to start.
+                    </p>
                     <Link
                         :href="student.research.create.url()"
                         class="mt-4 inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
@@ -234,7 +286,9 @@ defineOptions({
                 </div>
 
                 <div v-else>
-                    <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
                         <div class="min-w-0 flex-1">
                             <Link
                                 :href="student.research.show.url(paper.id)"
@@ -243,33 +297,56 @@ defineOptions({
                                 {{ paper.title }}
                             </Link>
                             <p class="mt-0.5 text-xs text-muted-foreground">
-                                <code class="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">{{ paper.tracking_id }}</code>
+                                <code
+                                    class="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] text-orange-600 dark:bg-orange-950/40 dark:text-orange-400"
+                                    >{{ paper.tracking_id }}</code
+                                >
                             </p>
                         </div>
-                        <span class="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">
-                            {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                        <span
+                            class="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
+                        >
+                            {{
+                                paper.step_label ??
+                                stepLabel(paper.current_step)
+                            }}
                         </span>
                     </div>
 
                     <!-- Progress bar -->
                     <div class="mt-3 flex items-center gap-3">
-                        <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                            class="h-2 flex-1 overflow-hidden rounded-full bg-muted"
+                        >
                             <div
                                 class="h-full rounded-full bg-gradient-to-r from-orange-500 to-teal-500 transition-all"
                                 :style="{ width: progressPercent + '%' }"
                             />
                         </div>
-                        <span class="text-xs font-bold text-muted-foreground">{{ progressPercent }}%</span>
+                        <span class="text-xs font-bold text-muted-foreground"
+                            >{{ progressPercent }}%</span
+                        >
                     </div>
 
                     <!-- Step grid -->
-                    <div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+                    <div
+                        class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8"
+                    >
                         <div
                             v-for="(step, idx) in steps"
                             :key="step"
-                            :aria-current="isCurrentStep(idx) ? 'step' : undefined"
+                            :aria-current="
+                                isCurrentStep(idx) ? 'step' : undefined
+                            "
                             :data-completed="isCompletedStep(idx) || undefined"
-                            :class="['rounded-xl border px-3 py-2 text-center text-sm font-semibold', getStepStatusClass(step, paper.current_step, steps)]"
+                            :class="[
+                                'rounded-xl border px-3 py-2 text-center text-sm font-semibold',
+                                getStepStatusClass(
+                                    step,
+                                    paper.current_step,
+                                    steps,
+                                ),
+                            ]"
                         >
                             {{ stepLabel(step) }}
                         </div>
@@ -282,10 +359,14 @@ defineOptions({
         <div class="grid gap-6 lg:grid-cols-2">
             <!-- Classes -->
             <section class="rounded-2xl border border-border bg-card">
-                <div class="flex items-center justify-between border-b border-border p-5">
+                <div
+                    class="flex items-center justify-between border-b border-border p-5"
+                >
                     <div class="flex items-center gap-2">
                         <School class="h-4 w-4 text-teal-500" />
-                        <h2 class="text-base font-bold text-foreground">Classes</h2>
+                        <h2 class="text-base font-bold text-foreground">
+                            Classes
+                        </h2>
                     </div>
                     <Link
                         :href="student.classes.index.url()"
@@ -297,12 +378,21 @@ defineOptions({
                 </div>
 
                 <div class="p-5">
-                    <div v-if="classes.length === 0" class="flex flex-col items-center rounded-xl border border-dashed border-border py-6">
-                        <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30">
+                    <div
+                        v-if="classes.length === 0"
+                        class="flex flex-col items-center rounded-xl border border-dashed border-border py-6"
+                    >
+                        <div
+                            class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
+                        >
                             <GraduationCap class="h-6 w-6 text-teal-400" />
                         </div>
-                        <p class="text-sm font-semibold text-foreground">No classes yet</p>
-                        <p class="mt-1 text-sm text-muted-foreground">Enter a class code to join.</p>
+                        <p class="text-sm font-semibold text-foreground">
+                            No classes yet
+                        </p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            Enter a class code to join.
+                        </p>
 
                         <div class="mt-4 flex flex-wrap items-center gap-2">
                             <input
@@ -328,8 +418,13 @@ defineOptions({
                             class="rounded-xl border border-border p-4 transition hover:border-teal-300 dark:hover:border-teal-800"
                         >
                             <div class="flex items-start justify-between gap-2">
-                                <h3 class="text-sm font-bold text-foreground">{{ classItem.name }}</h3>
-                                <span v-if="classItem.section" class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                <h3 class="text-sm font-bold text-foreground">
+                                    {{ classItem.name }}
+                                </h3>
+                                <span
+                                    v-if="classItem.section"
+                                    class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                >
                                     {{ classItem.section }}
                                 </span>
                             </div>
@@ -346,7 +441,11 @@ defineOptions({
                                 >
                                     {{ subject.code ?? subject.name }}
                                 </span>
-                                <span v-if="!(classItem.subjects ?? []).length" class="text-xs text-muted-foreground">No subjects listed</span>
+                                <span
+                                    v-if="!(classItem.subjects ?? []).length"
+                                    class="text-xs text-muted-foreground"
+                                    >No subjects listed</span
+                                >
                             </div>
                         </article>
                     </div>
@@ -355,40 +454,79 @@ defineOptions({
 
             <!-- Announcements -->
             <section class="rounded-2xl border border-border bg-card">
-                <div class="flex items-center justify-between border-b border-border p-5">
+                <div
+                    class="flex items-center justify-between border-b border-border p-5"
+                >
                     <div class="flex items-center gap-2">
                         <Bell class="h-4 w-4 text-blue-500" />
-                        <h2 class="text-base font-bold text-foreground">Announcements</h2>
+                        <h2 class="text-base font-bold text-foreground">
+                            Announcements
+                        </h2>
                     </div>
-                    <span v-if="announcements.length > 0" class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/30 dark:text-blue-400">
+                    <span
+                        v-if="announcements.length > 0"
+                        class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/30 dark:text-blue-400"
+                    >
                         {{ announcements.length }} new
                     </span>
                 </div>
 
                 <div class="p-5">
-                    <div v-if="announcements.length === 0" class="flex flex-col items-center rounded-xl border border-dashed border-border py-6">
-                        <div class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
+                    <div
+                        v-if="announcements.length === 0"
+                        class="flex flex-col items-center rounded-xl border border-dashed border-border py-6"
+                    >
+                        <div
+                            class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
+                        >
                             <Bell class="h-6 w-6 text-blue-400" />
                         </div>
-                        <p class="text-sm font-semibold text-foreground">No announcements</p>
-                        <p class="mt-1 text-sm text-muted-foreground">You're all caught up!</p>
+                        <p class="text-sm font-semibold text-foreground">
+                            No announcements
+                        </p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            You're all caught up!
+                        </p>
                     </div>
 
                     <div v-else class="space-y-3">
                         <article
                             v-for="item in announcements"
                             :key="item.id"
-                            :class="['rounded-xl border border-border border-l-4 p-4 transition', announcementTypeStyles[item.type]]"
+                            :class="[
+                                'rounded-xl border border-l-4 border-border p-4 transition',
+                                announcementTypeStyles[item.type],
+                            ]"
                         >
                             <div class="flex items-start justify-between gap-2">
                                 <div class="flex items-center gap-2">
-                                    <span :class="['mt-1 h-2 w-2 shrink-0 rounded-full', announcementDotStyles[item.type]]" />
-                                    <h3 class="text-sm font-bold text-foreground">{{ item.title }}</h3>
+                                    <span
+                                        :class="[
+                                            'mt-1 h-2 w-2 shrink-0 rounded-full',
+                                            announcementDotStyles[item.type],
+                                        ]"
+                                    />
+                                    <h3
+                                        class="text-sm font-bold text-foreground"
+                                    >
+                                        {{ item.title }}
+                                    </h3>
                                 </div>
-                                <Pin v-if="item.is_pinned" class="h-3.5 w-3.5 shrink-0 text-orange-500" />
+                                <Pin
+                                    v-if="item.is_pinned"
+                                    class="h-3.5 w-3.5 shrink-0 text-orange-500"
+                                />
                             </div>
-                            <p class="mt-1.5 pl-4 text-sm text-muted-foreground line-clamp-2">{{ item.content }}</p>
-                            <p class="mt-2 pl-4 text-[11px] text-muted-foreground/70">{{ formatDate(item.published_at) }}</p>
+                            <p
+                                class="mt-1.5 line-clamp-2 pl-4 text-sm text-muted-foreground"
+                            >
+                                {{ item.content }}
+                            </p>
+                            <p
+                                class="mt-2 pl-4 text-[11px] text-muted-foreground/70"
+                            >
+                                {{ formatDate(item.published_at) }}
+                            </p>
                         </article>
                     </div>
                 </div>

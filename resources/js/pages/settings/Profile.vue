@@ -138,12 +138,18 @@ function submitDetails() {
 
         <h1 class="sr-only">Profile settings</h1>
 
-        <section class="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <section
+            class="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+        >
             <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
-            <div class="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <div
+                class="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+            >
                 <div class="flex items-center gap-5">
                     <div class="group relative shrink-0 cursor-pointer">
-                        <div class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-teal-400 shadow-sm ring-1 ring-border">
+                        <div
+                            class="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-teal-400 shadow-sm ring-1 ring-border"
+                        >
                             <img
                                 v-if="avatarPreview"
                                 :src="avatarPreview"
@@ -154,10 +160,12 @@ function submitDetails() {
                                 v-else
                                 class="flex flex-col items-center justify-center text-white"
                             >
-                                <span class="text-2xl font-bold leading-none">
+                                <span class="text-2xl leading-none font-bold">
                                     {{ initials(user.name) }}
                                 </span>
-                                <span class="mt-1 text-[10px] font-medium leading-none tracking-wide uppercase">
+                                <span
+                                    class="mt-1 text-[10px] leading-none font-medium tracking-wide uppercase"
+                                >
                                     {{ role }}
                                 </span>
                             </div>
@@ -174,13 +182,27 @@ function submitDetails() {
                     </div>
 
                     <div>
-                        <h2 class="text-2xl font-bold leading-tight text-foreground">{{ user.name }}</h2>
-                        <span class="mt-1.5 inline-flex items-center rounded-full bg-orange-500/15 px-2.5 py-0.5 text-xs font-semibold capitalize text-orange-600 dark:text-orange-400">{{ role }}</span>
-                        <p v-if="props.profile?.bio" class="mt-2 line-clamp-2 max-w-xs text-sm text-muted-foreground">{{ props.profile.bio }}</p>
+                        <h2
+                            class="text-2xl leading-tight font-bold text-foreground"
+                        >
+                            {{ user.name }}
+                        </h2>
+                        <span
+                            class="mt-1.5 inline-flex items-center rounded-full bg-orange-500/15 px-2.5 py-0.5 text-xs font-semibold text-orange-600 capitalize dark:text-orange-400"
+                            >{{ role }}</span
+                        >
+                        <p
+                            v-if="props.profile?.bio"
+                            class="mt-2 line-clamp-2 max-w-xs text-sm text-muted-foreground"
+                        >
+                            {{ props.profile.bio }}
+                        </p>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+                <div
+                    class="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end"
+                >
                     <div class="flex items-center gap-2">
                         <Button
                             type="button"
@@ -189,7 +211,11 @@ function submitDetails() {
                             @click="pickAvatar"
                             :disabled="avatarForm.processing"
                         >
-                            {{ avatarForm.processing ? 'Uploading…' : 'Upload photo' }}
+                            {{
+                                avatarForm.processing
+                                    ? 'Uploading…'
+                                    : 'Upload photo'
+                            }}
                         </Button>
                         <Button
                             v-if="avatarPreview"
@@ -203,8 +229,15 @@ function submitDetails() {
                             <Trash2 class="h-3.5 w-3.5" />
                         </Button>
                     </div>
-                    <p class="text-[0.75rem] text-muted-foreground">JPEG, PNG or WebP · max 2 MB</p>
-                    <p v-if="avatarForm.errors.avatar" class="text-xs text-destructive">{{ avatarForm.errors.avatar }}</p>
+                    <p class="text-[0.75rem] text-muted-foreground">
+                        JPEG, PNG or WebP · max 2 MB
+                    </p>
+                    <p
+                        v-if="avatarForm.errors.avatar"
+                        class="text-xs text-destructive"
+                    >
+                        {{ avatarForm.errors.avatar }}
+                    </p>
                 </div>
 
                 <input
@@ -217,10 +250,18 @@ function submitDetails() {
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <section
+            class="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+        >
             <div class="border-b border-border px-6 py-4">
-                <p class="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Profile information</p>
-                <p class="mt-0.5 text-sm text-muted-foreground">Update your personal and academic details.</p>
+                <p
+                    class="text-xs font-semibold tracking-widest text-muted-foreground uppercase"
+                >
+                    Profile information
+                </p>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                    Update your personal and academic details.
+                </p>
             </div>
 
             <form @submit.prevent="submitDetails">
@@ -252,7 +293,10 @@ function submitDetails() {
                         <InputError :message="detailsForm.errors.email" />
                     </div>
 
-                    <div v-if="mustVerifyEmail && !user.email_verified_at" class="md:col-span-2">
+                    <div
+                        v-if="mustVerifyEmail && !user.email_verified_at"
+                        class="md:col-span-2"
+                    >
                         <p class="text-sm text-muted-foreground">
                             Your email address is unverified.
                             <Link
@@ -268,11 +312,15 @@ function submitDetails() {
                             v-if="status === 'verification-link-sent'"
                             class="mt-2 text-sm font-medium text-green-600"
                         >
-                            A new verification link has been sent to your email address.
+                            A new verification link has been sent to your email
+                            address.
                         </div>
                     </div>
 
-                    <div v-if="role === 'student' || role === 'faculty'" class="grid gap-2">
+                    <div
+                        v-if="role === 'student' || role === 'faculty'"
+                        class="grid gap-2"
+                    >
                         <Label for="department_id">Department</Label>
                         <select
                             id="department_id"
@@ -294,7 +342,9 @@ function submitDetails() {
                                 {{ dept.name }}
                             </option>
                         </select>
-                        <InputError :message="detailsForm.errors.department_id" />
+                        <InputError
+                            :message="detailsForm.errors.department_id"
+                        />
                     </div>
 
                     <div v-if="role === 'student'" class="grid gap-2">
@@ -329,7 +379,9 @@ function submitDetails() {
                             v-model="detailsForm.specialization"
                             placeholder="e.g. Machine Learning"
                         />
-                        <InputError :message="detailsForm.errors.specialization" />
+                        <InputError
+                            :message="detailsForm.errors.specialization"
+                        />
                     </div>
 
                     <div v-if="role !== 'student'" class="grid gap-2">
@@ -356,8 +408,15 @@ function submitDetails() {
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between border-t border-border bg-muted/30 px-6 py-3">
-                    <p v-if="detailsForm.recentlySuccessful" class="text-sm font-medium text-teal-600 dark:text-teal-400">Saved!</p>
+                <div
+                    class="flex items-center justify-between border-t border-border bg-muted/30 px-6 py-3"
+                >
+                    <p
+                        v-if="detailsForm.recentlySuccessful"
+                        class="text-sm font-medium text-teal-600 dark:text-teal-400"
+                    >
+                        Saved!
+                    </p>
                     <span v-else></span>
                     <Button
                         type="submit"
@@ -370,9 +429,15 @@ function submitDetails() {
             </form>
         </section>
 
-        <div class="overflow-hidden rounded-lg border border-destructive/30 bg-destructive/5">
+        <div
+            class="overflow-hidden rounded-lg border border-destructive/30 bg-destructive/5"
+        >
             <div class="border-b border-destructive/20 px-6 py-4">
-                <p class="text-xs font-semibold uppercase tracking-widest text-destructive/70">Danger zone</p>
+                <p
+                    class="text-xs font-semibold tracking-widest text-destructive/70 uppercase"
+                >
+                    Danger zone
+                </p>
             </div>
             <div class="p-6">
                 <DeleteUser />

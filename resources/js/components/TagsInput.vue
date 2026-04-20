@@ -47,16 +47,16 @@ function addTag() {
     const val = inputValue.value.trim();
 
     if (!val) {
-return;
-}
+        return;
+    }
 
     if (val.length > 40) {
-return;
-}
+        return;
+    }
 
     if (tags.value.length >= props.maxTags) {
-return;
-}
+        return;
+    }
 
     if (tags.value.map((t) => t.toLowerCase()).includes(val.toLowerCase())) {
         inputValue.value = '';
@@ -88,12 +88,12 @@ function onPaste(e: ClipboardEvent) {
 
     for (const part of parts) {
         if (tags.value.length >= props.maxTags) {
-break;
-}
+            break;
+        }
 
         if (part.length > 40) {
-continue;
-}
+            continue;
+        }
 
         if (
             !tags.value.map((t) => t.toLowerCase()).includes(part.toLowerCase())

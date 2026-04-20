@@ -2,9 +2,8 @@
 
 use App\Http\Controllers\Admin\AgendaController;
 use App\Http\Controllers\Admin\AnnouncementController;
-use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
-use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
 use App\Http\Controllers\Admin\ApproveUserController;
+use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\ResearchController;
@@ -17,6 +16,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Faculty\AllResearchController;
 use App\Http\Controllers\Faculty\ClassJoinController;
+use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
 use App\Http\Controllers\ResearchPaperController;
 use App\Http\Controllers\Student\ClassController;
 use App\Http\Controllers\Student\HomeController;

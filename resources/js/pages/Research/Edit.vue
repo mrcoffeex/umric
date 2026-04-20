@@ -76,8 +76,8 @@ const existingFile = computed(() => props.paper.files?.[0] ?? null);
 
 function formatFileSize(bytes: number): string {
     if (bytes === 0) {
-return '0 Bytes';
-}
+        return '0 Bytes';
+    }
 
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -112,8 +112,8 @@ function closeSearch() {
 
 function addProponentSlot() {
     if (form.proponents.length >= 3) {
-return;
-}
+        return;
+    }
 
     form.proponents.push({ id: 0, name: '' });
     openSearch(form.proponents.length - 1);
@@ -317,7 +317,9 @@ function submit() {
                                 class="flex h-10 flex-1 items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-foreground"
                             >
                                 <span
-                                    v-if="form.proponents[0]?.id === auth_user.id"
+                                    v-if="
+                                        form.proponents[0]?.id === auth_user.id
+                                    "
                                     class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
                                     >You</span
                                 >

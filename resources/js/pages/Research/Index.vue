@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { FileText, Plus, Search } from 'lucide-vue-next';
 import { watchDebounced } from '@vueuse/core';
+import { FileText, Plus, Search } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import NeuCard from '@/components/NeuCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
@@ -59,7 +59,13 @@ defineOptions({
 
 const search = ref('');
 const debouncedSearch = ref('');
-watchDebounced(search, (val) => { debouncedSearch.value = val; }, { debounce: 300 });
+watchDebounced(
+    search,
+    (val) => {
+        debouncedSearch.value = val;
+    },
+    { debounce: 300 },
+);
 const selectedStatus = ref('');
 const selectedCategory = ref<number | ''>('');
 const isStudent = computed(() => props.role === 'student');
@@ -90,8 +96,12 @@ const filteredPapers = computed(() => {
     return props.papers.filter((paper) => {
         const matchesSearch =
             debouncedSearch.value === '' ||
-            paper.title.toLowerCase().includes(debouncedSearch.value.toLowerCase()) ||
-            paper.abstract?.toLowerCase().includes(debouncedSearch.value.toLowerCase());
+            paper.title
+                .toLowerCase()
+                .includes(debouncedSearch.value.toLowerCase()) ||
+            paper.abstract
+                ?.toLowerCase()
+                .includes(debouncedSearch.value.toLowerCase());
 
         const matchesStatus =
             selectedStatus.value === '' ||

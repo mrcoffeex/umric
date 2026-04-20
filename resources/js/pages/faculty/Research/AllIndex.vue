@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { ChevronDown, FileSearch, Filter, Globe, GraduationCap, ScrollText, Search, Target } from 'lucide-vue-next';
 import { watchDebounced } from '@vueuse/core';
+import {
+    ChevronDown,
+    FileSearch,
+    Filter,
+    Globe,
+    GraduationCap,
+    ScrollText,
+    Search,
+    Target,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
@@ -55,7 +64,13 @@ const props = defineProps<Props>();
 
 const searchQuery = ref('');
 const debouncedSearch = ref('');
-watchDebounced(searchQuery, (val) => { debouncedSearch.value = val; }, { debounce: 300 });
+watchDebounced(
+    searchQuery,
+    (val) => {
+        debouncedSearch.value = val;
+    },
+    { debounce: 300 },
+);
 const filtersOpen = ref(false);
 const activeStep = ref<string>('all');
 const activeClass = ref<number | 'all'>('all');
@@ -78,6 +93,7 @@ const baseFilteredPapers = computed(() => {
     let result = props.papers as Paper[];
 
     const q = debouncedSearch.value.trim().toLowerCase();
+
     if (q) {
         result = result.filter(
             (p) =>
@@ -92,11 +108,15 @@ const baseFilteredPapers = computed(() => {
     }
 
     if (activeSdg.value !== 'all') {
-        result = result.filter((p) => (p.sdg_ids ?? []).includes(activeSdg.value as number));
+        result = result.filter((p) =>
+            (p.sdg_ids ?? []).includes(activeSdg.value as number),
+        );
     }
 
     if (activeAgenda.value !== 'all') {
-        result = result.filter((p) => (p.agenda_ids ?? []).includes(activeAgenda.value as number));
+        result = result.filter((p) =>
+            (p.agenda_ids ?? []).includes(activeAgenda.value as number),
+        );
     }
 
     return result;
@@ -108,7 +128,9 @@ const stepPills = computed(() => {
         ...orderedSteps.map((step) => ({
             key: step,
             label: props.stepLabels[step] ?? step,
-            count: baseFilteredPapers.value.filter((p) => p.current_step === step).length,
+            count: baseFilteredPapers.value.filter(
+                (p) => p.current_step === step,
+            ).length,
         })),
     ];
 });
@@ -118,16 +140,34 @@ const filteredPapers = computed(() => {
         return baseFilteredPapers.value;
     }
 
-    return baseFilteredPapers.value.filter((p) => p.current_step === activeStep.value);
+    return baseFilteredPapers.value.filter(
+        (p) => p.current_step === activeStep.value,
+    );
 });
 
 const activeFilterCount = computed(() => {
     let count = 0;
-    if (searchQuery.value.trim()) count++;
-    if (activeClass.value !== 'all') count++;
-    if (activeSdg.value !== 'all') count++;
-    if (activeAgenda.value !== 'all') count++;
-    if (activeStep.value !== 'all') count++;
+
+    if (searchQuery.value.trim()) {
+        count++;
+    }
+
+    if (activeClass.value !== 'all') {
+        count++;
+    }
+
+    if (activeSdg.value !== 'all') {
+        count++;
+    }
+
+    if (activeAgenda.value !== 'all') {
+        count++;
+    }
+
+    if (activeStep.value !== 'all') {
+        count++;
+    }
+
     return count;
 });
 
@@ -158,7 +198,9 @@ defineOptions({
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
         <!-- Hero Header -->
-        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+        <section
+            class="overflow-hidden rounded-2xl border border-border bg-card"
+        >
             <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
             <div class="p-5">
                 <h1 class="text-2xl font-bold text-foreground">My Research</h1>
@@ -170,31 +212,55 @@ defineOptions({
 
         <!-- Quick Stats -->
         <div class="grid gap-3 sm:grid-cols-3">
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30"
+                >
                     <ScrollText class="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Total Papers</p>
-                    <p class="text-lg font-bold text-foreground">{{ papers.length }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Total Papers
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ papers.length }}
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30"
+                >
                     <GraduationCap class="h-5 w-5 text-teal-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Classes</p>
-                    <p class="text-lg font-bold text-foreground">{{ classes.length }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Classes
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ classes.length }}
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/30"
+                >
                     <ScrollText class="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Completed</p>
-                    <p class="text-lg font-bold text-foreground">{{ stepCounts['completed'] ?? 0 }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Completed
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ stepCounts['completed'] ?? 0 }}
+                    </p>
                 </div>
             </div>
         </div>
@@ -204,12 +270,14 @@ defineOptions({
             <!-- Search bar -->
             <div class="p-4">
                 <div class="relative">
-                    <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search
+                        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
                     <input
                         v-model="searchQuery"
                         type="text"
                         placeholder="Search by title, tracking ID, or student name..."
-                        class="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                        class="w-full rounded-xl border border-input bg-background py-2.5 pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
                     />
                 </div>
             </div>
@@ -221,7 +289,9 @@ defineOptions({
                     class="flex w-full items-center justify-between px-4 py-3 text-left"
                     @click="filtersOpen = !filtersOpen"
                 >
-                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <div
+                        class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         <Filter class="h-4 w-4" />
                         Filters
                         <span
@@ -241,7 +311,10 @@ defineOptions({
                             Clear all
                         </button>
                         <ChevronDown
-                            :class="['h-4 w-4 text-muted-foreground transition-transform duration-200', filtersOpen ? 'rotate-180' : '']"
+                            :class="[
+                                'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                                filtersOpen ? 'rotate-180' : '',
+                            ]"
                         />
                     </div>
                 </button>
@@ -249,24 +322,43 @@ defineOptions({
                 <div v-show="filtersOpen" class="space-y-4 px-4 pb-4">
                     <!-- Class filter -->
                     <div v-if="classes.length > 1">
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <GraduationCap class="h-3.5 w-3.5" /> Class
                         </p>
                         <select
                             :value="activeClass"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            @change="activeClass = ($event.target as HTMLSelectElement).value === 'all' ? 'all' : Number(($event.target as HTMLSelectElement).value)"
+                            @change="
+                                activeClass =
+                                    ($event.target as HTMLSelectElement)
+                                        .value === 'all'
+                                        ? 'all'
+                                        : Number(
+                                              (
+                                                  $event.target as HTMLSelectElement
+                                              ).value,
+                                          )
+                            "
                         >
                             <option value="all">All Classes</option>
-                            <option v-for="cls in classes" :key="cls.id" :value="cls.id">
-                                {{ cls.name }}{{ cls.section ? ` · ${cls.section}` : '' }}
+                            <option
+                                v-for="cls in classes"
+                                :key="cls.id"
+                                :value="cls.id"
+                            >
+                                {{ cls.name
+                                }}{{ cls.section ? ` · ${cls.section}` : '' }}
                             </option>
                         </select>
                     </div>
 
                     <!-- SDG filter -->
                     <div v-if="sdgs.length > 0">
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <Globe class="h-3.5 w-3.5" /> SDG
                         </p>
                         <div class="flex flex-wrap gap-1.5">
@@ -295,7 +387,10 @@ defineOptions({
                                 :title="sdg.name"
                                 @click="activeSdg = sdg.id"
                             >
-                                <span class="inline-block h-2 w-2 rounded-full" :style="{ backgroundColor: sdg.color }" />
+                                <span
+                                    class="inline-block h-2 w-2 rounded-full"
+                                    :style="{ backgroundColor: sdg.color }"
+                                />
                                 {{ sdg.code }}
                             </button>
                         </div>
@@ -303,7 +398,9 @@ defineOptions({
 
                     <!-- Agenda filter -->
                     <div v-if="agendas.length > 0">
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <Target class="h-3.5 w-3.5" /> Agenda
                         </p>
                         <div class="flex flex-wrap gap-1.5">
@@ -339,7 +436,9 @@ defineOptions({
 
                     <!-- Step filter -->
                     <div>
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <Filter class="h-3.5 w-3.5" /> Step
                         </p>
                         <div class="flex flex-wrap gap-1.5">
@@ -356,7 +455,10 @@ defineOptions({
                                 @click="activeStep = pill.key"
                             >
                                 {{ pill.label }}
-                                <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] dark:bg-white/10">{{ pill.count }}</span>
+                                <span
+                                    class="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] dark:bg-white/10"
+                                    >{{ pill.count }}</span
+                                >
                             </button>
                         </div>
                     </div>
@@ -365,55 +467,114 @@ defineOptions({
         </section>
 
         <!-- Papers Table -->
-        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+        <section
+            class="overflow-hidden rounded-2xl border border-border bg-card"
+        >
             <div v-if="filteredPapers.length === 0" class="p-12 text-center">
-                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30">
+                <div
+                    class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30"
+                >
                     <FileSearch class="h-6 w-6 text-orange-500" />
                 </div>
-                <h2 class="text-base font-bold text-foreground">No papers found</h2>
-                <p class="mt-1 text-sm text-muted-foreground">No research papers match the selected filters.</p>
+                <h2 class="text-base font-bold text-foreground">
+                    No papers found
+                </h2>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    No research papers match the selected filters.
+                </p>
             </div>
 
             <div v-else class="overflow-x-auto">
                 <table class="w-full min-w-[860px] text-sm">
                     <thead>
                         <tr class="border-b border-border bg-muted">
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tracking ID</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Student</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Step</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Tracking ID
+                            </th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Title
+                            </th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Student
+                            </th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Class
+                            </th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Current Step
+                            </th>
                             <th class="w-24 px-4 py-3" />
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-border">
-                        <tr v-for="paper in filteredPapers" :key="paper.id" class="hover:bg-muted/50">
+                        <tr
+                            v-for="paper in filteredPapers"
+                            :key="paper.id"
+                            class="hover:bg-muted/50"
+                        >
                             <td class="px-4 py-3">
-                                <span class="inline-flex rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold text-foreground">
+                                <span
+                                    class="inline-flex rounded-full bg-muted px-2.5 py-1 font-mono text-xs font-semibold text-foreground"
+                                >
                                     {{ paper.tracking_id }}
                                 </span>
                             </td>
                             <td class="px-4 py-3">
-                                <p class="line-clamp-1 font-semibold text-foreground">{{ paper.title }}</p>
+                                <p
+                                    class="line-clamp-1 font-semibold text-foreground"
+                                >
+                                    {{ paper.title }}
+                                </p>
                             </td>
                             <td class="px-4 py-3 text-foreground">
                                 {{ paper.student?.name ?? '-' }}
                             </td>
                             <td class="px-4 py-3">
-                                <span v-if="paper.school_class" class="inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300">
-                                    {{ paper.school_class.name }}<span v-if="paper.school_class.section"> · {{ paper.school_class.section }}</span>
+                                <span
+                                    v-if="paper.school_class"
+                                    class="inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300"
+                                >
+                                    {{ paper.school_class.name
+                                    }}<span v-if="paper.school_class.section">
+                                        · {{ paper.school_class.section }}</span
+                                    >
                                 </span>
-                                <span v-else class="text-muted-foreground">—</span>
+                                <span v-else class="text-muted-foreground"
+                                    >—</span
+                                >
                             </td>
                             <td class="px-4 py-3">
-                                <span :class="['inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', getStepBadgeClass(paper.current_step)]">
-                                    {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                                <span
+                                    :class="[
+                                        'inline-flex rounded-full px-2.5 py-1 text-xs font-semibold',
+                                        getStepBadgeClass(paper.current_step),
+                                    ]"
+                                >
+                                    {{
+                                        paper.step_label ??
+                                        stepLabel(paper.current_step)
+                                    }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <Link
                                     v-if="paper.school_class"
-                                    :href="classResearch.show.url({ class: paper.school_class.id, paper: paper.id })"
+                                    :href="
+                                        classResearch.show.url({
+                                            class: paper.school_class.id,
+                                            paper: paper.id,
+                                        })
+                                    "
                                     class="inline-flex rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
                                 >
                                     View

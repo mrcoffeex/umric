@@ -23,8 +23,8 @@ import {
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import { getStepBadgeClass } from '@/lib/step-colors';
-import student from '@/routes/student';
 import { receive as receiveRoute } from '@/routes/admin/research';
+import student from '@/routes/student';
 
 interface StepRecord {
     id: number;
@@ -80,13 +80,27 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
-const authUserId = computed(() => (page.props.auth as { user: { id: number } }).user.id);
+const authUserId = computed(
+    () => (page.props.auth as { user: { id: number } }).user.id,
+);
 const canEdit = computed(() => {
-    if (props.paper.current_step !== 'title_proposal') return false;
-    if (props.paper.user_id === authUserId.value) return true;
+    if (props.paper.current_step !== 'title_proposal') {
+        return false;
+    }
+
+    if (props.paper.user_id === authUserId.value) {
+        return true;
+    }
+
     const proponents = props.paper.proponents;
-    if (!Array.isArray(proponents)) return false;
-    return proponents.some((p) => typeof p === 'object' && p.id === authUserId.value);
+
+    if (!Array.isArray(proponents)) {
+        return false;
+    }
+
+    return proponents.some(
+        (p) => typeof p === 'object' && p.id === authUserId.value,
+    );
 });
 
 const sdgMap = computed(() =>
@@ -141,7 +155,10 @@ const proponents = computed(() => {
 
 const timeline = computed(() => {
     return [...(props.trackingLog ?? [])].sort((a, b) => {
-        return new Date(b.created_at ?? '').getTime() - new Date(a.created_at ?? '').getTime();
+        return (
+            new Date(b.created_at ?? '').getTime() -
+            new Date(a.created_at ?? '').getTime()
+        );
     });
 });
 
@@ -331,7 +348,10 @@ async function copyToClipboard(text: string): Promise<void> {
 setLayoutProps({
     breadcrumbs: [
         { title: 'My Research', href: student.research.index() },
-        { title: props.paper.title, href: student.research.show(props.paper.id) },
+        {
+            title: props.paper.title,
+            href: student.research.show(props.paper.id),
+        },
     ],
 });
 </script>
@@ -391,33 +411,62 @@ setLayoutProps({
         </section>
 
         <!-- QR Code Panel -->
-        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+        <section
+            class="overflow-hidden rounded-2xl border border-border bg-card"
+        >
             <div class="flex items-start gap-3 p-4">
                 <div
-                    :class="['relative shrink-0 cursor-pointer rounded-xl border-2 bg-white p-2 transition hover:border-orange-400', qrMode === 'receiving' ? 'border-teal-400' : 'border-border']"
+                    :class="[
+                        'relative shrink-0 cursor-pointer rounded-xl border-2 bg-white p-2 transition hover:border-orange-400',
+                        qrMode === 'receiving'
+                            ? 'border-teal-400'
+                            : 'border-border',
+                    ]"
                     @click="qrModalOpen = true"
                     title="Click to enlarge"
                 >
-                    <QrcodeVue :value="qrMode === 'tracking' ? trackingUrl : receivingUrl" :size="72" level="M" />
-                    <span class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5">
+                    <QrcodeVue
+                        :value="
+                            qrMode === 'tracking' ? trackingUrl : receivingUrl
+                        "
+                        :size="72"
+                        level="M"
+                    />
+                    <span
+                        class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5"
+                    >
                         <Maximize2 class="h-2.5 w-2.5 text-white" />
                     </span>
                 </div>
                 <div class="min-w-0 flex-1 space-y-2">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                    >
                         <div class="flex items-center gap-2">
                             <span class="text-sm font-semibold text-foreground">
-                                {{ qrMode === 'tracking' ? 'Tracking QR' : 'Receiving QR' }}
+                                {{
+                                    qrMode === 'tracking'
+                                        ? 'Tracking QR'
+                                        : 'Receiving QR'
+                                }}
                             </span>
-                            <span v-if="qrMode === 'receiving'" class="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400">Admin-only</span>
+                            <span
+                                v-if="qrMode === 'receiving'"
+                                class="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400"
+                                >Admin-only</span
+                            >
                         </div>
-                        <div class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5">
+                        <div
+                            class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5"
+                        >
                             <button
                                 type="button"
                                 @click="qrMode = 'tracking'"
                                 :class="[
                                     'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition',
-                                    qrMode === 'tracking' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                                    qrMode === 'tracking'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
                                 ]"
                             >
                                 <Link2 class="h-3 w-3" /> Track
@@ -427,7 +476,9 @@ setLayoutProps({
                                 @click="qrMode = 'receiving'"
                                 :class="[
                                     'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition',
-                                    qrMode === 'receiving' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                                    qrMode === 'receiving'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
                                 ]"
                             >
                                 <PackageCheck class="h-3 w-3" /> Receive
@@ -435,10 +486,26 @@ setLayoutProps({
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-1.5 font-mono text-xs text-muted-foreground">
-                            {{ qrMode === 'tracking' ? trackingUrl : receivingUrl }}
+                        <code
+                            class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-1.5 font-mono text-xs text-muted-foreground"
+                        >
+                            {{
+                                qrMode === 'tracking'
+                                    ? trackingUrl
+                                    : receivingUrl
+                            }}
                         </code>
-                        <button type="button" @click="copyToClipboard(qrMode === 'tracking' ? trackingUrl : receivingUrl)" class="shrink-0 rounded-lg border border-border bg-background p-1.5 text-foreground transition hover:bg-muted">
+                        <button
+                            type="button"
+                            @click="
+                                copyToClipboard(
+                                    qrMode === 'tracking'
+                                        ? trackingUrl
+                                        : receivingUrl,
+                                )
+                            "
+                            class="shrink-0 rounded-lg border border-border bg-background p-1.5 text-foreground transition hover:bg-muted"
+                        >
                             <ClipboardCopy class="h-3.5 w-3.5" />
                         </button>
                     </div>
@@ -657,66 +724,159 @@ setLayoutProps({
             <div class="space-y-6">
                 <!-- Paper Info -->
                 <section class="rounded-2xl border border-border bg-card p-5">
-                    <h3 class="mb-4 flex items-center gap-2 text-base font-bold text-foreground">
+                    <h3
+                        class="mb-4 flex items-center gap-2 text-base font-bold text-foreground"
+                    >
                         <FileSearch class="h-5 w-5 text-orange-500" />
                         Paper Info
                     </h3>
 
                     <!-- Abstract — separate visual block -->
-                    <div v-if="paper.abstract" class="mb-4 rounded-xl border border-border bg-muted/30 p-4">
-                        <p class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Abstract</p>
-                        <p class="text-sm leading-relaxed text-foreground">{{ paper.abstract }}</p>
+                    <div
+                        v-if="paper.abstract"
+                        class="mb-4 rounded-xl border border-border bg-muted/30 p-4"
+                    >
+                        <p
+                            class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
+                            Abstract
+                        </p>
+                        <p class="text-sm leading-relaxed text-foreground">
+                            {{ paper.abstract }}
+                        </p>
                     </div>
 
                     <!-- Key details in a definition-list style grid -->
                     <div class="divide-y divide-border">
-                        <div v-if="proponents.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Proponents</p>
+                        <div
+                            v-if="proponents.length"
+                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Proponents
+                            </p>
                             <div class="flex flex-wrap gap-1.5">
-                                <span v-for="name in proponents" :key="name" class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground">{{ name }}</span>
+                                <span
+                                    v-for="name in proponents"
+                                    :key="name"
+                                    class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                    >{{ name }}</span
+                                >
                             </div>
                         </div>
 
-                        <div v-if="paper.adviser" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Adviser</p>
-                            <p class="text-sm text-foreground">{{ paper.adviser.name }}</p>
-                        </div>
-
-                        <div v-if="paper.statistician" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Statistician</p>
-                            <p class="text-sm text-foreground">{{ paper.statistician.name }}</p>
-                        </div>
-
-                        <div v-if="paper.school_class" class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Class</p>
+                        <div
+                            v-if="paper.adviser"
+                            class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Adviser
+                            </p>
                             <p class="text-sm text-foreground">
-                                {{ paper.school_class.name }}
-                                <span v-if="paper.school_class.section" class="text-muted-foreground"> · Section {{ paper.school_class.section }}</span>
+                                {{ paper.adviser.name }}
                             </p>
                         </div>
 
-                        <div v-if="paper.keywords" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Keywords</p>
+                        <div
+                            v-if="paper.statistician"
+                            class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Statistician
+                            </p>
+                            <p class="text-sm text-foreground">
+                                {{ paper.statistician.name }}
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="paper.school_class"
+                            class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Class
+                            </p>
+                            <p class="text-sm text-foreground">
+                                {{ paper.school_class.name }}
+                                <span
+                                    v-if="paper.school_class.section"
+                                    class="text-muted-foreground"
+                                >
+                                    · Section
+                                    {{ paper.school_class.section }}</span
+                                >
+                            </p>
+                        </div>
+
+                        <div
+                            v-if="paper.keywords"
+                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Keywords
+                            </p>
                             <div class="flex flex-wrap gap-1.5">
-                                <span v-for="keyword in paper.keywords.split(',')" :key="keyword.trim()" class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
+                                <span
+                                    v-for="keyword in paper.keywords.split(',')"
+                                    :key="keyword.trim()"
+                                    class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300"
+                                >
                                     {{ keyword.trim() }}
                                 </span>
                             </div>
                         </div>
 
-                        <div v-if="paper.sdg_ids?.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">SDGs</p>
+                        <div
+                            v-if="paper.sdg_ids?.length"
+                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                SDGs
+                            </p>
                             <div class="flex flex-wrap gap-1.5">
-                                <span v-for="id in paper.sdg_ids" :key="id" class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
-                                    {{ sdgMap[id] ? (sdgMap[id].number ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}` : sdgMap[id].name) : `SDG ${id}` }}
+                                <span
+                                    v-for="id in paper.sdg_ids"
+                                    :key="id"
+                                    class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+                                >
+                                    {{
+                                        sdgMap[id]
+                                            ? sdgMap[id].number
+                                                ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}`
+                                                : sdgMap[id].name
+                                            : `SDG ${id}`
+                                    }}
                                 </span>
                             </div>
                         </div>
 
-                        <div v-if="paper.agenda_ids?.length" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                            <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Research Agendas</p>
+                        <div
+                            v-if="paper.agenda_ids?.length"
+                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                        >
+                            <p
+                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Research Agendas
+                            </p>
                             <div class="flex flex-wrap gap-1.5">
-                                <span v-for="id in paper.agenda_ids" :key="id" class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400">
+                                <span
+                                    v-for="id in paper.agenda_ids"
+                                    :key="id"
+                                    class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400"
+                                >
                                     {{ agendaMap[id]?.name ?? `Agenda ${id}` }}
                                 </span>
                             </div>
@@ -772,10 +932,12 @@ setLayoutProps({
         >
             <div
                 v-if="qrModalOpen"
-                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
                 @click.self="qrModalOpen = false"
             >
-                <div class="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8 shadow-2xl">
+                <div
+                    class="relative flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border border-border bg-card p-8 shadow-2xl"
+                >
                     <!-- Close -->
                     <button
                         type="button"
@@ -788,24 +950,51 @@ setLayoutProps({
                     <!-- Title -->
                     <div class="text-center">
                         <h2 class="text-base font-bold text-foreground">
-                            {{ qrMode === 'tracking' ? 'Tracking QR Code' : 'Receiving QR Code' }}
+                            {{
+                                qrMode === 'tracking'
+                                    ? 'Tracking QR Code'
+                                    : 'Receiving QR Code'
+                            }}
                         </h2>
-                        <p class="mt-0.5 font-mono text-xs text-muted-foreground">{{ paper.tracking_id }}</p>
+                        <p
+                            class="mt-0.5 font-mono text-xs text-muted-foreground"
+                        >
+                            {{ paper.tracking_id }}
+                        </p>
                     </div>
 
                     <!-- QR -->
-                    <div :class="['rounded-2xl border-4 bg-white p-4', qrMode === 'receiving' ? 'border-teal-400' : 'border-orange-400']">
-                        <QrcodeVue :value="qrMode === 'tracking' ? trackingUrl : receivingUrl" :size="220" level="H" />
+                    <div
+                        :class="[
+                            'rounded-2xl border-4 bg-white p-4',
+                            qrMode === 'receiving'
+                                ? 'border-teal-400'
+                                : 'border-orange-400',
+                        ]"
+                    >
+                        <QrcodeVue
+                            :value="
+                                qrMode === 'tracking'
+                                    ? trackingUrl
+                                    : receivingUrl
+                            "
+                            :size="220"
+                            level="H"
+                        />
                     </div>
 
                     <!-- Toggle -->
-                    <div class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5">
+                    <div
+                        class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5"
+                    >
                         <button
                             type="button"
                             @click="qrMode = 'tracking'"
                             :class="[
                                 'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-semibold transition',
-                                qrMode === 'tracking' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                                qrMode === 'tracking'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground',
                             ]"
                         >
                             <Link2 class="h-3.5 w-3.5" /> Tracking
@@ -815,7 +1004,9 @@ setLayoutProps({
                             @click="qrMode = 'receiving'"
                             :class="[
                                 'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-semibold transition',
-                                qrMode === 'receiving' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                                qrMode === 'receiving'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground',
                             ]"
                         >
                             <PackageCheck class="h-3.5 w-3.5" /> Receive
@@ -824,12 +1015,24 @@ setLayoutProps({
 
                     <!-- URL + copy -->
                     <div class="flex w-full items-center gap-2">
-                        <code class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">
-                            {{ qrMode === 'tracking' ? trackingUrl : receivingUrl }}
+                        <code
+                            class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
+                        >
+                            {{
+                                qrMode === 'tracking'
+                                    ? trackingUrl
+                                    : receivingUrl
+                            }}
                         </code>
                         <button
                             type="button"
-                            @click="copyToClipboard(qrMode === 'tracking' ? trackingUrl : receivingUrl)"
+                            @click="
+                                copyToClipboard(
+                                    qrMode === 'tracking'
+                                        ? trackingUrl
+                                        : receivingUrl,
+                                )
+                            "
                             class="shrink-0 rounded-lg border border-border bg-background p-2 text-foreground transition hover:bg-muted"
                         >
                             <ClipboardCopy class="h-4 w-4" />
@@ -837,7 +1040,10 @@ setLayoutProps({
                     </div>
                     <p v-if="copied" class="text-xs text-green-600">Copied!</p>
 
-                    <span v-if="qrMode === 'receiving'" class="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400">
+                    <span
+                        v-if="qrMode === 'receiving'"
+                        class="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400"
+                    >
                         Admin-only · Receiving QR
                     </span>
                 </div>

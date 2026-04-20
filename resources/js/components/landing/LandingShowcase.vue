@@ -53,7 +53,9 @@ const { target: sectionRef, isVisible } = useScrollReveal(0.1);
                     >
                         <div class="flex gap-1.5">
                             <div class="h-3 w-3 rounded-full bg-red-400/70" />
-                            <div class="h-3 w-3 rounded-full bg-yellow-400/70" />
+                            <div
+                                class="h-3 w-3 rounded-full bg-yellow-400/70"
+                            />
                             <div class="h-3 w-3 rounded-full bg-green-400/70" />
                         </div>
                         <div
@@ -70,7 +72,15 @@ const { target: sectionRef, isVisible } = useScrollReveal(0.1);
                             class="absolute inset-0 h-full w-full"
                             src="https://www.youtube.com/embed/o4jIKc_DIoM?rel=0&modestbranding=1"
                             title="UMRIC Platform Preview"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allow="
+                                accelerometer;
+                                autoplay;
+                                clipboard-write;
+                                encrypted-media;
+                                gyroscope;
+                                picture-in-picture;
+                                web-share;
+                            "
                             allowfullscreen
                             loading="lazy"
                         />

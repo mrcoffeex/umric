@@ -112,26 +112,27 @@ const props = defineProps<Props>();
 
 const announcementIcon: Record<Announcement['type'], string> = {
     info: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
-    success: 'bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-400',
-    warning: 'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
+    success:
+        'bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-400',
+    warning:
+        'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
     danger: 'bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400',
 };
 
 const announcementColors: Record<Announcement['type'], string> = {
     info: 'border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20',
-    success: 'border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/20',
-    warning: 'border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20',
+    success:
+        'border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/20',
+    warning:
+        'border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20',
     danger: 'border-red-200 bg-red-50/50 dark:border-red-900/40 dark:bg-red-950/20',
 };
 
-const orderedStepEntries = computed(() => Object.entries(props.stepLabels ?? {}));
+const orderedStepEntries = computed(() =>
+    Object.entries(props.stepLabels ?? {}),
+);
 const visibleRecentPapers = computed(() => props.recentPapers ?? []);
 const visibleClasses = computed(() => props.classes ?? []);
-
-const maxStepCount = computed(() => {
-    const counts = Object.values(props.stepCounts ?? {});
-    return counts.length > 0 ? Math.max(1, ...counts) : 1;
-});
 
 const totalStepPapers = computed(() =>
     Object.values(props.stepCounts ?? {}).reduce((a, b) => a + b, 0),
@@ -139,11 +140,11 @@ const totalStepPapers = computed(() =>
 
 // Chart data for submissions over time
 const submissionsChartData = computed(() => ({
-    labels: (props.submissionsOverTime ?? []).map(p => p.month),
+    labels: (props.submissionsOverTime ?? []).map((p) => p.month),
     datasets: [
         {
             label: 'Submissions',
-            data: (props.submissionsOverTime ?? []).map(p => p.count),
+            data: (props.submissionsOverTime ?? []).map((p) => p.count),
             backgroundColor: 'rgba(249, 115, 22, 0.15)',
             borderColor: 'rgb(249, 115, 22)',
             borderWidth: 2,
@@ -187,15 +188,15 @@ const submissionsChartOptions = computed(() => ({
 // Uses the same stepCounts data already computed on the backend,
 // mapped to each step's canonical color from the design system.
 const stepChartRgb: Record<string, string> = {
-    title_proposal:  'rgb(249, 115, 22)',
-    ric_review:      'rgb(20, 184, 166)',
-    plagiarism_check:'rgb(168, 85, 247)',
+    title_proposal: 'rgb(249, 115, 22)',
+    ric_review: 'rgb(20, 184, 166)',
+    plagiarism_check: 'rgb(168, 85, 247)',
     outline_defense: 'rgb(59, 130, 246)',
-    rating:          'rgb(245, 158, 11)',
-    final_manuscript:'rgb(99, 102, 241)',
-    final_defense:   'rgb(6, 182, 212)',
-    hard_bound:      'rgb(132, 204, 22)',
-    completed:       'rgb(34, 197, 94)',
+    rating: 'rgb(245, 158, 11)',
+    final_manuscript: 'rgb(99, 102, 241)',
+    final_defense: 'rgb(6, 182, 212)',
+    hard_bound: 'rgb(132, 204, 22)',
+    completed: 'rgb(34, 197, 94)',
 };
 
 const stepDistributionData = computed(() => {
@@ -207,14 +208,16 @@ const stepDistributionData = computed(() => {
 
     const stepKeys = activeSteps.map(([k]) => k);
     const data = activeSteps.map(([, v]) => v);
-    const colors = stepKeys.map(k => stepChartRgb[k] ?? 'rgb(156, 163, 175)');
+    const colors = stepKeys.map((k) => stepChartRgb[k] ?? 'rgb(156, 163, 175)');
 
     return {
-        labels: stepKeys.map(k => labels[k] ?? k),
+        labels: stepKeys.map((k) => labels[k] ?? k),
         datasets: [
             {
                 data,
-                backgroundColor: colors.map(c => c.replace('rgb(', 'rgba(').replace(')', ', 0.25)')),
+                backgroundColor: colors.map((c) =>
+                    c.replace('rgb(', 'rgba(').replace(')', ', 0.25)'),
+                ),
                 borderColor: colors,
                 borderWidth: 2.5,
                 hoverOffset: 6,
@@ -225,7 +228,7 @@ const stepDistributionData = computed(() => {
 });
 
 const stepDistributionHasData = computed(() =>
-    Object.values(props.stepCounts ?? {}).some(v => v > 0),
+    Object.values(props.stepCounts ?? {}).some((v) => v > 0),
 );
 
 const stepDistributionOptions = computed(() => ({
@@ -250,8 +253,13 @@ const stepDistributionOptions = computed(() => ({
             cornerRadius: 8,
             callbacks: {
                 label: (ctx: any) => {
-                    const total = (ctx.dataset.data as number[]).reduce((a: number, b: number) => a + b, 0);
-                    const pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+                    const total = (ctx.dataset.data as number[]).reduce(
+                        (a: number, b: number) => a + b,
+                        0,
+                    );
+                    const pct =
+                        total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+
                     return `  ${ctx.parsed} paper${ctx.parsed !== 1 ? 's' : ''} (${pct}%)`;
                 },
             },
@@ -376,8 +384,14 @@ const studentCards = computed(() => [
 ]);
 
 const statCards = computed(() => {
-    if (props.role === 'faculty') return facultyStatCards.value;
-    if (props.role === 'admin' || props.role === 'staff') return adminStaffStatCards.value;
+    if (props.role === 'faculty') {
+        return facultyStatCards.value;
+    }
+
+    if (props.role === 'admin' || props.role === 'staff') {
+        return adminStaffStatCards.value;
+    }
+
     return studentCards.value;
 });
 
@@ -440,7 +454,10 @@ function isStepActive(step: string): boolean {
 }
 
 function formatDate(date: string | null | undefined): string {
-    if (!date) return '-';
+    if (!date) {
+        return '-';
+    }
+
     return new Date(date).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'short',
@@ -453,7 +470,10 @@ function announcementDate(date: string | null): string {
 }
 
 function stepLabel(step?: string | null): string {
-    if (!step) return 'Unassigned';
+    if (!step) {
+        return 'Unassigned';
+    }
+
     return props.stepLabels[step] ?? step;
 }
 
@@ -461,6 +481,7 @@ function paperLink(paperId: number): string {
     if (props.role === 'admin' || props.role === 'staff') {
         return admin.research.show.url({ paper: paperId });
     }
+
     return papersShow.url({ paper: paperId });
 }
 
@@ -478,19 +499,26 @@ defineOptions({
         <!-- Page Header -->
         <div class="flex items-start justify-between gap-4">
             <div class="flex items-start gap-3">
-                <div class="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-2.5 shadow-lg shadow-orange-500/20">
+                <div
+                    class="rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 p-2.5 shadow-lg shadow-orange-500/20"
+                >
                     <Megaphone class="h-5 w-5 text-white" />
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-foreground">
+                    <h1
+                        class="text-2xl font-bold tracking-tight text-foreground"
+                    >
                         Dashboard
                     </h1>
                     <p class="text-sm text-muted-foreground">
-                        Monitor workflow progress, research activity, and key metrics.
+                        Monitor workflow progress, research activity, and key
+                        metrics.
                     </p>
                 </div>
             </div>
-            <div class="hidden items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground md:flex">
+            <div
+                class="hidden items-center gap-2 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground md:flex"
+            >
                 <span class="h-2 w-2 rounded-full bg-green-500" />
                 Live data
             </div>
@@ -499,8 +527,12 @@ defineOptions({
         <!-- Announcements -->
         <section v-if="announcements.length > 0">
             <div class="mb-3 flex items-center gap-2">
-                <h2 class="text-sm font-semibold text-foreground">Announcements</h2>
-                <span class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">
+                <h2 class="text-sm font-semibold text-foreground">
+                    Announcements
+                </h2>
+                <span
+                    class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400"
+                >
                     {{ announcements.length }}
                 </span>
             </div>
@@ -514,26 +546,39 @@ defineOptions({
                     ]"
                 >
                     <div class="flex items-start gap-3">
-                        <div :class="['shrink-0 rounded-lg p-1.5', announcementIcon[announcement.type]]">
+                        <div
+                            :class="[
+                                'shrink-0 rounded-lg p-1.5',
+                                announcementIcon[announcement.type],
+                            ]"
+                        >
                             <Megaphone class="h-3.5 w-3.5" />
                         </div>
                         <div class="min-w-0 flex-1">
                             <div class="flex items-start justify-between gap-2">
-                                <p class="text-sm font-semibold text-foreground">
+                                <p
+                                    class="text-sm font-semibold text-foreground"
+                                >
                                     {{ announcement.title }}
                                 </p>
                                 <span
                                     v-if="announcement.is_pinned"
-                                    class="shrink-0 rounded-md bg-foreground/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground/70"
+                                    class="shrink-0 rounded-md bg-foreground/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-foreground/70 uppercase"
                                 >
                                     Pinned
                                 </span>
                             </div>
-                            <p class="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                            <p
+                                class="mt-1 line-clamp-2 text-xs text-muted-foreground"
+                            >
                                 {{ announcement.content }}
                             </p>
-                            <p class="mt-2 text-[10px] font-medium text-muted-foreground/70">
-                                {{ announcementDate(announcement.published_at) }}
+                            <p
+                                class="mt-2 text-[10px] font-medium text-muted-foreground/70"
+                            >
+                                {{
+                                    announcementDate(announcement.published_at)
+                                }}
                             </p>
                         </div>
                     </div>
@@ -549,19 +594,33 @@ defineOptions({
                 :href="card.href ?? '#'"
                 class="group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
             >
-                <div :class="['pointer-events-none absolute inset-0 bg-gradient-to-br', card.accent]" />
+                <div
+                    :class="[
+                        'pointer-events-none absolute inset-0 bg-gradient-to-br',
+                        card.accent,
+                    ]"
+                />
                 <div class="relative p-4">
                     <div class="flex items-center justify-between">
                         <div :class="['rounded-lg p-2', card.iconBg]">
-                            <component :is="card.icon" :class="['h-4 w-4', card.iconClass]" />
+                            <component
+                                :is="card.icon"
+                                :class="['h-4 w-4', card.iconClass]"
+                            />
                         </div>
-                        <ArrowUpRight class="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                        <ArrowUpRight
+                            class="h-4 w-4 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-muted-foreground"
+                        />
                     </div>
                     <div class="mt-3">
-                        <p class="text-2xl font-bold tracking-tight text-foreground">
+                        <p
+                            class="text-2xl font-bold tracking-tight text-foreground"
+                        >
                             {{ card.value }}
                         </p>
-                        <p class="mt-0.5 text-xs font-medium text-muted-foreground">
+                        <p
+                            class="mt-0.5 text-xs font-medium text-muted-foreground"
+                        >
                             {{ card.label }}
                         </p>
                     </div>
@@ -570,15 +629,18 @@ defineOptions({
         </section>
 
         <!-- Charts Row (admin/staff/faculty) -->
-        <section
-            v-if="role !== 'student'"
-            class="grid gap-4 lg:grid-cols-5"
-        >
+        <section v-if="role !== 'student'" class="grid gap-4 lg:grid-cols-5">
             <!-- Submissions Over Time -->
             <Card class="lg:col-span-3">
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-semibold">Submissions Over Time</CardTitle>
-                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CardHeader
+                    class="flex flex-row items-center justify-between pb-2"
+                >
+                    <CardTitle class="text-sm font-semibold"
+                        >Submissions Over Time</CardTitle
+                    >
+                    <div
+                        class="flex items-center gap-1.5 text-xs text-muted-foreground"
+                    >
                         <TrendingUp class="h-3.5 w-3.5" />
                         Last 6 months
                     </div>
@@ -590,7 +652,10 @@ defineOptions({
                             :data="submissionsChartData"
                             :options="submissionsChartOptions"
                         />
-                        <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        <div
+                            v-else
+                            class="flex h-full items-center justify-center text-sm text-muted-foreground"
+                        >
                             No submission data yet.
                         </div>
                     </div>
@@ -600,7 +665,9 @@ defineOptions({
             <!-- Step Distribution -->
             <Card class="lg:col-span-2">
                 <CardHeader class="pb-2">
-                    <CardTitle class="text-sm font-semibold">Step Distribution</CardTitle>
+                    <CardTitle class="text-sm font-semibold"
+                        >Step Distribution</CardTitle
+                    >
                 </CardHeader>
                 <CardContent>
                     <div class="relative h-56">
@@ -609,7 +676,10 @@ defineOptions({
                             :data="stepDistributionData"
                             :options="stepDistributionOptions"
                         />
-                        <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        <div
+                            v-else
+                            class="flex h-full items-center justify-center text-sm text-muted-foreground"
+                        >
                             No pipeline data yet.
                         </div>
                         <!-- Center: total paper count -->
@@ -619,8 +689,16 @@ defineOptions({
                             style="height: calc(100% - 3.5rem)"
                         >
                             <div class="text-center">
-                                <p class="text-2xl font-bold tabular-nums text-foreground">{{ totalStepPapers }}</p>
-                                <p class="text-[10px] font-medium text-muted-foreground">Total</p>
+                                <p
+                                    class="text-2xl font-bold text-foreground tabular-nums"
+                                >
+                                    {{ totalStepPapers }}
+                                </p>
+                                <p
+                                    class="text-[10px] font-medium text-muted-foreground"
+                                >
+                                    Total
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -631,9 +709,13 @@ defineOptions({
         <!-- Workflow Step Counts -->
         <section v-if="role !== 'student'">
             <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                <CardHeader
+                    class="flex flex-row items-center justify-between pb-2"
+                >
                     <div>
-                        <CardTitle class="text-sm font-semibold">Workflow Pipeline</CardTitle>
+                        <CardTitle class="text-sm font-semibold"
+                            >Workflow Pipeline</CardTitle
+                        >
                         <p class="mt-0.5 text-xs text-muted-foreground">
                             {{ totalStepPapers }} papers across all stages
                         </p>
@@ -653,7 +735,10 @@ defineOptions({
                             :data="pipelineChartData"
                             :options="pipelineChartOptions"
                         />
-                        <div v-else class="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        <div
+                            v-else
+                            class="flex h-full items-center justify-center text-sm text-muted-foreground"
+                        >
                             No pipeline data yet.
                         </div>
                     </div>
@@ -662,33 +747,76 @@ defineOptions({
         </section>
 
         <!-- Recent Papers + Sidebar -->
-        <div class="grid gap-4" :class="role === 'faculty' ? 'xl:grid-cols-[3fr_1fr]' : 'grid-cols-1'">
+        <div
+            class="grid gap-4"
+            :class="
+                role === 'faculty' ? 'xl:grid-cols-[3fr_1fr]' : 'grid-cols-1'
+            "
+        >
             <!-- Recent Papers -->
             <Card>
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-semibold">Recent Papers</CardTitle>
+                <CardHeader
+                    class="flex flex-row items-center justify-between pb-2"
+                >
+                    <CardTitle class="text-sm font-semibold"
+                        >Recent Papers</CardTitle
+                    >
                     <Link
-                        :href="(role === 'admin' || role === 'staff') ? admin.research.index.url() : papersIndex.url()"
+                        :href="
+                            role === 'admin' || role === 'staff'
+                                ? admin.research.index.url()
+                                : papersIndex.url()
+                        "
                         class="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
                     >
                         View all <ArrowRight class="h-3.5 w-3.5" />
                     </Link>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="visibleRecentPapers.length === 0" class="py-12 text-center">
-                        <BookOpen class="mx-auto h-8 w-8 text-muted-foreground/40" />
-                        <p class="mt-2 text-sm text-muted-foreground">No papers to show yet.</p>
+                    <div
+                        v-if="visibleRecentPapers.length === 0"
+                        class="py-12 text-center"
+                    >
+                        <BookOpen
+                            class="mx-auto h-8 w-8 text-muted-foreground/40"
+                        />
+                        <p class="mt-2 text-sm text-muted-foreground">
+                            No papers to show yet.
+                        </p>
                     </div>
 
-                    <div v-else class="overflow-hidden rounded-lg border border-border">
+                    <div
+                        v-else
+                        class="overflow-hidden rounded-lg border border-border"
+                    >
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="border-b border-border bg-muted/50">
-                                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tracking</th>
-                                    <th class="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Title</th>
-                                    <th class="hidden px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Student</th>
-                                    <th class="hidden px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Step</th>
-                                    <th class="hidden px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Date</th>
+                                    <th
+                                        class="px-4 py-2.5 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                                    >
+                                        Tracking
+                                    </th>
+                                    <th
+                                        class="px-4 py-2.5 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+                                    >
+                                        Title
+                                    </th>
+                                    <th
+                                        class="hidden px-4 py-2.5 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase md:table-cell"
+                                    >
+                                        Student
+                                    </th>
+                                    <th
+                                        class="hidden px-4 py-2.5 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase lg:table-cell"
+                                    >
+                                        Step
+                                    </th>
+                                    <th
+                                        class="hidden px-4 py-2.5 text-left text-[11px] font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                                    >
+                                        Date
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-border">
@@ -698,7 +826,9 @@ defineOptions({
                                     class="transition-colors hover:bg-muted/30"
                                 >
                                     <td class="px-4 py-3">
-                                        <span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                                        <span
+                                            class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+                                        >
                                             {{ paper.tracking_id }}
                                         </span>
                                     </td>
@@ -710,20 +840,29 @@ defineOptions({
                                             {{ paper.title }}
                                         </Link>
                                     </td>
-                                    <td class="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">
+                                    <td
+                                        class="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell"
+                                    >
                                         {{ paper.student_name ?? '-' }}
                                     </td>
                                     <td class="hidden px-4 py-3 lg:table-cell">
                                         <span
                                             :class="[
                                                 'inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold',
-                                                getStepBadgeClass(paper.current_step ?? ''),
+                                                getStepBadgeClass(
+                                                    paper.current_step ?? '',
+                                                ),
                                             ]"
                                         >
-                                            {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                                            {{
+                                                paper.step_label ??
+                                                stepLabel(paper.current_step)
+                                            }}
                                         </span>
                                     </td>
-                                    <td class="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell">
+                                    <td
+                                        class="hidden px-4 py-3 text-xs text-muted-foreground xl:table-cell"
+                                    >
                                         {{ formatDate(paper.created_at) }}
                                     </td>
                                 </tr>
@@ -735,8 +874,12 @@ defineOptions({
 
             <!-- Faculty Classes Sidebar -->
             <Card v-if="role === 'faculty'">
-                <CardHeader class="flex flex-row items-center justify-between pb-2">
-                    <CardTitle class="text-sm font-semibold">My Classes</CardTitle>
+                <CardHeader
+                    class="flex flex-row items-center justify-between pb-2"
+                >
+                    <CardTitle class="text-sm font-semibold"
+                        >My Classes</CardTitle
+                    >
                     <Link
                         :href="facultyClassesIndex.url()"
                         class="text-xs font-semibold text-orange-500 hover:text-orange-600"
@@ -745,7 +888,10 @@ defineOptions({
                     </Link>
                 </CardHeader>
                 <CardContent>
-                    <div v-if="visibleClasses.length === 0" class="py-8 text-center text-sm text-muted-foreground">
+                    <div
+                        v-if="visibleClasses.length === 0"
+                        class="py-8 text-center text-sm text-muted-foreground"
+                    >
                         No classes assigned.
                     </div>
                     <div v-else class="space-y-2">
@@ -757,7 +903,9 @@ defineOptions({
                             <p class="text-sm font-semibold text-foreground">
                                 {{ classItem.name }}
                             </p>
-                            <div class="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                            <div
+                                class="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground"
+                            >
                                 <span class="flex items-center gap-1">
                                     <Users class="h-3 w-3" />
                                     {{ classItem.members_count ?? 0 }}
@@ -779,7 +927,9 @@ defineOptions({
                 <CardContent class="p-5">
                     <div class="grid gap-6 lg:grid-cols-2">
                         <div>
-                            <h2 class="mb-4 text-sm font-semibold text-foreground">
+                            <h2
+                                class="mb-4 text-sm font-semibold text-foreground"
+                            >
                                 Workflow Progress
                             </h2>
                             <div class="flex flex-wrap gap-2">

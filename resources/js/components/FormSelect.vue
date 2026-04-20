@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { HTMLAttributes } from 'vue';
 import { ChevronDown } from 'lucide-vue-next';
+import type { HTMLAttributes } from 'vue';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<{
@@ -22,7 +22,7 @@ const model = defineModel<string | number | null | undefined>();
             :disabled="props.disabled"
             :class="
                 cn(
-                    'w-full appearance-none rounded-xl border border-input bg-background py-2.5 pl-3.5 pr-9 text-sm text-foreground shadow-xs transition-[color,box-shadow] outline-none',
+                    'w-full appearance-none rounded-xl border border-input bg-background py-2.5 pr-9 pl-3.5 text-sm text-foreground shadow-xs transition-[color,box-shadow] outline-none',
                     'focus:border-orange-400 focus:ring-2 focus:ring-orange-400/30',
                     'disabled:cursor-not-allowed disabled:opacity-50',
                     'dark:bg-input/30 dark:hover:bg-input/50',

@@ -53,13 +53,26 @@ const roleBadge = computed(() => {
         faculty: { label: 'Faculty', dot: 'bg-teal-500' },
         student: { label: 'Student', dot: 'bg-blue-500' },
     };
+
     return map[role.value] ?? { label: role.value, dot: 'bg-muted-foreground' };
 });
 
 const adminNavItems: NavItem[] = [
-    { title: 'Research Papers', href: ResearchController.index(), icon: ScrollText },
-    { title: 'Announcements', href: AnnouncementController.index(), icon: Megaphone },
-    { title: 'Defense Calendar', href: admin.defenseCalendar.index.url(), icon: CalendarDays },
+    {
+        title: 'Research Papers',
+        href: ResearchController.index(),
+        icon: ScrollText,
+    },
+    {
+        title: 'Announcements',
+        href: AnnouncementController.index(),
+        icon: Megaphone,
+    },
+    {
+        title: 'Defense Calendar',
+        href: admin.defenseCalendar.index.url(),
+        icon: CalendarDays,
+    },
     { title: 'Classes', href: admin.classes.index(), icon: GraduationCap },
 ];
 
@@ -76,8 +89,16 @@ const AdminSettingsItems: NavItem[] = [
 ];
 
 const facultyNavItems: NavItem[] = [
-    { title: 'Research Papers', href: facultyResearchIndex(), icon: ScrollText },
-    { title: 'Defense Calendar', href: facultyDefenseCalendarIndex(), icon: CalendarDays },
+    {
+        title: 'Research Papers',
+        href: facultyResearchIndex(),
+        icon: ScrollText,
+    },
+    {
+        title: 'Defense Calendar',
+        href: facultyDefenseCalendarIndex(),
+        icon: CalendarDays,
+    },
     { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
 ];
 
@@ -130,7 +151,12 @@ const studentNavItems: NavItem[] = [
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton as-child>
-                        <a :href="home.url()" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2">
+                        <a
+                            :href="home.url()"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="flex items-center gap-2"
+                        >
                             <ExternalLink class="h-4 w-4" />
                             <span>Landing Page</span>
                         </a>
@@ -138,9 +164,17 @@ const studentNavItems: NavItem[] = [
                 </SidebarMenuItem>
             </SidebarMenu>
             <div class="px-2 pb-1 group-data-[collapsible=icon]:hidden">
-                <div class="flex items-center gap-2 rounded-lg bg-sidebar-accent px-2.5 py-1.5">
-                    <span class="size-1.5 shrink-0 rounded-full" :class="roleBadge.dot" />
-                    <span class="text-xs font-medium text-sidebar-accent-foreground">{{ roleBadge.label }}</span>
+                <div
+                    class="flex items-center gap-2 rounded-lg bg-sidebar-accent px-2.5 py-1.5"
+                >
+                    <span
+                        class="size-1.5 shrink-0 rounded-full"
+                        :class="roleBadge.dot"
+                    />
+                    <span
+                        class="text-xs font-medium text-sidebar-accent-foreground"
+                        >{{ roleBadge.label }}</span
+                    >
                 </div>
             </div>
             <NavUser />

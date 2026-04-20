@@ -131,7 +131,10 @@ const logoItems = [...logos, ...logos];
                                 cardRefs[i].target.value = el as HTMLElement;
                         }
                     "
-                    :class="['reveal', { visible: cardRefs[i].isVisible.value }]"
+                    :class="[
+                        'reveal',
+                        { visible: cardRefs[i].isVisible.value },
+                    ]"
                     :style="{ transitionDelay: `${i * 100}ms` }"
                     class="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800/80 dark:bg-slate-900"
                 >
@@ -236,7 +239,9 @@ const logoItems = [...logos, ...logos];
                         class="pointer-events-none absolute top-0 right-0 bottom-0 z-10 w-20 bg-gradient-to-l from-white to-transparent dark:from-slate-950"
                     />
 
-                    <div class="group animate-ticker flex w-max gap-10 hover:[animation-play-state:paused]">
+                    <div
+                        class="group animate-ticker flex w-max gap-10 hover:[animation-play-state:paused]"
+                    >
                         <div
                             v-for="(logo, i) in logoItems"
                             :key="`${logo}-${i}`"

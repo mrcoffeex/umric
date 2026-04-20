@@ -2,9 +2,9 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowRight, ChevronDown, Search } from 'lucide-vue-next';
 import { nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { register, dashboard } from '@/routes';
-import { useScrollReveal } from '@/composables/useScrollReveal';
 import { useCountUp } from '@/composables/useCountUp';
+import { useScrollReveal } from '@/composables/useScrollReveal';
+import { register, dashboard } from '@/routes';
 
 defineProps<{
     canRegister: boolean;
@@ -60,10 +60,30 @@ const studentCount = useCountUp(800, statsVisible, 2000);
 const deptCount = useCountUp(12, statsVisible, 1200);
 
 const stats = [
-    { key: 'papers', suffix: '+', label: 'Papers Tracked', color: 'text-orange-500' },
-    { key: 'students', suffix: '+', label: 'Student Researchers', color: 'text-teal-500' },
-    { key: 'depts', suffix: '+', label: 'Departments', color: 'text-orange-500' },
-    { key: 'stages', value: '6', label: 'Research Stages', color: 'text-teal-500' },
+    {
+        key: 'papers',
+        suffix: '+',
+        label: 'Papers Tracked',
+        color: 'text-orange-500',
+    },
+    {
+        key: 'students',
+        suffix: '+',
+        label: 'Student Researchers',
+        color: 'text-teal-500',
+    },
+    {
+        key: 'depts',
+        suffix: '+',
+        label: 'Departments',
+        color: 'text-orange-500',
+    },
+    {
+        key: 'stages',
+        value: '6',
+        label: 'Research Stages',
+        color: 'text-teal-500',
+    },
 ];
 
 // Reactive particle canvas
@@ -83,7 +103,11 @@ let animationId = 0;
 
 function setupCanvas() {
     const canvas = canvasRef.value;
-    if (!canvas) return;
+
+    if (!canvas) {
+        return;
+    }
+
     const ctx = canvas.getContext('2d')!;
 
     const COLOR_BASES = ['249,115,22', '20,184,166', '148,163,184'];
@@ -110,7 +134,8 @@ function setupCanvas() {
             vx: (Math.random() - 0.5) * 0.5,
             vy: (Math.random() - 0.5) * 0.5,
             radius: Math.random() * 2 + 1,
-            colorBase: COLOR_BASES[Math.floor(Math.random() * COLOR_BASES.length)],
+            colorBase:
+                COLOR_BASES[Math.floor(Math.random() * COLOR_BASES.length)],
         };
     }
 
@@ -125,28 +150,35 @@ function setupCanvas() {
             const dx = p.x - mouse.x;
             const dy = p.y - mouse.y;
             const d = Math.sqrt(dx * dx + dy * dy);
+
             if (d < REPEL_RADIUS && d > 0) {
                 const f = (REPEL_RADIUS - d) / REPEL_RADIUS;
                 p.vx += (dx / d) * f * REPEL_FORCE;
                 p.vy += (dy / d) * f * REPEL_FORCE;
             }
+
             p.vx *= 0.97;
             p.vy *= 0.97;
             const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+
             if (speed > 2) {
                 p.vx = (p.vx / speed) * 2;
                 p.vy = (p.vy / speed) * 2;
             }
+
             p.x += p.vx;
             p.y += p.vy;
+
             if (p.x <= 0 || p.x >= w) {
                 p.vx *= -1;
                 p.x = Math.max(0, Math.min(w, p.x));
             }
+
             if (p.y <= 0 || p.y >= h) {
                 p.vy *= -1;
                 p.y = Math.max(0, Math.min(h, p.y));
             }
+
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fillStyle = `rgba(${p.colorBase},0.55)`;
@@ -158,6 +190,7 @@ function setupCanvas() {
                 const dx = particles[i].x - particles[j].x;
                 const dy = particles[i].y - particles[j].y;
                 const d = Math.sqrt(dx * dx + dy * dy);
+
                 if (d < CONNECTION_DISTANCE) {
                     ctx.beginPath();
                     ctx.moveTo(particles[i].x, particles[i].y);
@@ -188,7 +221,11 @@ function setupCanvas() {
 
 function onMouseMove(e: MouseEvent) {
     const canvas = canvasRef.value;
-    if (!canvas) return;
+
+    if (!canvas) {
+        return;
+    }
+
     const rect = canvas.parentElement!.getBoundingClientRect();
     mouse.x = e.clientX - rect.left;
     mouse.y = e.clientY - rect.top;
@@ -254,91 +291,113 @@ onUnmounted(() => cancelAnimationFrame(animationId));
         </div>
 
         <!-- Reactive particles canvas -->
-        <canvas ref="canvasRef" class="pointer-events-none absolute inset-0" style="z-index:0" />
+        <canvas
+            ref="canvasRef"
+            class="pointer-events-none absolute inset-0"
+            style="z-index: 0"
+        />
 
         <div
             class="relative z-10 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center"
         >
             <div class="w-full text-center">
-                    <!-- Headline -->
-                    <h1
-                        class="hero-stagger-1 mb-6 text-4xl leading-[1.05] font-black tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+                <!-- Headline -->
+                <h1
+                    class="hero-stagger-1 mb-6 text-4xl leading-[1.05] font-black tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+                >
+                    <span class="text-slate-900 dark:text-white"
+                        >Your Research,</span
                     >
-                        <span class="text-slate-900 dark:text-white"
-                            >Your Research,</span
-                        >
-                        <br />
-                        <span class="text-shimmer">Every Step.</span>
-                    </h1>
+                    <br />
+                    <span class="text-shimmer">Every Step.</span>
+                </h1>
 
-                    <!-- Subtext -->
-                    <p
-                        class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400"
-                    >
-                        Track every milestone of your <strong class="dark: text-white">student research</strong> — from
-                        <strong class="dark: text-white">title proposal</strong> and <strong class="dark: text-white">chapter submissions</strong>, through panel
-                        review and oral defense, all the way to final
-                        publication.
-                    </p>
+                <!-- Subtext -->
+                <p
+                    class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400"
+                >
+                    Track every milestone of your
+                    <strong class="dark: text-white">student research</strong> —
+                    from
+                    <strong class="dark: text-white">title proposal</strong> and
+                    <strong class="dark: text-white">chapter submissions</strong
+                    >, through panel review and oral defense, all the way to
+                    final publication.
+                </p>
 
-                    <!-- CTAs -->
+                <!-- CTAs -->
+                <div
+                    class="hero-stagger-3 mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row"
+                >
+                    <template v-if="!page.props.auth.user">
+                        <Link v-if="canRegister" :href="register.url()">
+                            <button
+                                class="group flex items-center gap-2 rounded-xl bg-orange-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 hover:shadow-orange-500/50 active:scale-[0.98]"
+                            >
+                                Get Started
+                                <ArrowRight
+                                    class="h-4 w-4 transition-transform group-hover:translate-x-1"
+                                />
+                            </button>
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <Link :href="dashboard.url()">
+                            <button
+                                class="group flex items-center gap-2 rounded-xl bg-teal-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:bg-teal-600 hover:shadow-orange-500/50"
+                            >
+                                Go to Dashboard
+                                <ArrowRight
+                                    class="h-4 w-4 transition-transform group-hover:translate-x-1"
+                                />
+                            </button>
+                        </Link>
+                    </template>
+                </div>
+
+                <!-- Stats row -->
+                <div
+                    ref="statsRef"
+                    class="hero-stagger-4 mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4"
+                >
                     <div
-                        class="hero-stagger-3 mb-14 flex flex-col items-center justify-center gap-4 sm:flex-row"
-                    >
-                        <template v-if="!page.props.auth.user">
-                            <Link v-if="canRegister" :href="register.url()">
-                                <button
-                                    class="group flex items-center gap-2 rounded-xl bg-orange-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 hover:shadow-orange-500/50 active:scale-[0.98]"
-                                >
-                                    Get Started
-                                    <ArrowRight
-                                        class="h-4 w-4 transition-transform group-hover:translate-x-1"
-                                    />
-                                </button>
-                            </Link>
-                        </template>
-                        <template v-else>
-                            <Link :href="dashboard.url()">
-                                <button
-                                    class="group flex items-center gap-2 rounded-xl bg-teal-500 px-7 py-3.5 text-base font-semibold text-white shadow-lg shadow-orange-500/30 transition-all duration-200 hover:scale-[1.02] hover:bg-teal-600 hover:shadow-orange-500/50"
-                                >
-                                    Go to Dashboard
-                                    <ArrowRight
-                                        class="h-4 w-4 transition-transform group-hover:translate-x-1"
-                                    />
-                                </button>
-                            </Link>
-                        </template>
-                    </div>
-
-                    <!-- Stats row -->
-                    <div
-                        ref="statsRef"
-                        class="hero-stagger-4 mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4"
+                        v-for="stat in stats"
+                        :key="stat.label"
+                        class="text-center"
                     >
                         <div
-                            v-for="stat in stats"
-                            :key="stat.label"
-                            class="text-center"
+                            :class="[
+                                'text-2xl font-black tabular-nums',
+                                stat.color,
+                            ]"
                         >
-                            <div :class="['text-2xl font-black tabular-nums', stat.color]">
-                                <template v-if="stat.key === 'papers'">{{ paperCount.toLocaleString() }}{{ stat.suffix }}</template>
-                                <template v-else-if="stat.key === 'students'">{{ studentCount.toLocaleString() }}{{ stat.suffix }}</template>
-                                <template v-else-if="stat.key === 'depts'">{{ deptCount }}{{ stat.suffix }}</template>
-                                <template v-else>{{ stat.value }}</template>
-                            </div>
-                            <div
-                                class="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-500"
+                            <template v-if="stat.key === 'papers'"
+                                >{{ paperCount.toLocaleString()
+                                }}{{ stat.suffix }}</template
                             >
-                                {{ stat.label }}
-                            </div>
+                            <template v-else-if="stat.key === 'students'"
+                                >{{ studentCount.toLocaleString()
+                                }}{{ stat.suffix }}</template
+                            >
+                            <template v-else-if="stat.key === 'depts'"
+                                >{{ deptCount }}{{ stat.suffix }}</template
+                            >
+                            <template v-else>{{ stat.value }}</template>
+                        </div>
+                        <div
+                            class="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-500"
+                        >
+                            {{ stat.label }}
                         </div>
                     </div>
+                </div>
             </div>
         </div>
 
         <!-- Quick track widget -->
-        <div class="hero-stagger-5 relative z-10 mx-auto mt-14 w-full max-w-2xl px-1">
+        <div
+            class="hero-stagger-5 relative z-10 mx-auto mt-14 w-full max-w-2xl px-1"
+        >
             <div
                 class="relative flex gap-2 rounded-2xl border border-slate-200/80 bg-white p-1.5 shadow-lg shadow-slate-900/5 dark:border-slate-700/80 dark:bg-slate-900 dark:shadow-black/20"
             >

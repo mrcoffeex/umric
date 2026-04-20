@@ -76,8 +76,8 @@ const existingFile = computed(() => props.paper.files?.[0] ?? null);
 
 function formatFileSize(bytes: number): string {
     if (bytes === 0) {
-return '0 Bytes';
-}
+        return '0 Bytes';
+    }
 
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -112,8 +112,8 @@ function closeSearch() {
 
 function addProponentSlot() {
     if (form.proponents.length >= 3) {
-return;
-}
+        return;
+    }
 
     form.proponents.push({ id: 0, name: '' });
     openSearch(form.proponents.length - 1);
@@ -172,13 +172,11 @@ function selectProponent(slot: number, result: SearchResult) {
 }
 
 function submit() {
-    form
-        .transform((data) => ({
-            ...data,
-            _method: 'put',
-            proponents: data.proponents.filter((p) => p.id !== 0),
-        }))
-        .post(student.research.update.url(paper.id));
+    form.transform((data) => ({
+        ...data,
+        _method: 'put',
+        proponents: data.proponents.filter((p) => p.id !== 0),
+    })).post(student.research.update.url(paper.id));
 }
 </script>
 

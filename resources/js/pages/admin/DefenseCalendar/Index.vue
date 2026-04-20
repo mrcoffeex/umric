@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, GraduationCap, ScrollText, X } from 'lucide-vue-next';
+import {
+    CalendarDays,
+    ChevronLeft,
+    ChevronRight,
+    Clock,
+    GraduationCap,
+    ScrollText,
+} from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from '@/components/ui/sheet';
 import { index as calendarIndex } from '@/routes/admin/defense-calendar';
 
 interface ClassItem {
@@ -42,8 +54,18 @@ defineOptions({
 
 // --- Calendar Grid ---
 const MONTH_NAMES = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
 ];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -52,25 +74,42 @@ const todayDay = today.getDate();
 const todayMonth = today.getMonth() + 1;
 const todayYear = today.getFullYear();
 
-const daysInMonth = computed(() => new Date(props.year, props.month, 0).getDate());
-const firstWeekday = computed(() => new Date(props.year, props.month - 1, 1).getDay());
+const daysInMonth = computed(() =>
+    new Date(props.year, props.month, 0).getDate(),
+);
+const firstWeekday = computed(() =>
+    new Date(props.year, props.month - 1, 1).getDay(),
+);
 
 // Build calendar grid (nulls = empty leading cells)
 const calendarCells = computed<(number | null)[]>(() => {
     const cells: (number | null)[] = [];
-    for (let i = 0; i < firstWeekday.value; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth.value; d++) cells.push(d);
+
+    for (let i = 0; i < firstWeekday.value; i++) {
+        cells.push(null);
+    }
+
+    for (let d = 1; d <= daysInMonth.value; d++) {
+        cells.push(d);
+    }
+
     return cells;
 });
 
 // Group events by day number
 const eventsByDay = computed(() => {
     const map: Record<number, DefenseEvent[]> = {};
+
     for (const event of props.events) {
         const d = new Date(event.schedule).getDate();
-        if (!map[d]) map[d] = [];
+
+        if (!map[d]) {
+            map[d] = [];
+        }
+
         map[d].push(event);
     }
+
     return map;
 });
 
@@ -78,13 +117,27 @@ const eventsByDay = computed(() => {
 function navigate(direction: -1 | 1) {
     let m = props.month + direction;
     let y = props.year;
-    if (m < 1) { m = 12; y--; }
-    if (m > 12) { m = 1; y++; }
-    router.visit(calendarIndex.url({ query: { month: m, year: y } }), { preserveScroll: true });
+
+    if (m < 1) {
+        m = 12;
+        y--;
+    }
+
+    if (m > 12) {
+        m = 1;
+        y++;
+    }
+
+    router.visit(calendarIndex.url({ query: { month: m, year: y } }), {
+        preserveScroll: true,
+    });
 }
 
 function goToToday() {
-    router.visit(calendarIndex.url({ query: { month: todayMonth, year: todayYear } }), { preserveScroll: true });
+    router.visit(
+        calendarIndex.url({ query: { month: todayMonth, year: todayYear } }),
+        { preserveScroll: true },
+    );
 }
 
 // --- Detail Sheet ---
@@ -98,18 +151,31 @@ function openEvent(event: DefenseEvent) {
 
 // --- Helpers ---
 function formatTime(iso: string) {
-    return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return new Date(iso).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    });
 }
 
 function formatDateTime(iso: string) {
     return new Date(iso).toLocaleString('en-US', {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
-        hour: 'numeric', minute: '2-digit', hour12: true,
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
     });
 }
 
 function isToday(day: number) {
-    return day === todayDay && props.month === todayMonth && props.year === todayYear;
+    return (
+        day === todayDay &&
+        props.month === todayMonth &&
+        props.year === todayYear
+    );
 }
 
 function eventClasses(type: 'outline_defense' | 'final_defense') {
@@ -124,10 +190,14 @@ function eventLabel(type: 'outline_defense' | 'final_defense') {
 
 function statusBadgeClass(status: string | null) {
     switch (status) {
-        case 'passed': return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300';
-        case 'failed': return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300';
-        case 'pending': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300';
-        default: return 'bg-muted text-muted-foreground';
+        case 'passed':
+            return 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300';
+        case 'failed':
+            return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300';
+        case 'pending':
+            return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300';
+        default:
+            return 'bg-muted text-muted-foreground';
     }
 }
 </script>
@@ -135,23 +205,37 @@ function statusBadgeClass(status: string | null) {
 <template>
     <div class="flex h-full flex-col gap-5 p-4 md:p-6">
         <!-- Header -->
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+            class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
             <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/40">
-                    <CalendarDays class="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                <div
+                    class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-950/40"
+                >
+                    <CalendarDays
+                        class="h-5 w-5 text-indigo-600 dark:text-indigo-400"
+                    />
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold text-foreground">Defense Calendar</h1>
-                    <p class="text-xs text-muted-foreground">All scheduled outline and final defenses</p>
+                    <h1 class="text-lg font-bold text-foreground">
+                        Defense Calendar
+                    </h1>
+                    <p class="text-xs text-muted-foreground">
+                        All scheduled outline and final defenses
+                    </p>
                 </div>
             </div>
             <!-- Legend -->
-            <div class="flex items-center gap-2 flex-wrap">
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-800">
+            <div class="flex flex-wrap items-center gap-2">
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300"
+                >
                     <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
                     Outline Defense
                 </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-800">
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
+                >
                     <span class="h-2 w-2 rounded-full bg-orange-500"></span>
                     Final Defense
                 </span>
@@ -159,10 +243,17 @@ function statusBadgeClass(status: string | null) {
         </div>
 
         <!-- Calendar card -->
-        <div class="rounded-2xl border border-border bg-card overflow-hidden">
+        <div class="overflow-hidden rounded-2xl border border-border bg-card">
             <!-- Month nav -->
-            <div class="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
-                <Button variant="outline" size="icon" class="h-8 w-8" @click="navigate(-1)">
+            <div
+                class="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5"
+            >
+                <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8"
+                    @click="navigate(-1)"
+                >
                     <ChevronLeft class="h-4 w-4" />
                 </Button>
                 <div class="flex items-center gap-2">
@@ -170,14 +261,24 @@ function statusBadgeClass(status: string | null) {
                         {{ MONTH_NAMES[props.month - 1] }} {{ props.year }}
                     </h2>
                     <button
-                        v-if="!(props.month === todayMonth && props.year === todayYear)"
-                        class="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
+                        v-if="
+                            !(
+                                props.month === todayMonth &&
+                                props.year === todayYear
+                            )
+                        "
+                        class="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/80"
                         @click="goToToday"
                     >
                         Today
                     </button>
                 </div>
-                <Button variant="outline" size="icon" class="h-8 w-8" @click="navigate(1)">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    class="h-8 w-8"
+                    @click="navigate(1)"
+                >
                     <ChevronRight class="h-4 w-4" />
                 </Button>
             </div>
@@ -187,30 +288,35 @@ function statusBadgeClass(status: string | null) {
                 <div
                     v-for="day in DAY_NAMES"
                     :key="day"
-                    class="py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                    class="py-2 text-center text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
                 >
                     {{ day }}
                 </div>
             </div>
 
             <!-- Calendar grid -->
-            <div class="grid grid-cols-7 auto-rows-[minmax(90px,1fr)]">
+            <div class="grid auto-rows-[minmax(90px,1fr)] grid-cols-7">
                 <div
                     v-for="(cell, idx) in calendarCells"
                     :key="idx"
-                    class="border-b border-r border-border/50 p-1.5 last:border-r-0"
+                    class="border-r border-b border-border/50 p-1.5 last:border-r-0"
                     :class="[
                         cell === null ? 'bg-muted/20' : 'bg-card',
-                        { 'col-span-1': true }
+                        { 'col-span-1': true },
                     ]"
                 >
                     <!-- Day number -->
-                    <div v-if="cell !== null" class="mb-1 flex items-center justify-end px-0.5">
+                    <div
+                        v-if="cell !== null"
+                        class="mb-1 flex items-center justify-end px-0.5"
+                    >
                         <span
                             class="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
-                            :class="isToday(cell)
-                                ? 'bg-indigo-600 text-white'
-                                : 'text-muted-foreground'"
+                            :class="
+                                isToday(cell)
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'text-muted-foreground'
+                            "
                         >
                             {{ cell }}
                         </span>
@@ -221,16 +327,20 @@ function statusBadgeClass(status: string | null) {
                         <button
                             v-for="event in eventsByDay[cell].slice(0, 2)"
                             :key="event.id"
-                            class="mb-0.5 w-full truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-medium transition-colors cursor-pointer"
+                            class="mb-0.5 w-full cursor-pointer truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-medium transition-colors"
                             :class="eventClasses(event.type)"
                             @click="openEvent(event)"
                         >
-                            <span class="font-bold">{{ eventLabel(event.type) }}</span>
-                            <span class="ml-1 opacity-80">{{ formatTime(event.schedule) }}</span>
+                            <span class="font-bold">{{
+                                eventLabel(event.type)
+                            }}</span>
+                            <span class="ml-1 opacity-80">{{
+                                formatTime(event.schedule)
+                            }}</span>
                         </button>
                         <button
                             v-if="eventsByDay[cell].length > 2"
-                            class="w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            class="w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                             @click="openEvent(eventsByDay[cell][2])"
                         >
                             +{{ eventsByDay[cell].length - 2 }} more
@@ -241,12 +351,22 @@ function statusBadgeClass(status: string | null) {
         </div>
 
         <!-- Empty state -->
-        <div v-if="props.events.length === 0" class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center">
-            <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 mb-4">
+        <div
+            v-if="props.events.length === 0"
+            class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card py-16 text-center"
+        >
+            <div
+                class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/30"
+            >
                 <CalendarDays class="h-7 w-7 text-indigo-400" />
             </div>
-            <h3 class="text-sm font-bold text-foreground">No defenses scheduled</h3>
-            <p class="mt-1 text-xs text-muted-foreground">No outline or final defenses are scheduled for {{ MONTH_NAMES[props.month - 1] }} {{ props.year }}.</p>
+            <h3 class="text-sm font-bold text-foreground">
+                No defenses scheduled
+            </h3>
+            <p class="mt-1 text-xs text-muted-foreground">
+                No outline or final defenses are scheduled for
+                {{ MONTH_NAMES[props.month - 1] }} {{ props.year }}.
+            </p>
         </div>
 
         <!-- Event Detail Sheet -->
@@ -256,11 +376,17 @@ function statusBadgeClass(status: string | null) {
                     <div class="flex items-center gap-2">
                         <span
                             class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
-                            :class="selectedEvent?.type === 'outline_defense'
-                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-800'
-                                : 'border-orange-200 bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-300 dark:border-orange-800'"
+                            :class="
+                                selectedEvent?.type === 'outline_defense'
+                                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300'
+                                    : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300'
+                            "
                         >
-                            {{ selectedEvent?.type === 'outline_defense' ? 'Outline Defense' : 'Final Defense' }}
+                            {{
+                                selectedEvent?.type === 'outline_defense'
+                                    ? 'Outline Defense'
+                                    : 'Final Defense'
+                            }}
                         </span>
                         <Badge
                             v-if="selectedEvent?.step_status"
@@ -278,40 +404,86 @@ function statusBadgeClass(status: string | null) {
 
                 <div v-if="selectedEvent" class="space-y-4 pt-2">
                     <!-- Schedule -->
-                    <div class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5">
-                        <Clock class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div
+                        class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"
+                    >
+                        <Clock
+                            class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                        />
                         <div>
-                            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Scheduled</p>
-                            <p class="text-sm font-medium text-foreground">{{ formatDateTime(selectedEvent.schedule) }}</p>
+                            <p
+                                class="mb-0.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Scheduled
+                            </p>
+                            <p class="text-sm font-medium text-foreground">
+                                {{ formatDateTime(selectedEvent.schedule) }}
+                            </p>
                         </div>
                     </div>
 
                     <!-- Student -->
-                    <div v-if="selectedEvent.student" class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5">
-                        <GraduationCap class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div
+                        v-if="selectedEvent.student"
+                        class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"
+                    >
+                        <GraduationCap
+                            class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                        />
                         <div>
-                            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Student</p>
-                            <p class="text-sm font-medium text-foreground">{{ selectedEvent.student.name }}</p>
-                            <p class="text-xs text-muted-foreground">{{ selectedEvent.student.email }}</p>
+                            <p
+                                class="mb-0.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Student
+                            </p>
+                            <p class="text-sm font-medium text-foreground">
+                                {{ selectedEvent.student.name }}
+                            </p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ selectedEvent.student.email }}
+                            </p>
                         </div>
                     </div>
 
                     <!-- Class -->
-                    <div v-if="selectedEvent.school_class" class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5">
-                        <ScrollText class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div
+                        v-if="selectedEvent.school_class"
+                        class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"
+                    >
+                        <ScrollText
+                            class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                        />
                         <div>
-                            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Class</p>
+                            <p
+                                class="mb-0.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Class
+                            </p>
                             <p class="text-sm font-medium text-foreground">
                                 {{ selectedEvent.school_class.name }}
-                                <span v-if="selectedEvent.school_class.section" class="text-muted-foreground"> — {{ selectedEvent.school_class.section }}</span>
+                                <span
+                                    v-if="selectedEvent.school_class.section"
+                                    class="text-muted-foreground"
+                                >
+                                    —
+                                    {{
+                                        selectedEvent.school_class.section
+                                    }}</span
+                                >
                             </p>
                         </div>
                     </div>
 
                     <!-- Tracking ID -->
-                    <div class="rounded-xl border border-border bg-card px-4 py-3">
+                    <div
+                        class="rounded-xl border border-border bg-card px-4 py-3"
+                    >
                         <p class="text-xs text-muted-foreground">Tracking ID</p>
-                        <p class="mt-0.5 font-mono text-sm font-semibold text-foreground">{{ selectedEvent.tracking_id }}</p>
+                        <p
+                            class="mt-0.5 font-mono text-sm font-semibold text-foreground"
+                        >
+                            {{ selectedEvent.tracking_id }}
+                        </p>
                     </div>
                 </div>
             </SheetContent>

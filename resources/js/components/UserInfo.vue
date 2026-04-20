@@ -21,13 +21,6 @@ const avatarSrc = computed(
 
 const showAvatar = computed(() => !!avatarSrc.value);
 
-const roleColors: Record<string, string> = {
-    admin: 'bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400',
-    staff: 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400',
-    faculty: 'bg-teal-100 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400',
-    student: 'bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400',
-};
-
 const role = computed(() => (props.user as any).role as string | undefined);
 </script>
 

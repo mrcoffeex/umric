@@ -69,6 +69,7 @@ class ResearchStatusUpdated extends Mailable
 
         if ($orderedIds->isEmpty()) {
             Log::warning('ResearchStatusUpdated: no recipients found', ['paper_id' => $paper->id]);
+
             return;
         }
 
@@ -81,8 +82,9 @@ class ResearchStatusUpdated extends Mailable
         if (! $mainUser) {
             Log::warning('ResearchStatusUpdated: main recipient user not found', [
                 'paper_id' => $paper->id,
-                'main_id'  => $orderedIds->first(),
+                'main_id' => $orderedIds->first(),
             ]);
+
             return;
         }
 
@@ -95,10 +97,10 @@ class ResearchStatusUpdated extends Mailable
 
         Log::info('ResearchStatusUpdated: sending', [
             'paper_id' => $paper->id,
-            'to'       => $mainUser->email,
-            'cc'       => array_map(fn ($a) => $a->address, $ccUsers),
-            'step'     => $step,
-            'status'   => $status,
+            'to' => $mainUser->email,
+            'cc' => array_map(fn ($a) => $a->address, $ccUsers),
+            'step' => $step,
+            'status' => $status,
         ]);
 
         try {
@@ -112,11 +114,11 @@ class ResearchStatusUpdated extends Mailable
 
             $mailer->send($mailable);
 
-            Log::info('ResearchStatusUpdated: sent successfully to ' . $mainUser->email, ['paper_id' => $paper->id]);
+            Log::info('ResearchStatusUpdated: sent successfully to '.$mainUser->email, ['paper_id' => $paper->id]);
         } catch (\Throwable $e) {
             Log::error('ResearchStatusUpdated: failed to send', [
                 'paper_id' => $paper->id,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
     }

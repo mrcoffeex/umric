@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\SchoolClass;
 use App\Models\ResearchPaper;
+use App\Models\SchoolClass;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;

@@ -41,15 +41,19 @@ function handleScroll() {
 
     // Scroll-spy: find current section
     let current = 'hero';
+
     for (const id of sectionIds) {
         const el = document.getElementById(id);
+
         if (el) {
             const rect = el.getBoundingClientRect();
+
             if (rect.top <= 120) {
                 current = id;
             }
         }
     }
+
     activeSection.value = current;
 }
 

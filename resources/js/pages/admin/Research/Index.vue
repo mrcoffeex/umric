@@ -63,7 +63,13 @@ interface Paginator<T> {
 interface Props {
     papers: Paginator<PaperRow>;
     stepCounts: Record<string, number>;
-    filters: { step: string | null; search: string | null; sdg: string | null; agenda: string | null; class: string | null };
+    filters: {
+        step: string | null;
+        search: string | null;
+        sdg: string | null;
+        agenda: string | null;
+        class: string | null;
+    };
     stepLabels: Record<string, string>;
     facultyUsers: Array<{ id: number; name: string }>;
     staffUsers: Array<{ id: number; name: string }>;
@@ -76,29 +82,33 @@ const props = defineProps<Props>();
 
 const sdgMap = computed(() => {
     const map = new Map<number, SdgItem>();
+
     for (const sdg of props.sdgs) {
         map.set(sdg.id, sdg);
     }
+
     return map;
 });
 
 const agendaMap = computed(() => {
     const map = new Map<number, AgendaItem>();
+
     for (const agenda of props.agendas) {
         map.set(agenda.id, agenda);
     }
+
     return map;
 });
 
 function paperSdgs(paper: PaperRow): SdgItem[] {
     return (paper.sdg_ids ?? [])
-        .map(id => sdgMap.value.get(id))
+        .map((id) => sdgMap.value.get(id))
         .filter((s): s is SdgItem => !!s);
 }
 
 function paperAgendas(paper: PaperRow): AgendaItem[] {
     return (paper.agenda_ids ?? [])
-        .map(id => agendaMap.value.get(id))
+        .map((id) => agendaMap.value.get(id))
         .filter((a): a is AgendaItem => !!a);
 }
 
@@ -107,7 +117,9 @@ const selectedStep = ref(props.filters.step ?? '');
 const selectedSdg = ref(props.filters.sdg ?? '');
 const selectedAgenda = ref(props.filters.agenda ?? '');
 const selectedClass = ref(props.filters.class ?? '');
-const filtersOpen = ref(!!props.filters.sdg || !!props.filters.agenda || !!props.filters.class);
+const filtersOpen = ref(
+    !!props.filters.sdg || !!props.filters.agenda || !!props.filters.class,
+);
 const mounted = ref(false);
 let debounce: ReturnType<typeof setTimeout>;
 
@@ -116,7 +128,10 @@ onMounted(() => {
 });
 
 function applyFilters() {
-    if (!mounted.value) return;
+    if (!mounted.value) {
+        return;
+    }
+
     clearTimeout(debounce);
     debounce = setTimeout(() => {
         router.get(
@@ -133,13 +148,26 @@ function applyFilters() {
     }, 350);
 }
 
-watch([search, selectedStep, selectedSdg, selectedAgenda, selectedClass], applyFilters);
+watch(
+    [search, selectedStep, selectedSdg, selectedAgenda, selectedClass],
+    applyFilters,
+);
 
 const activeFilterCount = computed(() => {
     let count = 0;
-    if (selectedSdg.value) count++;
-    if (selectedAgenda.value) count++;
-    if (selectedClass.value) count++;
+
+    if (selectedSdg.value) {
+        count++;
+    }
+
+    if (selectedAgenda.value) {
+        count++;
+    }
+
+    if (selectedClass.value) {
+        count++;
+    }
+
     return count;
 });
 
@@ -191,39 +219,69 @@ defineOptions({
         <!-- Header -->
         <div class="flex items-center justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-foreground">Research Workflow</h1>
-                <p class="mt-0.5 text-sm text-muted-foreground">Review and monitor all papers in the workflow pipeline.</p>
+                <h1 class="text-2xl font-bold text-foreground">
+                    Research Workflow
+                </h1>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                    Review and monitor all papers in the workflow pipeline.
+                </p>
             </div>
-            <div class="text-sm text-muted-foreground">{{ totalPaperCount }} papers</div>
+            <div class="text-sm text-muted-foreground">
+                {{ totalPaperCount }} papers
+            </div>
         </div>
 
         <!-- Quick Stats -->
         <div class="grid gap-3 sm:grid-cols-3">
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30"
+                >
                     <ScrollText class="h-5 w-5 text-orange-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Total Papers</p>
-                    <p class="text-lg font-bold text-foreground">{{ totalPaperCount }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Total Papers
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ totalPaperCount }}
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/30"
+                >
                     <ScrollText class="h-5 w-5 text-green-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Completed</p>
-                    <p class="text-lg font-bold text-foreground">{{ completedCount }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Completed
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ completedCount }}
+                    </p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30">
+            <div
+                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
+            >
+                <div
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30"
+                >
                     <GraduationCap class="h-5 w-5 text-teal-500" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium text-muted-foreground">Classes</p>
-                    <p class="text-lg font-bold text-foreground">{{ classes.length }}</p>
+                    <p class="text-xs font-medium text-muted-foreground">
+                        Classes
+                    </p>
+                    <p class="text-lg font-bold text-foreground">
+                        {{ classes.length }}
+                    </p>
                 </div>
             </div>
         </div>
@@ -232,34 +290,60 @@ defineOptions({
         <div class="rounded-2xl border border-border bg-card">
             <div class="p-4">
                 <div class="relative">
-                    <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search
+                        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
                     <input
                         v-model="search"
                         type="text"
                         placeholder="Search by tracking ID, title, or student..."
-                        class="w-full rounded-xl border border-input bg-background py-2.5 pl-10 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                        class="w-full rounded-xl border border-input bg-background py-2.5 pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
                     />
                 </div>
             </div>
 
             <!-- Collapsible Advanced Filters -->
             <div class="border-t border-border">
-                <button type="button" class="flex w-full items-center justify-between px-4 py-3 text-left" @click="filtersOpen = !filtersOpen">
-                    <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <button
+                    type="button"
+                    class="flex w-full items-center justify-between px-4 py-3 text-left"
+                    @click="filtersOpen = !filtersOpen"
+                >
+                    <div
+                        class="flex items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
                         <Filter class="h-4 w-4" />
                         Advanced Filters
-                        <span v-if="activeFilterCount > 0" class="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400">{{ activeFilterCount }}</span>
+                        <span
+                            v-if="activeFilterCount > 0"
+                            class="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400"
+                            >{{ activeFilterCount }}</span
+                        >
                     </div>
                     <div class="flex items-center gap-2">
-                        <button v-if="activeFilterCount > 0" type="button" class="text-xs font-semibold text-orange-500 hover:underline" @click.stop="clearAllFilters">Clear all</button>
-                        <ChevronDown :class="['h-4 w-4 text-muted-foreground transition-transform duration-200', filtersOpen ? 'rotate-180' : '']" />
+                        <button
+                            v-if="activeFilterCount > 0"
+                            type="button"
+                            class="text-xs font-semibold text-orange-500 hover:underline"
+                            @click.stop="clearAllFilters"
+                        >
+                            Clear all
+                        </button>
+                        <ChevronDown
+                            :class="[
+                                'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                                filtersOpen ? 'rotate-180' : '',
+                            ]"
+                        />
                     </div>
                 </button>
 
                 <div v-show="filtersOpen" class="space-y-4 px-4 pb-4">
                     <!-- Class filter -->
                     <div v-if="classes.length > 0">
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <GraduationCap class="h-3.5 w-3.5" /> Class
                         </p>
                         <select
@@ -267,21 +351,58 @@ defineOptions({
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                         >
                             <option value="">All Classes</option>
-                            <option v-for="cls in classes" :key="cls.id" :value="String(cls.id)">
-                                {{ cls.name }}{{ cls.section ? ` · ${cls.section}` : '' }}
+                            <option
+                                v-for="cls in classes"
+                                :key="cls.id"
+                                :value="String(cls.id)"
+                            >
+                                {{ cls.name
+                                }}{{ cls.section ? ` · ${cls.section}` : '' }}
                             </option>
                         </select>
                     </div>
 
                     <!-- SDG filter -->
                     <div v-if="sdgs.length > 0">
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <Globe class="h-3.5 w-3.5" /> SDG
                         </p>
                         <div class="flex flex-wrap gap-1.5">
-                            <button type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', !selectedSdg ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300' : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600']" @click="selectedSdg = ''">All</button>
-                            <button v-for="sdg in sdgs" :key="sdg.id" type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', selectedSdg === String(sdg.id) ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300' : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600']" :title="sdg.name" @click="selectedSdg = String(sdg.id)">
-                                <span class="inline-block h-2 w-2 rounded-full" :style="sdg.color ? { backgroundColor: sdg.color } : {}" />
+                            <button
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    !selectedSdg
+                                        ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600',
+                                ]"
+                                @click="selectedSdg = ''"
+                            >
+                                All
+                            </button>
+                            <button
+                                v-for="sdg in sdgs"
+                                :key="sdg.id"
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    selectedSdg === String(sdg.id)
+                                        ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600',
+                                ]"
+                                :title="sdg.name"
+                                @click="selectedSdg = String(sdg.id)"
+                            >
+                                <span
+                                    class="inline-block h-2 w-2 rounded-full"
+                                    :style="
+                                        sdg.color
+                                            ? { backgroundColor: sdg.color }
+                                            : {}
+                                    "
+                                />
                                 SDG {{ sdg.number }}
                             </button>
                         </div>
@@ -289,12 +410,36 @@ defineOptions({
 
                     <!-- Agenda filter -->
                     <div v-if="agendas.length > 0">
-                        <p class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <p
+                            class="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
                             <Target class="h-3.5 w-3.5" /> Agenda
                         </p>
                         <div class="flex flex-wrap gap-1.5">
-                            <button type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', !selectedAgenda ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300' : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600']" @click="selectedAgenda = ''">All</button>
-                            <button v-for="agenda in agendas" :key="agenda.id" type="button" :class="['inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', selectedAgenda === String(agenda.id) ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300' : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600']" @click="selectedAgenda = String(agenda.id)">
+                            <button
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    !selectedAgenda
+                                        ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600',
+                                ]"
+                                @click="selectedAgenda = ''"
+                            >
+                                All
+                            </button>
+                            <button
+                                v-for="agenda in agendas"
+                                :key="agenda.id"
+                                type="button"
+                                :class="[
+                                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
+                                    selectedAgenda === String(agenda.id)
+                                        ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                        : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600',
+                                ]"
+                                @click="selectedAgenda = String(agenda.id)"
+                            >
                                 {{ agenda.name }}
                             </button>
                         </div>
@@ -318,30 +463,69 @@ defineOptions({
                 ]"
             >
                 {{ tab.label }}
-                <span class="rounded-full bg-black/5 px-2 py-0.5 text-[10px] dark:bg-white/10">{{ tab.count }}</span>
+                <span
+                    class="rounded-full bg-black/5 px-2 py-0.5 text-[10px] dark:bg-white/10"
+                    >{{ tab.count }}</span
+                >
             </button>
         </div>
 
         <div class="overflow-hidden rounded-2xl border border-border bg-card">
             <div v-if="papers.data.length === 0" class="p-12 text-center">
-                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30">
+                <div
+                    class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30"
+                >
                     <FileSearch class="h-5 w-5 text-orange-400" />
                 </div>
                 <p class="font-semibold text-foreground">No papers found</p>
-                <p class="mt-1 text-sm text-muted-foreground">Adjust search or step filters.</p>
+                <p class="mt-1 text-sm text-muted-foreground">
+                    Adjust search or step filters.
+                </p>
             </div>
 
             <table v-else class="w-full text-sm">
                 <thead>
                     <tr class="border-b border-border bg-muted">
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tracking ID</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</th>
-                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Student</th>
-                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Class</th>
-                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">SDGs</th>
-                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Agendas</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Current Step</th>
-                        <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Date</th>
+                        <th
+                            class="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                        >
+                            Tracking ID
+                        </th>
+                        <th
+                            class="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                        >
+                            Title
+                        </th>
+                        <th
+                            class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase lg:table-cell"
+                        >
+                            Student
+                        </th>
+                        <th
+                            class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase md:table-cell"
+                        >
+                            Class
+                        </th>
+                        <th
+                            class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                        >
+                            SDGs
+                        </th>
+                        <th
+                            class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                        >
+                            Agendas
+                        </th>
+                        <th
+                            class="px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                        >
+                            Current Step
+                        </th>
+                        <th
+                            class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase md:table-cell"
+                        >
+                            Date
+                        </th>
                         <th class="w-24 px-4 py-3" />
                     </tr>
                 </thead>
@@ -355,35 +539,62 @@ defineOptions({
                             {{ paper.tracking_id }}
                         </td>
                         <td class="max-w-xs px-4 py-3">
-                            <p class="line-clamp-1 font-semibold text-foreground">
+                            <p
+                                class="line-clamp-1 font-semibold text-foreground"
+                            >
                                 {{ paper.title }}
                             </p>
                         </td>
-                        <td class="hidden px-4 py-3 text-muted-foreground lg:table-cell">
+                        <td
+                            class="hidden px-4 py-3 text-muted-foreground lg:table-cell"
+                        >
                             {{ paper.user?.name ?? '-' }}
                         </td>
                         <td class="hidden px-4 py-3 md:table-cell">
-                            <Badge v-if="paper.school_class?.name" variant="outline" class="text-[11px]">
+                            <Badge
+                                v-if="paper.school_class?.name"
+                                variant="outline"
+                                class="text-[11px]"
+                            >
                                 {{ paper.school_class.name }}
                             </Badge>
-                            <span v-else class="text-xs text-muted-foreground">-</span>
+                            <span v-else class="text-xs text-muted-foreground"
+                                >-</span
+                            >
                         </td>
                         <td class="hidden px-4 py-3 xl:table-cell">
-                            <div v-if="paperSdgs(paper).length" class="flex flex-wrap gap-1">
+                            <div
+                                v-if="paperSdgs(paper).length"
+                                class="flex flex-wrap gap-1"
+                            >
                                 <Badge
                                     v-for="sdg in paperSdgs(paper)"
                                     :key="sdg.id"
                                     variant="secondary"
                                     class="text-[10px]"
-                                    :style="sdg.color ? { backgroundColor: sdg.color + '20', color: sdg.color, borderColor: sdg.color + '40' } : {}"
+                                    :style="
+                                        sdg.color
+                                            ? {
+                                                  backgroundColor:
+                                                      sdg.color + '20',
+                                                  color: sdg.color,
+                                                  borderColor: sdg.color + '40',
+                                              }
+                                            : {}
+                                    "
                                 >
                                     SDG {{ sdg.number }}
                                 </Badge>
                             </div>
-                            <span v-else class="text-xs text-muted-foreground">-</span>
+                            <span v-else class="text-xs text-muted-foreground"
+                                >-</span
+                            >
                         </td>
                         <td class="hidden px-4 py-3 xl:table-cell">
-                            <div v-if="paperAgendas(paper).length" class="flex flex-wrap gap-1">
+                            <div
+                                v-if="paperAgendas(paper).length"
+                                class="flex flex-wrap gap-1"
+                            >
                                 <Badge
                                     v-for="agenda in paperAgendas(paper)"
                                     :key="agenda.id"
@@ -393,24 +604,33 @@ defineOptions({
                                     {{ agenda.name }}
                                 </Badge>
                             </div>
-                            <span v-else class="text-xs text-muted-foreground">-</span>
+                            <span v-else class="text-xs text-muted-foreground"
+                                >-</span
+                            >
                         </td>
-                        <td class="px-4 py-3 text-nowrap text-sm">
+                        <td class="px-4 py-3 text-sm text-nowrap">
                             <span
                                 :class="[
                                     'inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
                                     getStepBadgeClass(paper.current_step),
                                 ]"
                             >
-                                {{ paper.step_label ?? stepLabel(paper.current_step) }}
+                                {{
+                                    paper.step_label ??
+                                    stepLabel(paper.current_step)
+                                }}
                             </span>
                         </td>
-                        <td class="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell text-nowrap">
+                        <td
+                            class="hidden px-4 py-3 text-xs text-nowrap text-muted-foreground md:table-cell"
+                        >
                             {{ formatDate(paper.created_at) }}
                         </td>
                         <td class="px-4 py-3 text-right">
                             <Link
-                                :href="admin.research.show.url({ paper: paper.id })"
+                                :href="
+                                    admin.research.show.url({ paper: paper.id })
+                                "
                                 class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
                             >
                                 <Eye class="h-4 w-4" /> View
@@ -421,12 +641,18 @@ defineOptions({
             </table>
         </div>
 
-        <div v-if="papers.last_page > 1" class="flex items-center justify-between text-sm">
+        <div
+            v-if="papers.last_page > 1"
+            class="flex items-center justify-between text-sm"
+        >
             <p class="text-muted-foreground">
                 Showing {{ papers.from }}-{{ papers.to }} of {{ papers.total }}
             </p>
             <div class="flex items-center gap-1">
-                <template v-for="(link, index) in papers.links" :key="link.label">
+                <template
+                    v-for="(link, index) in papers.links"
+                    :key="link.label"
+                >
                     <button
                         v-if="index === 0"
                         :disabled="!link.url"

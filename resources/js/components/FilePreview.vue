@@ -21,8 +21,8 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 const formattedSize = computed(() => {
     if (!props.file) {
-return '';
-}
+        return '';
+    }
 
     const size = props.file.size;
 
@@ -37,24 +37,24 @@ function handleChange(event: Event) {
     const f = (event.target as HTMLInputElement).files?.[0];
 
     if (f) {
-emit('update:file', f);
-}
+        emit('update:file', f);
+    }
 }
 
 function handleDrop(event: DragEvent) {
     const f = event.dataTransfer?.files?.[0];
 
     if (f) {
-emit('update:file', f);
-}
+        emit('update:file', f);
+    }
 }
 
 function clearFile() {
     emit('update:file', null);
 
     if (fileInput.value) {
-fileInput.value.value = '';
-}
+        fileInput.value.value = '';
+    }
 }
 </script>
 

@@ -238,12 +238,7 @@
 
 /* ─── Step connector animation ─── */
 .step-connector-animated {
-    background: linear-gradient(
-        90deg,
-        #f97316 0%,
-        #14b8a6 50%,
-        #f97316 100%
-    );
+    background: linear-gradient(90deg, #f97316 0%, #14b8a6 50%, #f97316 100%);
     background-size: 200% 100%;
     animation: shimmer 3s linear infinite;
 }

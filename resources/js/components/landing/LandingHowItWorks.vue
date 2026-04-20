@@ -110,7 +110,10 @@ const stepRefs = steps.map(() => useScrollReveal(0.05));
                                 stepRefs[i].target.value = el as HTMLElement;
                         }
                     "
-                    :class="['reveal', { visible: stepRefs[i].isVisible.value }]"
+                    :class="[
+                        'reveal',
+                        { visible: stepRefs[i].isVisible.value },
+                    ]"
                     :style="{ transitionDelay: `${i * 150}ms` }"
                 >
                     <div

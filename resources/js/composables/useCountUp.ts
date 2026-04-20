@@ -9,7 +9,9 @@ export function useCountUp(
     const current = ref(0);
 
     watch(trigger, (visible) => {
-        if (!visible) return;
+        if (!visible) {
+            return;
+        }
 
         const start = performance.now();
 
