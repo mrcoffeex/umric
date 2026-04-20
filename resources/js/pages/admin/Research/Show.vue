@@ -1247,11 +1247,11 @@ defineOptions({
                             >
                                 <option value="">None</option>
                                 <option
-                                    v-for="staff in staffUsers"
-                                    :key="staff.id"
-                                    :value="staff.id"
+                                    v-for="faculty in facultyUsers"
+                                    :key="faculty.id"
+                                    :value="faculty.id"
                                 >
-                                    {{ staff.name }}
+                                    {{ faculty.name }}
                                 </option>
                             </FormSelect>
                         </div>

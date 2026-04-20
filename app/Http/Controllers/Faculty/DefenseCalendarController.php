@@ -28,8 +28,19 @@ class DefenseCalendarController extends Controller
             ->pluck('student_id')
             ->unique();
 
+        $facultyUserId = $request->user()->id;
+        $facultyName = $request->user()->name;
+
         $papers = ResearchPaper::with(['user', 'schoolClass', 'panelDefenses'])
-            ->whereIn('user_id', $studentIds)
+            ->where(function ($q) use ($studentIds, $facultyUserId, $facultyName) {
+                $q->whereIn('user_id', $studentIds)
+                    ->orWhere('adviser_id', $facultyUserId)
+                    ->orWhere('statistician_id', $facultyUserId)
+                    ->orWhereHas('panelDefenses', fn ($pq) => $pq->whereRaw(
+                        'panel_members::jsonb @> ?::jsonb',
+                        [json_encode([$facultyName])]
+                    ));
+            })
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('outline_defense_schedule', [$start, $end])
                     ->orWhereBetween('final_defense_schedule', [$start, $end]);

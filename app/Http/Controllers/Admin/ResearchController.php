@@ -14,6 +14,7 @@ use App\Models\TrackingRecord;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,10 +51,69 @@ class ResearchController extends Controller
         }
 
         if ($request->filled('class')) {
-            $query->where('school_class_id', (int) $request->class);
+            $selectedClassId = (int) $request->class;
+            $query->whereIn('user_id', function ($subQuery) use ($selectedClassId) {
+                $subQuery->select('student_id')
+                    ->from('school_class_members')
+                    ->where('school_class_id', $selectedClassId);
+            });
         }
 
         $papers = $query->latest()->paginate(20)->withQueryString();
+
+        $studentIds = $papers->getCollection()->pluck('user_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $studentClassMap = collect();
+        $classesById = collect();
+
+        if ($studentIds !== []) {
+            $studentClassMap = DB::table('school_class_members')
+                ->whereIn('student_id', $studentIds)
+                ->orderByDesc('joined_at')
+                ->orderByDesc('id')
+                ->get(['student_id', 'school_class_id'])
+                ->unique('student_id')
+                ->keyBy('student_id');
+
+            $classesById = SchoolClass::query()
+                ->whereIn('id', $studentClassMap->pluck('school_class_id')->filter()->unique()->values())
+                ->get(['id', 'name', 'section'])
+                ->keyBy('id');
+        }
+
+        $papers->setCollection(
+            $papers->getCollection()->map(function (ResearchPaper $paper) use ($classesById, $studentClassMap) {
+                $classMembership = $studentClassMap->get((int) $paper->user_id);
+                $studentClass = $classMembership
+                    ? $classesById->get((int) $classMembership->school_class_id)
+                    : null;
+
+                return [
+                    'id' => $paper->id,
+                    'tracking_id' => $paper->tracking_id,
+                    'title' => $paper->title,
+                    'current_step' => $paper->current_step,
+                    'step_label' => $paper->step_label,
+                    'created_at' => $paper->created_at->toISOString(),
+                    'sdg_ids' => $paper->sdg_ids,
+                    'agenda_ids' => $paper->agenda_ids,
+                    'user' => $paper->user ? [
+                        'id' => $paper->user->id,
+                        'name' => $paper->user->name,
+                    ] : null,
+                    'school_class' => $studentClass ? [
+                        'id' => $studentClass->id,
+                        'name' => $studentClass->name,
+                        'section' => $studentClass->section,
+                    ] : null,
+                ];
+            })
+        );
 
         $stepCounts = [];
         foreach (ResearchPaper::STEPS as $step) {

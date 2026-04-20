@@ -15,8 +15,10 @@ import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
-import classResearch from '@/routes/faculty/classes/research';
-import { index as researchIndex } from '@/routes/faculty/research';
+import {
+    index as researchIndex,
+    show as researchShow,
+} from '@/routes/faculty/research';
 
 interface SchoolClassInfo {
     id: number;
@@ -661,12 +663,8 @@ defineOptions({
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <Link
-                                    v-if="paper.school_class"
                                     :href="
-                                        classResearch.show.url({
-                                            class: paper.school_class.id,
-                                            paper: paper.id,
-                                        })
+                                        researchShow.url({ paper: paper.id })
                                     "
                                     class="inline-flex rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
                                 >

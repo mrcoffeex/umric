@@ -119,6 +119,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
 
         // Faculty Research
         Route::get('research', [AllResearchController::class, 'index'])->name('research.index');
+        Route::get('research/{paper}', [AllResearchController::class, 'show'])->name('research.show');
         Route::get('classes/{class}/research', [App\Http\Controllers\Faculty\ResearchController::class, 'index'])->name('classes.research.index');
         Route::get('classes/{class}/research/{paper}', [App\Http\Controllers\Faculty\ResearchController::class, 'show'])->name('classes.research.show');
         Route::post('classes/{class}/research/{paper}/comments', [App\Http\Controllers\Faculty\ResearchController::class, 'storeComment'])->name('classes.research.store-comment');

@@ -89,8 +89,8 @@ class ResearchController extends Controller
 
     public function show(Request $request, SchoolClass $class, ResearchPaper $paper): Response
     {
-        $this->ensureFacultyOwnsClass($request, $class);
         $this->ensurePaperBelongsToClass($class, $paper);
+        $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
         $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy']);
 
@@ -193,8 +193,8 @@ class ResearchController extends Controller
 
     public function updateStep(Request $request, SchoolClass $class, ResearchPaper $paper): RedirectResponse
     {
-        $this->ensureFacultyOwnsClass($request, $class);
         $this->ensurePaperBelongsToClass($class, $paper);
+        $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
         $validated = $request->validate([
             'step' => ['required', Rule::in(['outline_defense', 'rating', 'final_defense'])],
@@ -287,8 +287,8 @@ class ResearchController extends Controller
 
     public function approve(Request $request, SchoolClass $class, ResearchPaper $paper): RedirectResponse
     {
-        $this->ensureFacultyOwnsClass($request, $class);
         $this->ensurePaperBelongsToClass($class, $paper);
+        $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
         if ($paper->current_step !== 'ric_review') {
             abort(422, 'Paper is not in RIC review step.');
@@ -323,8 +323,8 @@ class ResearchController extends Controller
 
     public function storeComment(Request $request, SchoolClass $class, ResearchPaper $paper): RedirectResponse
     {
-        $this->ensureFacultyOwnsClass($request, $class);
         $this->ensurePaperBelongsToClass($class, $paper);
+        $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
         $validated = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
@@ -343,6 +343,19 @@ class ResearchController extends Controller
     private function ensureFacultyOwnsClass(Request $request, SchoolClass $class): void
     {
         if ($class->faculty_id !== $request->user()->id) {
+            abort(403);
+        }
+    }
+
+    private function ensureFacultyCanAccessPaper(Request $request, SchoolClass $class, ResearchPaper $paper): void
+    {
+        $facultyUserId = (int) $request->user()->id;
+
+        $isClassFaculty = (int) $class->faculty_id === $facultyUserId;
+        $isAssignedFaculty = (int) $paper->adviser_id === $facultyUserId
+            || (int) $paper->statistician_id === $facultyUserId;
+
+        if (! $isClassFaculty && ! $isAssignedFaculty) {
             abort(403);
         }
     }

@@ -96,6 +96,34 @@ it('forbids faculty from updating paper of class they do not own', function () {
         ->assertForbidden();
 });
 
+it('allows assigned adviser to view paper outside owned class', function () {
+    $owner = facultyUser();
+    $assignedAdviser = facultyUser();
+    $student = studentUser();
+
+    $class = SchoolClass::factory()->create([
+        'faculty_id' => $owner->id,
+        'name' => 'BSIT 3A',
+        'section' => 'A',
+    ]);
+
+    enrollStudent($student, $class);
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'school_class_id' => $class->id,
+        'adviser_id' => $assignedAdviser->id,
+    ]);
+
+    $this->actingAs($assignedAdviser)
+        ->get(route('faculty.classes.research.show', [$class, $paper]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('faculty/Research/Show')
+            ->where('paper.id', $paper->id)
+        );
+});
+
 it('updates rating step and logs tracking record for faculty owner', function () {
     $faculty = facultyUser();
     $student = studentUser();

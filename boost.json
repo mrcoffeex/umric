@@ -1,9 +1,5 @@
 {
-    "agents": [
-        "claude_code",
-        "cursor",
-        "copilot"
-    ],
+    "agents": ["claude_code", "cursor", "copilot"],
     "guidelines": true,
     "mcp": true,
     "nightwatch_mcp": false,

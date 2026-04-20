@@ -89,6 +89,80 @@ it('does not include papers from other faculty classes', function () {
         );
 });
 
+it('includes papers where faculty is assigned as adviser or statistician', function () {
+    $faculty = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $faculty->id]);
+
+    $classOwner = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $classOwner->id]);
+
+    $student = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $student->id]);
+
+    $class = SchoolClass::factory()->create(['faculty_id' => $classOwner->id]);
+
+    DB::table('school_class_members')->insert([
+        'school_class_id' => $class->id,
+        'student_id' => $student->id,
+        'joined_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'school_class_id' => $class->id,
+        'adviser_id' => $faculty->id,
+    ]);
+
+    ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'school_class_id' => $class->id,
+        'statistician_id' => $faculty->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->get(route('faculty.research.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('faculty/Research/AllIndex')
+            ->has('papers', 2)
+            ->has('classes', 1)
+        );
+});
+
+it('uses the student membership class for class column', function () {
+    $faculty = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $faculty->id]);
+
+    $student = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $student->id]);
+
+    $memberClass = SchoolClass::factory()->create(['faculty_id' => $faculty->id]);
+    $paperClass = SchoolClass::factory()->create(['faculty_id' => $faculty->id]);
+
+    DB::table('school_class_members')->insert([
+        'school_class_id' => $memberClass->id,
+        'student_id' => $student->id,
+        'joined_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'school_class_id' => $paperClass->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->get(route('faculty.research.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('papers.0.school_class.id', $memberClass->id)
+            ->where('papers.0.school_class.name', $memberClass->name)
+        );
+});
+
 it('redirects guests away from faculty research index', function () {
     $this->get(route('faculty.research.index'))
         ->assertRedirect();
