@@ -171,6 +171,11 @@ class ResearchPaper extends Model
         return $this->hasMany(TrackingRecord::class)->latest();
     }
 
+    public function panelDefenses(): HasMany
+    {
+        return $this->hasMany(PanelDefense::class)->latest();
+    }
+
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class)->latest();

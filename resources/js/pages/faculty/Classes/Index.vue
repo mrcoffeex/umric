@@ -27,6 +27,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useConfirm } from '@/composables/useConfirm';
 import {
     index as classesIndex,
     show as classesShow,
@@ -59,6 +60,7 @@ type Props = {
 };
 
 const showForm = ref(false);
+const { confirm } = useConfirm();
 const editingClass = ref<SchoolClassItem | null>(null);
 const classSearch = ref('');
 
@@ -205,8 +207,13 @@ function submit() {
     }
 }
 
-function deleteClass(schoolClass: SchoolClassItem) {
-    if (!confirm(`Delete "${schoolClass.name}"?`)) {
+async function deleteClass(schoolClass: SchoolClassItem) {
+    const ok = await confirm(`Delete "${schoolClass.name}"?`, {
+        title: 'Delete Class',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

@@ -7,6 +7,7 @@ import {
     Clock,
     GraduationCap,
     ScrollText,
+    Users,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +34,8 @@ interface DefenseEvent {
     type: 'outline_defense' | 'final_defense';
     schedule: string;
     step_status: string | null;
+    panel_members?: string[];
+    proponents?: string[];
     student: { name: string; email: string } | null;
     school_class: { name: string; section: string | null } | null;
 }
@@ -402,7 +405,7 @@ function statusBadgeClass(status: string | null) {
                     </SheetTitle>
                 </SheetHeader>
 
-                <div v-if="selectedEvent" class="space-y-4 pt-2">
+                <div v-if="selectedEvent" class="space-y-4 p-3">
                     <!-- Schedule -->
                     <div
                         class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"
@@ -419,6 +422,32 @@ function statusBadgeClass(status: string | null) {
                             <p class="text-sm font-medium text-foreground">
                                 {{ formatDateTime(selectedEvent.schedule) }}
                             </p>
+                        </div>
+                    </div>
+
+                    <!-- Panel Members -->
+                    <div
+                        v-if="selectedEvent.panel_members?.length"
+                        class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"
+                    >
+                        <Users
+                            class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                        />
+                        <div>
+                            <p
+                                class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Panel Members
+                            </p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="member in selectedEvent.panel_members"
+                                    :key="member"
+                                    class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                >
+                                    {{ member }}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -442,6 +471,32 @@ function statusBadgeClass(status: string | null) {
                             <p class="text-xs text-muted-foreground">
                                 {{ selectedEvent.student.email }}
                             </p>
+                        </div>
+                    </div>
+
+                    <!-- Co-Proponents -->
+                    <div
+                        v-if="selectedEvent.proponents?.length"
+                        class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"
+                    >
+                        <Users
+                            class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                        />
+                        <div>
+                            <p
+                                class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Co-Proponents
+                            </p>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="name in selectedEvent.proponents"
+                                    :key="name"
+                                    class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                >
+                                    {{ name }}
+                                </span>
+                            </div>
                         </div>
                     </div>
 

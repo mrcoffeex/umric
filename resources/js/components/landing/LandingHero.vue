@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowRight, ChevronDown, Search } from 'lucide-vue-next';
-import { nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useCountUp } from '@/composables/useCountUp';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 import { register, dashboard } from '@/routes';
 
-defineProps<{
+const props = defineProps<{
     canRegister: boolean;
     featuredPapers?: Array<{
         id: number;
@@ -14,6 +14,11 @@ defineProps<{
         status: string;
         tracking_id: string;
     }>;
+    stats?: {
+        papers: number;
+        students: number;
+        departments: number;
+    };
 }>();
 
 const trackingId = ref('');
@@ -55,11 +60,23 @@ function scrollToFeatures() {
 
 // Animated counters for stats
 const { target: statsRef, isVisible: statsVisible } = useScrollReveal(0.2);
-const paperCount = useCountUp(1200, statsVisible, 2000);
-const studentCount = useCountUp(800, statsVisible, 2000);
-const deptCount = useCountUp(12, statsVisible, 1200);
+const paperCount = useCountUp(
+    computed(() => props.stats?.papers ?? 0),
+    statsVisible,
+    2000,
+);
+const studentCount = useCountUp(
+    computed(() => props.stats?.students ?? 0),
+    statsVisible,
+    2000,
+);
+const deptCount = useCountUp(
+    computed(() => props.stats?.departments ?? 0),
+    statsVisible,
+    1200,
+);
 
-const stats = [
+const statHighlights = [
     {
         key: 'papers',
         suffix: '+',
@@ -80,7 +97,7 @@ const stats = [
     },
     {
         key: 'stages',
-        value: '6',
+        value: '9',
         label: 'Research Stages',
         color: 'text-teal-500',
     },
@@ -317,10 +334,10 @@ onUnmounted(() => cancelAnimationFrame(animationId));
                     class="hero-stagger-2 mx-auto mb-10 max-w-lg text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400"
                 >
                     Track every milestone of your
-                    <strong class="dark: text-white">student research</strong> —
+                    <strong class="dark:text-white">student research</strong> —
                     from
-                    <strong class="dark: text-white">title proposal</strong> and
-                    <strong class="dark: text-white">chapter submissions</strong
+                    <strong class="dark:text-white">title proposal</strong> and
+                    <strong class="dark:text-white">chapter submissions</strong
                     >, through panel review and oral defense, all the way to
                     final publication.
                 </p>
@@ -361,7 +378,7 @@ onUnmounted(() => cancelAnimationFrame(animationId));
                     class="hero-stagger-4 mx-auto grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-4"
                 >
                     <div
-                        v-for="stat in stats"
+                        v-for="stat in statHighlights"
                         :key="stat.label"
                         class="text-center"
                     >

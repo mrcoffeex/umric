@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { watchDebounced } from '@vueuse/core';
 import { FileSearch, Filter, Search, ScrollText, Users } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
 import research from '@/routes/faculty/classes/research';
@@ -16,6 +17,18 @@ interface SchoolClass {
     members_count?: number;
 }
 
+interface SdgItem {
+    id: number;
+    number: number;
+    name: string;
+    color: string | null;
+}
+
+interface AgendaItem {
+    id: number;
+    name: string;
+}
+
 interface Paper {
     id: number;
     title: string;
@@ -24,6 +37,8 @@ interface Paper {
     step_label?: string;
     student_name?: string;
     student?: { id: number; name: string } | null;
+    sdg_ids?: number[];
+    agenda_ids?: number[];
     created_at?: string;
 }
 
@@ -31,6 +46,8 @@ interface Props {
     class?: SchoolClass;
     schoolClass?: SchoolClass;
     papers: Paper[];
+    sdgs: SdgItem[];
+    agendas: AgendaItem[];
     stepCounts: Record<string, number>;
     stepLabels: Record<string, string>;
 }
@@ -38,6 +55,38 @@ interface Props {
 const props = defineProps<Props>();
 
 const schoolClass = computed(() => props.schoolClass ?? props.class);
+
+const sdgMap = computed(() => {
+    const map = new Map<number, SdgItem>();
+
+    for (const sdg of props.sdgs) {
+        map.set(sdg.id, sdg);
+    }
+
+    return map;
+});
+
+const agendaMap = computed(() => {
+    const map = new Map<number, AgendaItem>();
+
+    for (const agenda of props.agendas) {
+        map.set(agenda.id, agenda);
+    }
+
+    return map;
+});
+
+function paperSdgs(paper: Paper): SdgItem[] {
+    return (paper.sdg_ids ?? [])
+        .map((id) => sdgMap.value.get(id))
+        .filter((s): s is SdgItem => !!s);
+}
+
+function paperAgendas(paper: Paper): AgendaItem[] {
+    return (paper.agenda_ids ?? [])
+        .map((id) => agendaMap.value.get(id))
+        .filter((a): a is AgendaItem => !!a);
+}
 const activeStep = ref<string>('all');
 const searchQuery = ref('');
 const debouncedSearch = ref('');
@@ -269,6 +318,16 @@ defineOptions({
                                 Student
                             </th>
                             <th
+                                class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                            >
+                                SDGs
+                            </th>
+                            <th
+                                class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                            >
+                                Agendas
+                            </th>
+                            <th
                                 class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                             >
                                 Current Step
@@ -303,6 +362,57 @@ defineOptions({
                             </td>
                             <td class="px-4 py-3 text-foreground">
                                 {{ studentName(paper) }}
+                            </td>
+                            <td class="hidden px-4 py-3 xl:table-cell">
+                                <div
+                                    v-if="paperSdgs(paper).length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="sdg in paperSdgs(paper)"
+                                        :key="sdg.id"
+                                        variant="secondary"
+                                        class="text-[10px]"
+                                        :style="
+                                            sdg.color
+                                                ? {
+                                                      backgroundColor:
+                                                          sdg.color + '20',
+                                                      color: sdg.color,
+                                                      borderColor:
+                                                          sdg.color + '40',
+                                                  }
+                                                : {}
+                                        "
+                                    >
+                                        SDG {{ sdg.number }}
+                                    </Badge>
+                                </div>
+                                <span
+                                    v-else
+                                    class="text-xs text-muted-foreground"
+                                    >-</span
+                                >
+                            </td>
+                            <td class="hidden px-4 py-3 xl:table-cell">
+                                <div
+                                    v-if="paperAgendas(paper).length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="agenda in paperAgendas(paper)"
+                                        :key="agenda.id"
+                                        variant="info"
+                                        class="text-[10px]"
+                                    >
+                                        {{ agenda.name }}
+                                    </Badge>
+                                </div>
+                                <span
+                                    v-else
+                                    class="text-xs text-muted-foreground"
+                                    >-</span
+                                >
                             </td>
                             <td class="px-4 py-3">
                                 <span

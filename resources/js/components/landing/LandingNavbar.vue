@@ -3,7 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { FlaskConical, Sun, Moon, Monitor, Menu, X } from 'lucide-vue-next';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useAppearance } from '@/composables/useAppearance';
-import { login, register, dashboard } from '@/routes';
+import { dashboard, documentation, faq, login, register } from '@/routes';
 
 defineProps<{ canRegister: boolean }>();
 
@@ -139,6 +139,19 @@ const navLinks = [
                     <Monitor v-else class="h-4 w-4" />
                 </button>
 
+                <Link
+                    :href="documentation.url()"
+                    class="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 md:block dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    Docs
+                </Link>
+                <Link
+                    :href="faq.url()"
+                    class="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 md:block dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    FAQ
+                </Link>
+
                 <template v-if="!page.props.auth.user">
                     <Link :href="login.url()" class="hidden md:block">
                         <button
@@ -209,6 +222,21 @@ const navLinks = [
                 <div
                     class="flex flex-col gap-2 border-t border-slate-200/60 pt-3 dark:border-slate-800/60"
                 >
+                    <Link :href="documentation.url()" class="w-full">
+                        <button
+                            class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                            Documentation
+                        </button>
+                    </Link>
+                    <Link :href="faq.url()" class="w-full">
+                        <button
+                            class="w-full rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                            FAQ
+                        </button>
+                    </Link>
+
                     <template v-if="!page.props.auth.user">
                         <Link :href="login.url()" class="w-full">
                             <button

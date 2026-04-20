@@ -17,8 +17,13 @@ class DepartmentFactory extends Factory
      */
     public function definition(): array
     {
+        $name = fake()->unique()->company().' Department';
+
         return [
-            //
+            'name' => $name,
+            'code' => strtoupper(fake()->unique()->bothify('D??')),
+            'description' => fake()->optional()->sentence(),
+            'is_active' => true,
         ];
     }
 }

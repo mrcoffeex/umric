@@ -8,6 +8,7 @@ import TagsInput from '@/components/TagsInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/composables/useConfirm';
 import { edit, details, avatar as avatarRoute } from '@/routes/profile';
 import { remove as removeAvatar } from '@/routes/profile/avatar';
 import { send } from '@/routes/verification';
@@ -35,6 +36,8 @@ type Props = {
 };
 
 const props = defineProps<Props>();
+
+const { confirm } = useConfirm();
 
 defineOptions({
     layout: {
@@ -88,8 +91,13 @@ function onAvatarChange(e: Event) {
     });
 }
 
-function onRemoveAvatar() {
-    if (!confirm('Remove your profile photo?')) {
+async function onRemoveAvatar() {
+    const ok = await confirm('Remove your profile photo?', {
+        title: 'Remove Photo',
+        confirmLabel: 'Remove',
+    });
+
+    if (!ok) {
         return;
     }
 

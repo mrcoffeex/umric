@@ -22,11 +22,14 @@ import {
     ShieldCheck,
     Trophy,
     UserPlus,
+    Users,
     X,
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
+import MultiSelect from '@/components/MultiSelect.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import {
     index as researchIndex,
@@ -35,6 +38,7 @@ import {
     storeComment as storeCommentRoute,
     receive as receiveRoute,
 } from '@/routes/admin/research';
+import panelDefensesRoutes from '@/routes/admin/research/panel-defenses';
 
 interface StepRecord {
     id: number;
@@ -51,6 +55,17 @@ interface Comment {
     id: number;
     body: string;
     user: { id: number; name: string } | null;
+    created_at: string;
+}
+
+interface PanelDefenseRecord {
+    id: number;
+    defense_type: 'title' | 'outline' | 'final';
+    defense_type_label: string;
+    panel_members: string[];
+    schedule: string | null;
+    notes: string | null;
+    created_by: { id: number; name: string } | null;
     created_at: string;
 }
 
@@ -97,6 +112,7 @@ interface Props {
     facultyUsers: Array<{ id: number; name: string }>;
     staffUsers: Array<{ id: number; name: string }>;
     comments?: Comment[];
+    panelDefenses?: PanelDefenseRecord[];
 }
 
 const props = defineProps<Props>();
@@ -392,6 +408,57 @@ const assignmentForm = useForm({
 });
 
 const commentForm = useForm({ body: '' });
+
+const { confirm } = useConfirm();
+
+const panelForm = useForm({
+    defense_type: 'title' as 'title' | 'outline' | 'final',
+    panel_member_ids: [] as number[],
+    schedule: '',
+    notes: '',
+});
+
+const facultyOptions = computed(() =>
+    props.facultyUsers.map((u) => ({ value: u.id, label: u.name })),
+);
+
+function submitPanelDefense(): void {
+    const members = panelForm.panel_member_ids.map(
+        (id) => props.facultyUsers.find((u) => u.id === id)?.name ?? String(id),
+    );
+
+    useForm({
+        defense_type: panelForm.defense_type,
+        panel_members: members,
+        schedule: panelForm.schedule || null,
+        notes: panelForm.notes || null,
+    }).post(panelDefensesRoutes.store.url({ paper: props.paper.id }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            panelForm.reset();
+            panelForm.defense_type = 'title';
+        },
+    });
+}
+
+async function deletePanelDefense(pd: PanelDefenseRecord): Promise<void> {
+    const ok = await confirm(
+        `Remove the ${pd.defense_type_label} panel defense record?`,
+        { title: 'Delete Panel Defense', confirmLabel: 'Delete' },
+    );
+
+    if (!ok) {
+        return;
+    }
+
+    useForm({}).delete(
+        panelDefensesRoutes.destroy.url({
+            paper: props.paper.id,
+            panelDefense: pd.id,
+        }),
+        { preserveScroll: true },
+    );
+}
 
 function submitStepFor(step: string, status: string): void {
     stepForm.step = step;
@@ -1196,6 +1263,160 @@ defineOptions({
                             Save Assignments
                         </button>
                     </form>
+                </section>
+
+                <!-- Panel Management -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <div class="mb-4 flex items-center gap-2">
+                        <Users class="h-4 w-4 text-indigo-500" />
+                        <h2 class="text-base font-bold text-foreground">
+                            Panel Management
+                        </h2>
+                        <span
+                            v-if="(panelDefenses ?? []).length"
+                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                        >
+                            {{ (panelDefenses ?? []).length }}
+                        </span>
+                    </div>
+
+                    <!-- Add Panel Form -->
+                    <div
+                        class="mb-5 rounded-xl border border-border bg-muted/30 p-4"
+                    >
+                        <p
+                            class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >
+                            Add Panel Defense Record
+                        </p>
+                        <div class="space-y-3">
+                            <div>
+                                <label
+                                    class="mb-1.5 block text-xs font-semibold text-muted-foreground"
+                                    >Defense Type</label
+                                >
+                                <FormSelect v-model="panelForm.defense_type">
+                                    <option value="title">Title Defense</option>
+                                    <option value="outline">
+                                        Outline Defense
+                                    </option>
+                                    <option value="final">Final Defense</option>
+                                </FormSelect>
+                            </div>
+                            <div>
+                                <label
+                                    class="mb-1.5 block text-xs font-semibold text-muted-foreground"
+                                    >Panel Members</label
+                                >
+                                <MultiSelect
+                                    v-model="panelForm.panel_member_ids"
+                                    :options="facultyOptions"
+                                    placeholder="Select panelists…"
+                                    search-placeholder="Search faculty…"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    class="mb-1.5 block text-xs font-semibold text-muted-foreground"
+                                    >Schedule (optional)</label
+                                >
+                                <input
+                                    v-model="panelForm.schedule"
+                                    type="datetime-local"
+                                    class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                                />
+                            </div>
+                            <div>
+                                <label
+                                    class="mb-1.5 block text-xs font-semibold text-muted-foreground"
+                                    >Notes (optional)</label
+                                >
+                                <textarea
+                                    v-model="panelForm.notes"
+                                    rows="2"
+                                    class="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                                    placeholder="Any remarks…"
+                                />
+                            </div>
+                            <div class="flex justify-end">
+                                <button
+                                    type="button"
+                                    :disabled="
+                                        !panelForm.panel_member_ids.length
+                                    "
+                                    class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-600 disabled:opacity-50"
+                                    @click="submitPanelDefense"
+                                >
+                                    <Check class="h-3.5 w-3.5" /> Save Record
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Panel list -->
+                    <div
+                        v-if="!(panelDefenses ?? []).length"
+                        class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+                    >
+                        No panel defense records yet.
+                    </div>
+
+                    <div v-else class="space-y-3">
+                        <div
+                            v-for="pd in panelDefenses"
+                            :key="pd.id"
+                            class="rounded-xl border border-border/60 bg-muted/20 p-4"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        :class="[
+                                            'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                                            pd.defense_type === 'title'
+                                                ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+                                                : pd.defense_type === 'outline'
+                                                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                                  : 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300',
+                                        ]"
+                                    >
+                                        {{ pd.defense_type_label }}
+                                    </span>
+                                    <span
+                                        v-if="pd.schedule"
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        {{ formatDateTime(pd.schedule) }}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                                    @click="deletePanelDefense(pd)"
+                                >
+                                    <X class="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="member in pd.panel_members"
+                                    :key="member"
+                                    class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                >
+                                    {{ member }}
+                                </span>
+                            </div>
+                            <p
+                                v-if="pd.notes"
+                                class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                            >
+                                {{ pd.notes }}
+                            </p>
+                            <p class="mt-2 text-[11px] text-muted-foreground">
+                                Added by {{ pd.created_by?.name ?? 'System' }} ·
+                                {{ timeAgo(pd.created_at) }}
+                            </p>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Paper Info -->

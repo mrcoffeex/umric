@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\LogsAdminActions;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 class ApproveUserController extends Controller
 {
+    use LogsAdminActions;
+
     public function approve(User $user): RedirectResponse
     {
         if (! $user->isFaculty()) {
@@ -16,6 +19,9 @@ class ApproveUserController extends Controller
         }
 
         $user->profile()->update(['approved_at' => now()]);
+
+        $this->logAdminAction()
+            ->approve($user);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "$user->name approved successfully."]);
 
@@ -29,6 +35,9 @@ class ApproveUserController extends Controller
         }
 
         $user->profile()->update(['approved_at' => null]);
+
+        $this->logAdminAction()
+            ->reject($user);
 
         Inertia::flash('toast', ['type' => 'warning', 'message' => "$user->name has been suspended."]);
 

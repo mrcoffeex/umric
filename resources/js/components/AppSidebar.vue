@@ -4,6 +4,7 @@ import {
     BookMarked,
     Building2,
     CalendarDays,
+    Clock,
     ExternalLink,
     GraduationCap,
     LayoutGrid,
@@ -39,6 +40,7 @@ const page = usePage();
 const user = computed(() => page.props.auth.user as { role?: string } | null);
 const role = computed(() => user.value?.role ?? '');
 const isAdmin = computed(() => ['admin', 'staff'].includes(role.value));
+const isAdminOnly = computed(() => role.value === 'admin');
 const isFaculty = computed(() => role.value === 'faculty');
 const isStudent = computed(() => role.value === 'student');
 
@@ -77,7 +79,6 @@ const adminNavItems: NavItem[] = [
 ];
 
 const AdminSettingsItems: NavItem[] = [
-    { title: 'Users', href: admin.users.index(), icon: Users },
     {
         title: 'Departments',
         href: admin.departments.index(),
@@ -86,6 +87,15 @@ const AdminSettingsItems: NavItem[] = [
     { title: 'Subjects', href: admin.subjects.index(), icon: ScrollText },
     { title: 'SDGs', href: admin.sdgs.index.url(), icon: Target },
     { title: 'Agendas', href: admin.agendas.index.url(), icon: BookMarked },
+];
+
+const adminOnlyItems: NavItem[] = [
+    { title: 'Users', href: admin.users.index(), icon: Users },
+    {
+        title: 'System Logs',
+        href: admin.activityLogs.index(),
+        icon: Clock,
+    },
 ];
 
 const facultyNavItems: NavItem[] = [
@@ -105,6 +115,11 @@ const facultyNavItems: NavItem[] = [
 const studentNavItems: NavItem[] = [
     { title: 'Home', href: student.home(), icon: LayoutGrid },
     { title: 'My Research', href: student.research.index(), icon: ScrollText },
+    {
+        title: 'Defense Calendar',
+        href: student.defenseCalendar.index(),
+        icon: CalendarDays,
+    },
     { title: 'My Classes', href: student.classes.index(), icon: GraduationCap },
 ];
 </script>
@@ -134,6 +149,11 @@ const studentNavItems: NavItem[] = [
                 v-if="isAdmin"
                 :items="AdminSettingsItems"
                 label="Configuration"
+            />
+            <NavMain
+                v-if="isAdminOnly"
+                :items="adminOnlyItems"
+                label="User Management"
             />
             <NavMain
                 v-if="isFaculty"

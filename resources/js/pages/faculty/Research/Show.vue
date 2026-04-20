@@ -3,7 +3,6 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     AlertTriangle,
     BookCheck,
-    CalendarClock,
     Check,
     CheckCircle2,
     ClipboardCopy,
@@ -19,6 +18,7 @@ import {
     Send,
     Shield,
     Trophy,
+    Users,
     X,
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
@@ -43,6 +43,17 @@ interface Comment {
     id: number;
     body: string;
     user: { id: number; name: string } | null;
+    created_at: string;
+}
+
+interface PanelDefenseRecord {
+    id: number;
+    defense_type: 'title' | 'outline' | 'final';
+    defense_type_label: string;
+    panel_members: string[];
+    schedule: string | null;
+    notes: string | null;
+    created_by: { id: number; name: string } | null;
     created_at: string;
 }
 
@@ -93,6 +104,7 @@ interface Props {
     sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
     agendas: Array<{ id: number; name: string }>;
     comments?: Comment[];
+    panelDefenses?: PanelDefenseRecord[];
 }
 
 const props = defineProps<Props>();
@@ -252,62 +264,7 @@ const stepDetails = computed(() => {
     ];
 });
 
-// --- Faculty action computeds ---
-const canRicApprove = computed(
-    () =>
-        props.paper.current_step === 'ric_review' &&
-        (props.paper.step_ric_review ?? 'pending') === 'pending',
-);
-const canOutlineDefense = computed(
-    () => props.paper.current_step === 'outline_defense',
-);
-const canRate = computed(
-    () =>
-        props.paper.current_step === 'rating' &&
-        (props.paper.step_rating ?? 'pending') === 'pending',
-);
-const canFinalDefense = computed(
-    () => props.paper.current_step === 'final_defense',
-);
-const hasAction = computed(
-    () =>
-        canRicApprove.value ||
-        canOutlineDefense.value ||
-        canRate.value ||
-        canFinalDefense.value,
-);
-
-const actionForm = useForm({
-    step: props.paper.current_step,
-    status: '',
-    schedule: '',
-    grade: '',
-    notes: '',
-});
-
 const commentForm = useForm({ body: '' });
-
-function approveRic(): void {
-    actionForm.post(
-        research.approve.url({
-            class: schoolClass.value?.id ?? 0,
-            paper: props.paper.id,
-        }),
-        { preserveScroll: true },
-    );
-}
-
-function updateStep(status: string): void {
-    actionForm.step = props.paper.current_step;
-    actionForm.status = status;
-    actionForm.patch(
-        research.updateStep.url({
-            class: schoolClass.value?.id ?? 0,
-            paper: props.paper.id,
-        }),
-        { preserveScroll: true },
-    );
-}
 
 function submitComment(): void {
     commentForm.post(
@@ -685,190 +642,7 @@ defineOptions({
                     </div>
                 </section>
 
-                <!-- Faculty Action Panel -->
-                <section class="rounded-2xl border border-border bg-card p-5">
-                    <div class="mb-4 flex items-center gap-2">
-                        <div
-                            class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30"
-                        >
-                            <FileBarChart2 class="h-4 w-4 text-orange-500" />
-                        </div>
-                        <div>
-                            <h2 class="text-base font-bold text-foreground">
-                                Faculty Action Panel
-                            </h2>
-                            <p class="text-xs text-muted-foreground">
-                                Current step:
-                                {{
-                                    paper.step_label ??
-                                    stepLabel(paper.current_step)
-                                }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div>
-                            <label
-                                class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                >Notes</label
-                            >
-                            <textarea
-                                v-model="actionForm.notes"
-                                rows="3"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                                placeholder="Optional notes..."
-                            />
-                        </div>
-
-                        <!-- RIC Review -->
-                        <div
-                            v-if="canRicApprove"
-                            class="rounded-xl border border-teal-200 bg-teal-50 p-4 dark:border-teal-800 dark:bg-teal-950/30"
-                        >
-                            <p
-                                class="mb-3 flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-300"
-                            >
-                                <Shield class="h-4 w-4" /> RIC Review
-                            </p>
-                            <button
-                                type="button"
-                                @click="approveRic"
-                                :disabled="actionForm.processing"
-                                class="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-600 disabled:opacity-50"
-                            >
-                                <Check class="h-3.5 w-3.5" /> Approve for
-                                Plagiarism Check
-                            </button>
-                        </div>
-
-                        <!-- Outline Defense -->
-                        <div
-                            v-if="canOutlineDefense"
-                            class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30"
-                        >
-                            <p
-                                class="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-700 dark:text-blue-300"
-                            >
-                                <CalendarClock class="h-4 w-4" /> Outline
-                                Defense
-                            </p>
-                            <label
-                                class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                >Schedule</label
-                            >
-                            <input
-                                v-model="actionForm.schedule"
-                                type="datetime-local"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            />
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    @click="updateStep('passed')"
-                                    :disabled="actionForm.processing"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-600 disabled:opacity-50"
-                                >
-                                    <Check class="h-3.5 w-3.5" /> Passed
-                                </button>
-                                <button
-                                    type="button"
-                                    @click="updateStep('re_defense')"
-                                    :disabled="actionForm.processing"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
-                                >
-                                    <X class="h-3.5 w-3.5" /> Re-Defense
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Rating -->
-                        <div
-                            v-if="canRate"
-                            class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30"
-                        >
-                            <p
-                                class="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300"
-                            >
-                                <FileBarChart2 class="h-4 w-4" /> Rating
-                            </p>
-                            <label
-                                class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                >Grade</label
-                            >
-                            <input
-                                v-model="actionForm.grade"
-                                type="number"
-                                min="1"
-                                max="5"
-                                step="0.25"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            />
-                            <button
-                                type="button"
-                                @click="updateStep('rated')"
-                                :disabled="actionForm.processing"
-                                class="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
-                            >
-                                <FileBarChart2 class="h-3.5 w-3.5" /> Submit
-                                Grade
-                            </button>
-                        </div>
-
-                        <!-- Final Defense -->
-                        <div
-                            v-if="canFinalDefense"
-                            class="rounded-xl border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan-800 dark:bg-cyan-950/30"
-                        >
-                            <p
-                                class="mb-3 flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300"
-                            >
-                                <CalendarClock class="h-4 w-4" /> Final Defense
-                            </p>
-                            <label
-                                class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                >Schedule</label
-                            >
-                            <input
-                                v-model="actionForm.schedule"
-                                type="datetime-local"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                            />
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    @click="updateStep('passed')"
-                                    :disabled="actionForm.processing"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-600 disabled:opacity-50"
-                                >
-                                    <Check class="h-3.5 w-3.5" /> Passed
-                                </button>
-                                <button
-                                    type="button"
-                                    @click="updateStep('re_defense')"
-                                    :disabled="actionForm.processing"
-                                    class="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
-                                >
-                                    <X class="h-3.5 w-3.5" /> Re-Defense
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="!hasAction"
-                            class="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4"
-                        >
-                            <CheckCircle2
-                                class="h-5 w-5 shrink-0 text-green-500"
-                            />
-                            <p class="text-sm text-muted-foreground">
-                                No faculty action is required for this step.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Tracking History (same as student) -->
+                <!-- Tracking History -->
                 <section class="rounded-2xl border border-border bg-card p-5">
                     <div class="mb-4 flex items-center gap-2">
                         <Clock3 class="h-4 w-4 text-orange-500" />
@@ -1064,6 +838,70 @@ defineOptions({
 
             <!-- Right Sidebar -->
             <div class="space-y-6">
+                <!-- Panel History (read-only) -->
+                <section
+                    v-if="(panelDefenses ?? []).length"
+                    class="rounded-2xl border border-border bg-card p-5"
+                >
+                    <div class="mb-4 flex items-center gap-2">
+                        <Users class="h-4 w-4 text-indigo-500" />
+                        <h2 class="text-base font-bold text-foreground">
+                            Panels
+                        </h2>
+                        <span
+                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                        >
+                            {{ (panelDefenses ?? []).length }}
+                        </span>
+                    </div>
+                    <div class="space-y-3">
+                        <div
+                            v-for="pd in panelDefenses"
+                            :key="pd.id"
+                            class="rounded-xl border border-border/60 bg-muted/20 p-4"
+                        >
+                            <div class="flex items-center gap-2">
+                                <span
+                                    :class="[
+                                        'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                                        pd.defense_type === 'title'
+                                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+                                            : pd.defense_type === 'outline'
+                                              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                              : 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300',
+                                    ]"
+                                >
+                                    {{ pd.defense_type_label }}
+                                </span>
+                                <span
+                                    v-if="pd.schedule"
+                                    class="text-xs text-muted-foreground"
+                                    >{{ formatDateTime(pd.schedule) }}</span
+                                >
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="member in pd.panel_members"
+                                    :key="member"
+                                    class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                >
+                                    {{ member }}
+                                </span>
+                            </div>
+                            <p
+                                v-if="pd.notes"
+                                class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                            >
+                                {{ pd.notes }}
+                            </p>
+                            <p class="mt-2 text-[11px] text-muted-foreground">
+                                Added by {{ pd.created_by?.name ?? 'System' }} ·
+                                {{ timeAgo(pd.created_at) }}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Paper Info -->
                 <section class="rounded-2xl border border-border bg-card p-5">
                     <h3

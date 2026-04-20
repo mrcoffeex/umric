@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
 import { FlaskConical, Twitter, Github, Mail } from 'lucide-vue-next';
+import { documentation, faq } from '@/routes';
 
 function scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -13,6 +15,10 @@ const footerLinks = {
     ],
     Reviews: [{ label: 'Research Reviews', section: 'testimonials' }],
     Contact: [{ label: 'Contact Us', section: 'contact' }],
+    Resources: [
+        { label: 'Documentation', route: documentation() },
+        { label: 'FAQ', route: faq() },
+    ],
     Legal: [
         { label: 'Privacy Policy', href: '#' },
         { label: 'Terms of Service', href: '#' },
@@ -86,12 +92,19 @@ const footerLinks = {
                                 {{ link.label }}
                             </button>
                             <a
-                                v-else
+                                v-else-if="'href' in link"
                                 :href="link.href"
                                 class="text-sm text-slate-500 transition-colors hover:text-orange-500 dark:hover:text-orange-400"
                             >
                                 {{ link.label }}
                             </a>
+                            <Link
+                                v-else
+                                :href="link.route.url"
+                                class="text-sm text-slate-500 transition-colors hover:text-orange-500 dark:hover:text-orange-400"
+                            >
+                                {{ link.label }}
+                            </Link>
                         </li>
                     </ul>
                 </div>

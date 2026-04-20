@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Program;
 use App\Models\Subject;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,7 +19,8 @@ class SubjectFactory extends Factory
     public function definition(): array
     {
         return [
-            'program_id' => null,
+            'program_id' => fake()->boolean(70) ? Program::factory() : null,
+            'year_level' => fake()->numberBetween(1, 4),
             'name' => fake()->unique()->words(3, true),
             'code' => strtoupper(fake()->unique()->bothify('??###')),
             'description' => fake()->optional()->sentence(),

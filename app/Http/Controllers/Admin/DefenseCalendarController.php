@@ -20,7 +20,7 @@ class DefenseCalendarController extends Controller
         $start = Carbon::createFromDate($year, $month, 1)->startOfMonth()->startOfDay();
         $end = $start->copy()->endOfMonth()->endOfDay();
 
-        $papers = ResearchPaper::with(['user', 'schoolClass'])
+        $papers = ResearchPaper::with(['user', 'schoolClass', 'panelDefenses'])
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('outline_defense_schedule', [$start, $end])
                     ->orWhereBetween('final_defense_schedule', [$start, $end]);
@@ -60,6 +60,10 @@ class DefenseCalendarController extends Controller
                     'step_status' => $paper->step_outline_defense,
                     'student' => $paper->user ? ['name' => $paper->user->name, 'email' => $paper->user->email] : null,
                     'school_class' => $paper->schoolClass ? ['name' => $paper->schoolClass->name, 'section' => $paper->schoolClass->section] : null,
+                    'panel_members' => $paper->panelDefenses
+                        ->where('defense_type', 'outline')
+                        ->first()?->panel_members ?? [],
+                    'proponents' => $this->extractProponentNames($paper->proponents),
                 ];
             }
 
@@ -77,6 +81,10 @@ class DefenseCalendarController extends Controller
                     'step_status' => $paper->step_final_defense,
                     'student' => $paper->user ? ['name' => $paper->user->name, 'email' => $paper->user->email] : null,
                     'school_class' => $paper->schoolClass ? ['name' => $paper->schoolClass->name, 'section' => $paper->schoolClass->section] : null,
+                    'panel_members' => $paper->panelDefenses
+                        ->where('defense_type', 'final')
+                        ->first()?->panel_members ?? [],
+                    'proponents' => $this->extractProponentNames($paper->proponents),
                 ];
             }
         }
@@ -84,5 +92,23 @@ class DefenseCalendarController extends Controller
         usort($events, fn ($a, $b) => strcmp($a['schedule'], $b['schedule']));
 
         return $events;
+    }
+
+    private function extractProponentNames(mixed $proponents): array
+    {
+        if (! is_array($proponents)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static function (mixed $p): string {
+                if (is_array($p) && isset($p['name'])) {
+                    return trim((string) $p['name']);
+                }
+
+                return trim((string) $p);
+            },
+            $proponents,
+        ), static fn (string $n): bool => $n !== ''));
     }
 }

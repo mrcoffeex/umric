@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AgendaController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ApproveUserController;
@@ -19,9 +20,12 @@ use App\Http\Controllers\Faculty\ClassJoinController;
 use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
 use App\Http\Controllers\ResearchPaperController;
 use App\Http\Controllers\Student\ClassController;
+use App\Http\Controllers\Student\DefenseCalendarController as StudentDefenseCalendarController;
 use App\Http\Controllers\Student\HomeController;
 use App\Models\Category;
+use App\Models\Department;
 use App\Models\ResearchPaper;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -35,8 +39,21 @@ Route::get('/', function () {
             ->take(6)
             ->get(),
         'categories' => Category::all(),
+        'stats' => [
+            'papers' => ResearchPaper::count(),
+            'students' => User::whereHas('profile', fn ($q) => $q->where('role', 'student'))->count(),
+            'departments' => Department::count(),
+        ],
     ]);
 })->name('home');
+
+Route::get('/documentation', function () {
+    return Inertia::render('Documentation');
+})->name('documentation');
+
+Route::get('/faq', function () {
+    return Inertia::render('Faq');
+})->name('faq');
 
 Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -50,7 +67,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('papers/{paper}/qr', [ResearchPaperController::class, 'generateQR'])->name('papers.qr');
 
     // Admin routes (admin + staff)
-    Route::middleware('can:accessAdmin,App\Models\User')->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['can:accessAdmin,App\Models\User', 'admin-actions-throttle'])->prefix('admin')->name('admin.')->group(function () {
         Route::resource('departments', DepartmentController::class)->except(['create', 'edit', 'show']);
         Route::resource('programs', ProgramController::class)->except(['create', 'edit', 'show', 'index']);
         Route::resource('subjects', SubjectController::class)->except(['create', 'edit', 'show']);
@@ -60,8 +77,6 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::delete('classes/{class}/students/{student}', [SchoolClassController::class, 'removeStudent'])->name('classes.remove-student');
         Route::resource('sdgs', SdgController::class)->except(['create', 'edit', 'show']);
         Route::resource('agendas', AgendaController::class)->except(['create', 'edit', 'show']);
-        Route::resource('users', UserController::class)->except(['edit', 'show']);
-
         // Admin Research
         Route::get('research', [ResearchController::class, 'index'])->name('research.index');
         Route::get('research/{paper}', [ResearchController::class, 'show'])->name('research.show');
@@ -69,16 +84,26 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::post('research/{paper}/assign', [ResearchController::class, 'assign'])->name('research.assign');
         Route::post('research/{paper}/comments', [ResearchController::class, 'storeComment'])->name('research.store-comment');
         Route::get('research/{paper}/receive', [ResearchController::class, 'receive'])->name('research.receive');
+        Route::post('research/{paper}/panel-defenses', [ResearchController::class, 'storePanelDefense'])->name('research.panel-defenses.store');
+        Route::delete('research/{paper}/panel-defenses/{panelDefense}', [ResearchController::class, 'destroyPanelDefense'])->name('research.panel-defenses.destroy');
 
         // Admin Announcements
         Route::resource('announcements', AnnouncementController::class)->except(['create', 'edit', 'show']);
 
         Route::post('users/{user}/approve', [ApproveUserController::class, 'approve'])->name('users.approve');
         Route::post('users/{user}/reject', [ApproveUserController::class, 'reject'])->name('users.reject');
-        Route::post('users/{user}/block', [UserController::class, 'block'])->name('users.block');
+
+        // Admin-only: user management
+        Route::middleware('can:adminOnly,App\Models\User')->group(function () {
+            Route::resource('users', UserController::class)->except(['edit', 'show']);
+            Route::post('users/{user}/block', [UserController::class, 'block'])->name('users.block');
+        });
 
         // Admin Defense Calendar
         Route::get('defense-calendar', [AdminDefenseCalendarController::class, 'index'])->name('defense-calendar.index');
+
+        // Admin Activity Log
+        Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     });
 
     // Faculty class management
@@ -115,6 +140,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::delete('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'destroy'])->name('student.research.destroy');
         Route::get('classes', [ClassController::class, 'index'])->name('student.classes.index');
         Route::get('classes/{class}', [ClassController::class, 'show'])->name('student.classes.show');
+        Route::get('defense-calendar', [StudentDefenseCalendarController::class, 'index'])->name('student.defense-calendar.index');
     });
 
     // Student class join (students only)

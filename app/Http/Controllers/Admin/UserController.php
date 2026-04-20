@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\LogsAdminActions;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
@@ -15,6 +16,8 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    use LogsAdminActions;
+
     public function index(Request $request): Response
     {
         $users = User::with(['profile.department', 'profile.program'])
@@ -72,6 +75,16 @@ class UserController extends Controller
             'approved_at' => now(),
         ]);
 
+        // Log the action
+        $this->logAdminAction()
+            ->on($user)
+            ->withProperties([
+                'email' => $user->email,
+                'role' => $validated['role'],
+            ])
+            ->withDescription("Created user {$user->email} with role {$validated['role']}")
+            ->action('created');
+
         Inertia::flash('toast', ['type' => 'success', 'message' => "{$user->name} has been created as {$validated['role']}."]);
 
         return redirect()->route('admin.users.index');
@@ -83,10 +96,21 @@ class UserController extends Controller
             'role' => ['required', 'in:student,faculty,staff,admin'],
         ]);
 
+        $oldRole = $user->role();
         $user->profile()->updateOrCreate(
             ['user_id' => $user->id],
             $validated,
         );
+
+        // Log the action
+        $this->logAdminAction()
+            ->on($user)
+            ->withProperties([
+                'old_role' => $oldRole,
+                'new_role' => $validated['role'],
+            ])
+            ->withDescription("Changed role from {$oldRole} to {$validated['role']}")
+            ->action('updated');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Role updated.']);
 
@@ -99,9 +123,13 @@ class UserController extends Controller
 
         if ($user->isBlocked()) {
             $user->update(['blocked_at' => null]);
+            $this->logAdminAction()
+                ->unblock($user);
             Inertia::flash('toast', ['type' => 'success', 'message' => "$user->name has been unblocked."]);
         } else {
             $user->update(['blocked_at' => now()]);
+            $this->logAdminAction()
+                ->block($user, 'Admin action');
             Inertia::flash('toast', ['type' => 'warning', 'message' => "$user->name has been blocked."]);
         }
 
@@ -113,6 +141,14 @@ class UserController extends Controller
         abort_if($user->id === Auth::id(), 403, 'Cannot delete your own account.');
 
         $isPendingFaculty = $user->isFaculty() && ! $user->isApproved();
+        $userEmail = $user->email;
+
+        // Log before deletion
+        $this->logAdminAction()
+            ->on($user)
+            ->withProperties(['was_pending_faculty' => $isPendingFaculty])
+            ->withDescription($isPendingFaculty ? 'Rejected faculty registration' : "Deleted user {$userEmail}")
+            ->action('deleted');
 
         $user->delete();
 

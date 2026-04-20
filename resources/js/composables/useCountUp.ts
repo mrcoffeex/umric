@@ -1,8 +1,8 @@
-import { ref, watch } from 'vue';
-import type { Ref } from 'vue';
+import { ref, unref, watch } from 'vue';
+import type { MaybeRef, Ref } from 'vue';
 
 export function useCountUp(
-    end: number,
+    end: MaybeRef<number>,
     trigger: Ref<boolean>,
     duration = 1800,
 ): Ref<number> {
@@ -13,6 +13,7 @@ export function useCountUp(
             return;
         }
 
+        const target = unref(end);
         const start = performance.now();
 
         function tick(now: number) {
@@ -20,7 +21,7 @@ export function useCountUp(
             const progress = Math.min(elapsed / duration, 1);
             // ease-out cubic
             const eased = 1 - Math.pow(1 - progress, 3);
-            current.value = Math.round(eased * end);
+            current.value = Math.round(eased * target);
 
             if (progress < 1) {
                 requestAnimationFrame(tick);

@@ -2,6 +2,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import PublicInfoLayout from '@/layouts/PublicInfoLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
@@ -14,6 +15,9 @@ createInertiaApp({
             case name === 'Welcome':
             case name === 'Research/PublicTracking':
                 return null;
+            case name === 'Documentation':
+            case name === 'Faq':
+                return PublicInfoLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name.startsWith('settings/'):

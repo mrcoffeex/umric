@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
+import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface AnnouncementItem {
@@ -31,6 +32,8 @@ interface AnnouncementItem {
 const props = defineProps<{
     announcements: AnnouncementItem[];
 }>();
+
+const { confirm } = useConfirm();
 
 const typeBorderColors: Record<AnnouncementItem['type'], string> = {
     info: 'border-l-blue-500',
@@ -183,8 +186,13 @@ function submit(): void {
     });
 }
 
-function remove(item: AnnouncementItem): void {
-    if (!confirm(`Delete announcement: ${item.title}?`)) {
+async function remove(item: AnnouncementItem): Promise<void> {
+    const ok = await confirm(`Delete announcement: ${item.title}?`, {
+        title: 'Delete Announcement',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

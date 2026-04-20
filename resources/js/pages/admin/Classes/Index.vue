@@ -16,6 +16,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 import { show as classesShow } from '@/routes/admin/classes';
 
@@ -54,6 +55,8 @@ const props = defineProps<{
     facultyUsers: FacultyUser[];
     subjects: SubjectItem[];
 }>();
+
+const { confirm } = useConfirm();
 
 defineOptions({
     layout: {
@@ -190,8 +193,13 @@ function submit() {
     }
 }
 
-function deleteClass(schoolClass: SchoolClass) {
-    if (!confirm(`Delete "${schoolClass.name}"?`)) {
+async function deleteClass(schoolClass: SchoolClass) {
+    const ok = await confirm(`Delete "${schoolClass.name}"?`, {
+        title: 'Delete Class',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

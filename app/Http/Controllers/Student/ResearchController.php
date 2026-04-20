@@ -54,7 +54,7 @@ class ResearchController extends Controller
             abort(403);
         }
 
-        $paper->load(['schoolClass', 'trackingRecords.updatedBy', 'adviser', 'statistician']);
+        $paper->load(['schoolClass', 'trackingRecords.updatedBy', 'adviser', 'statistician', 'panelDefenses.createdBy', 'comments.user']);
 
         return Inertia::render('student/Research/Show', [
             'paper' => $paper,
@@ -63,6 +63,22 @@ class ResearchController extends Controller
             'steps' => ResearchPaper::STEPS,
             'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
             'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
+            'panelDefenses' => $paper->panelDefenses->map(fn ($pd) => [
+                'id' => $pd->id,
+                'defense_type' => $pd->defense_type,
+                'defense_type_label' => $pd->defense_type_label,
+                'panel_members' => $pd->panel_members,
+                'schedule' => $pd->schedule?->toDateTimeString(),
+                'notes' => $pd->notes,
+                'created_by' => $pd->createdBy ? ['id' => $pd->createdBy->id, 'name' => $pd->createdBy->name] : null,
+                'created_at' => $pd->created_at->toISOString(),
+            ])->values(),
+            'comments' => $paper->comments->map(fn ($c) => [
+                'id' => $c->id,
+                'body' => $c->body,
+                'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
+                'created_at' => $c->created_at->toISOString(),
+            ])->values(),
         ]);
     }
 

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Program;
 use App\Models\SchoolClass;
+use App\Models\Subject;
 use Illuminate\Database\Seeder;
 
 class SchoolClassSeeder extends Seeder
@@ -118,12 +119,6 @@ class SchoolClassSeeder extends Seeder
                 [3, 'A'],
                 [4, 'A'],
             ],
-            'BSTM' => [
-                [1, 'A'],
-                [2, 'A'],
-                [3, 'A'],
-                [4, 'A'],
-            ],
             'BSPSY' => [
                 [1, 'A'],
                 [2, 'A'],
@@ -145,21 +140,37 @@ class SchoolClassSeeder extends Seeder
                 continue;
             }
 
+            $subjectsByYear = Subject::query()
+                ->where('program_id', $program->id)
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get()
+                ->groupBy(fn (Subject $subject) => $subject->year_level ?? 0);
+
+            $allProgramSubjects = $subjectsByYear->flatten(1);
+
             foreach ($sections as [$yearLevel, $section]) {
                 $name = "{$program->code} {$yearLevel}-{$section}";
                 $classCode = "{$program->code}{$yearLevel}{$section}-S{$semester}-{$shortYear}";
 
-                SchoolClass::updateOrCreate(
-                    ['program_id' => $program->id, 'year_level' => $yearLevel, 'section' => $section],
+                $class = SchoolClass::updateOrCreate(
+                    ['class_code' => $classCode],
                     [
                         'name' => $name,
                         'class_code' => $classCode,
                         'school_year' => $schoolYear,
                         'semester' => $semester,
                         'term' => null,
+                        'section' => $section,
+                        'description' => null,
                         'is_active' => true,
                     ],
                 );
+
+                $subject = $subjectsByYear->get($yearLevel)?->first() ?? $allProgramSubjects->first();
+                if ($subject) {
+                    $class->subjects()->sync([$subject->id]);
+                }
             }
         }
     }

@@ -6,6 +6,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Program {
@@ -29,6 +30,8 @@ const props = defineProps<{
     subjects: Subject[];
     programs: Program[];
 }>();
+
+const { confirm } = useConfirm();
 
 defineOptions({
     layout: {
@@ -88,8 +91,13 @@ function submit() {
     }
 }
 
-function deleteSubject(subject: Subject) {
-    if (!confirm(`Delete "${subject.name}"?`)) {
+async function deleteSubject(subject: Subject) {
+    const ok = await confirm(`Delete "${subject.name}"?`, {
+        title: 'Delete Subject',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

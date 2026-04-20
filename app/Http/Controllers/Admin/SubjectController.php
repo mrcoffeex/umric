@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\LogsAdminActions;
 use App\Models\Program;
 use App\Models\Subject;
 use Illuminate\Http\RedirectResponse;
@@ -13,6 +14,8 @@ use Inertia\Response;
 
 class SubjectController extends Controller
 {
+    use LogsAdminActions;
+
     public function index(): Response
     {
         $subjects = Subject::with('program')
@@ -38,7 +41,13 @@ class SubjectController extends Controller
             'is_active' => ['boolean'],
         ]);
 
-        Subject::create($validated);
+        $subject = Subject::create($validated);
+
+        $this->logAdminAction()
+            ->on($subject)
+            ->withProperties(['name' => $subject->name, 'code' => $subject->code])
+            ->withDescription("Created subject {$subject->code}")
+            ->action('created');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Subject created.']);
 
@@ -56,7 +65,14 @@ class SubjectController extends Controller
             'is_active' => ['boolean'],
         ]);
 
+        $oldCode = $subject->code;
         $subject->update($validated);
+
+        $this->logAdminAction()
+            ->on($subject)
+            ->withProperties(['old_code' => $oldCode, 'new_code' => $subject->code])
+            ->withDescription("Updated subject {$subject->code}")
+            ->action('updated');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Subject updated.']);
 
@@ -65,6 +81,14 @@ class SubjectController extends Controller
 
     public function destroy(Subject $subject): RedirectResponse
     {
+        $subjectCode = $subject->code;
+
+        $this->logAdminAction()
+            ->on($subject)
+            ->withProperties(['code' => $subjectCode])
+            ->withDescription("Deleted subject {$subjectCode}")
+            ->action('deleted');
+
         $subject->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Subject deleted.']);

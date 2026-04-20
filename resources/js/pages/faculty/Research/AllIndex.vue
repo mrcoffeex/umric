@@ -12,6 +12,7 @@ import {
     Target,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
 import classResearch from '@/routes/faculty/classes/research';
@@ -62,6 +63,37 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const sdgMap = computed(() => {
+    const map = new Map<number, SdgItem>();
+
+    for (const sdg of props.sdgs) {
+        map.set(sdg.id, sdg);
+    }
+
+    return map;
+});
+
+const agendaMap = computed(() => {
+    const map = new Map<number, AgendaItem>();
+
+    for (const agenda of props.agendas) {
+        map.set(agenda.id, agenda);
+    }
+
+    return map;
+});
+
+function paperSdgs(paper: Paper): SdgItem[] {
+    return (paper.sdg_ids ?? [])
+        .map((id) => sdgMap.value.get(id))
+        .filter((s): s is SdgItem => !!s);
+}
+
+function paperAgendas(paper: Paper): AgendaItem[] {
+    return (paper.agenda_ids ?? [])
+        .map((id) => agendaMap.value.get(id))
+        .filter((a): a is AgendaItem => !!a);
+}
 const searchQuery = ref('');
 const debouncedSearch = ref('');
 watchDebounced(
@@ -509,6 +541,16 @@ defineOptions({
                                 Class
                             </th>
                             <th
+                                class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                            >
+                                SDGs
+                            </th>
+                            <th
+                                class="hidden px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase xl:table-cell"
+                            >
+                                Agendas
+                            </th>
+                            <th
                                 class="px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                             >
                                 Current Step
@@ -551,6 +593,57 @@ defineOptions({
                                 </span>
                                 <span v-else class="text-muted-foreground"
                                     >—</span
+                                >
+                            </td>
+                            <td class="hidden px-4 py-3 xl:table-cell">
+                                <div
+                                    v-if="paperSdgs(paper).length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="sdg in paperSdgs(paper)"
+                                        :key="sdg.id"
+                                        variant="secondary"
+                                        class="text-[10px]"
+                                        :style="
+                                            sdg.color
+                                                ? {
+                                                      backgroundColor:
+                                                          sdg.color + '20',
+                                                      color: sdg.color,
+                                                      borderColor:
+                                                          sdg.color + '40',
+                                                  }
+                                                : {}
+                                        "
+                                    >
+                                        SDG {{ sdg.number }}
+                                    </Badge>
+                                </div>
+                                <span
+                                    v-else
+                                    class="text-xs text-muted-foreground"
+                                    >-</span
+                                >
+                            </td>
+                            <td class="hidden px-4 py-3 xl:table-cell">
+                                <div
+                                    v-if="paperAgendas(paper).length"
+                                    class="flex flex-wrap gap-1"
+                                >
+                                    <Badge
+                                        v-for="agenda in paperAgendas(paper)"
+                                        :key="agenda.id"
+                                        variant="info"
+                                        class="text-[10px]"
+                                    >
+                                        {{ agenda.name }}
+                                    </Badge>
+                                </div>
+                                <span
+                                    v-else
+                                    class="text-xs text-muted-foreground"
+                                    >-</span
                                 >
                             </td>
                             <td class="px-4 py-3">

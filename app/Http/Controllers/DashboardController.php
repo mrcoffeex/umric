@@ -32,16 +32,33 @@ class DashboardController extends Controller
             return redirect()->to(route('student.home'));
         }
 
-        $data = match ($role) {
-            'admin', 'staff' => $this->adminData($user),
-            default => $this->facultyData($user),
-        };
+        $data = $this->getDashboardData($role, $user);
 
-        return Inertia::render('Dashboard', array_merge($data, [
+        return Inertia::render('Dashboard', [
             'role' => $role,
             'announcements' => $announcements,
             'stepLabels' => ResearchPaper::STEP_LABELS,
-        ]));
+            // Keep core dashboard payload available on first response for SSR/tests.
+            'stats' => $data['stats'] ?? null,
+            'recentPapers' => $data['recentPapers'] ?? null,
+            'statusCounts' => $data['statusCounts'] ?? null,
+            // Deferred + WhenVisible: only fetched when charts scroll into view
+            'stepCounts' => Inertia::defer(fn () => $data['stepCounts'] ?? null, 'charts'),
+            'submissionsOverTime' => Inertia::defer(fn () => $data['submissionsOverTime'] ?? null, 'charts'),
+            // Deferred + WhenVisible: only fetched when faculty sidebar scrolls into view
+            'classes' => Inertia::defer(fn () => $data['classes'] ?? null, 'sidebar'),
+        ]);
+    }
+
+    /**
+     * Memoized per-request data resolver — avoids duplicate queries across deferred closures.
+     */
+    private function getDashboardData(string $role, User $user): array
+    {
+        return once(fn () => match ($role) {
+            'admin', 'staff' => $this->adminData($user),
+            default => $this->facultyData($user),
+        });
     }
 
     private function adminData(User $user): array

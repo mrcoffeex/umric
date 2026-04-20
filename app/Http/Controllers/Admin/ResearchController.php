@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\LogsAdminActions;
 use App\Mail\ResearchStatusUpdated;
 use App\Models\Agenda;
+use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\Sdg;
@@ -17,6 +19,8 @@ use Inertia\Response;
 
 class ResearchController extends Controller
 {
+    use LogsAdminActions;
+
     public function index(Request $request): Response
     {
         $query = ResearchPaper::with(['user', 'schoolClass', 'adviser', 'statistician'])
@@ -88,6 +92,7 @@ class ResearchController extends Controller
             'statistician',
             'trackingRecords.updatedBy',
             'comments.user',
+            'panelDefenses.createdBy',
         ]);
 
         $facultyUsers = User::whereHas('profile', fn ($q) => $q->where('role', 'faculty'))
@@ -161,6 +166,16 @@ class ResearchController extends Controller
                 'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
                 'created_at' => $c->created_at->toISOString(),
             ]),
+            'panelDefenses' => $paper->panelDefenses->map(fn ($pd) => [
+                'id' => $pd->id,
+                'defense_type' => $pd->defense_type,
+                'defense_type_label' => $pd->defense_type_label,
+                'panel_members' => $pd->panel_members,
+                'schedule' => $pd->schedule?->toDateTimeString(),
+                'notes' => $pd->notes,
+                'created_by' => $pd->createdBy ? ['id' => $pd->createdBy->id, 'name' => $pd->createdBy->name] : null,
+                'created_at' => $pd->created_at->toISOString(),
+            ]),
         ]);
     }
 
@@ -170,10 +185,17 @@ class ResearchController extends Controller
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
-        $paper->comments()->create([
+        $comment = $paper->comments()->create([
             'user_id' => $request->user()->id,
             'body' => $validated['body'],
         ]);
+
+        // Log the comment addition
+        $this->logAdminAction()
+            ->on($paper)
+            ->withProperties(['comment_id' => $comment->id, 'comment_length' => strlen($validated['body'])])
+            ->withDescription("Added comment to paper {$paper->tracking_id}")
+            ->action('updated');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Comment added.']);
 
@@ -198,6 +220,18 @@ class ResearchController extends Controller
             $request->user()->id,
             'Assigned: '.($paper->adviser?->name ?? 'none').' / '.($paper->statistician?->name ?? 'none'),
         );
+
+        // Log the assignment action
+        $this->logAdminAction()
+            ->on($paper)
+            ->withProperties([
+                'adviser_id' => $validated['adviser_id'],
+                'adviser_name' => $paper->adviser?->name,
+                'statistician_id' => $validated['statistician_id'],
+                'statistician_name' => $paper->statistician?->name,
+            ])
+            ->withDescription("Assigned advisers to paper {$paper->tracking_id}")
+            ->action('assigned');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Assignments updated.']);
 
@@ -321,6 +355,18 @@ class ResearchController extends Controller
             $metadata ?: null,
         );
 
+        // Log the step update action
+        $this->logAdminAction()
+            ->on($paper)
+            ->withProperties([
+                'step' => $step,
+                'old_status' => $oldStatus,
+                'new_status' => $status,
+                'notes' => $notes,
+            ])
+            ->withDescription("Updated {$step} status to {$status} for paper {$paper->tracking_id}")
+            ->action('updated');
+
         ResearchStatusUpdated::dispatch(
             $paper->fresh(),
             $step,
@@ -373,6 +419,68 @@ class ResearchController extends Controller
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Moved to next step.']);
+
+        return back();
+    }
+
+    public function storePanelDefense(Request $request, ResearchPaper $paper): RedirectResponse
+    {
+        $validated = $request->validate([
+            'defense_type' => ['required', 'string', 'in:title,outline,final'],
+            'panel_members' => ['required', 'array', 'min:1'],
+            'panel_members.*' => ['required', 'string', 'max:255'],
+            'schedule' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $paper->panelDefenses()->create([
+            'defense_type' => $validated['defense_type'],
+            'panel_members' => $validated['panel_members'],
+            'schedule' => $validated['schedule'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'created_by' => $request->user()->id,
+        ]);
+
+        // Sync schedule + panel info to the corresponding step
+        $defenseType = $validated['defense_type'];
+        if (in_array($defenseType, ['outline', 'final']) && ! empty($validated['schedule'])) {
+            $stepKey = $defenseType === 'outline' ? 'outline_defense' : 'final_defense';
+            $scheduleField = $defenseType === 'outline' ? 'outline_defense_schedule' : 'final_defense_schedule';
+            $currentStatus = $defenseType === 'outline'
+                ? ($paper->step_outline_defense ?? 'pending')
+                : ($paper->step_final_defense ?? 'pending');
+
+            $paper->update([$scheduleField => $validated['schedule']]);
+
+            $panelNotes = 'Panel: '.implode(', ', $validated['panel_members']);
+            if (! empty($validated['notes'])) {
+                $panelNotes .= "\nRemarks: ".$validated['notes'];
+            }
+
+            TrackingRecord::log(
+                $paper->id,
+                $stepKey,
+                'Panel management: schedule set',
+                $currentStatus,
+                null,
+                $request->user()->id,
+                $panelNotes,
+                ['schedule' => $validated['schedule']],
+            );
+        }
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Panel defense record added.']);
+
+        return back();
+    }
+
+    public function destroyPanelDefense(Request $request, ResearchPaper $paper, PanelDefense $panelDefense): RedirectResponse
+    {
+        abort_unless($panelDefense->research_paper_id === $paper->id, 404);
+
+        $panelDefense->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Panel defense record removed.']);
 
         return back();
     }

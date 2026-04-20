@@ -6,6 +6,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Agenda {
@@ -19,6 +20,8 @@ interface Agenda {
 const props = defineProps<{
     agendas: Agenda[];
 }>();
+
+const { confirm } = useConfirm();
 
 defineOptions({
     layout: {
@@ -74,8 +77,13 @@ function submit() {
     }
 }
 
-function deleteAgenda(agenda: Agenda) {
-    if (!confirm(`Delete "${agenda.name}"?`)) {
+async function deleteAgenda(agenda: Agenda) {
+    const ok = await confirm(`Delete "${agenda.name}"?`, {
+        title: 'Delete Agenda',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

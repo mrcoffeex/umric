@@ -6,6 +6,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Sdg {
@@ -21,6 +22,8 @@ interface Sdg {
 const props = defineProps<{
     sdgs: Sdg[];
 }>();
+
+const { confirm } = useConfirm();
 
 defineOptions({
     layout: {
@@ -82,8 +85,13 @@ function submit() {
     }
 }
 
-function deleteSdg(sdg: Sdg) {
-    if (!confirm(`Delete "${sdg.name}"?`)) {
+async function deleteSdg(sdg: Sdg) {
+    const ok = await confirm(`Delete "${sdg.name}"?`, {
+        title: 'Delete SDG',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

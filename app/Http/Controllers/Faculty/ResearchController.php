@@ -57,6 +57,8 @@ class ResearchController extends Controller
                 ] : null,
                 'adviser' => $paper->adviser ? ['id' => $paper->adviser->id, 'name' => $paper->adviser->name] : null,
                 'statistician' => $paper->statistician ? ['id' => $paper->statistician->id, 'name' => $paper->statistician->name] : null,
+                'sdg_ids' => $paper->sdg_ids ?? [],
+                'agenda_ids' => $paper->agenda_ids ?? [],
             ]);
 
         $stepCounts = [];
@@ -80,6 +82,8 @@ class ResearchController extends Controller
             'papers' => $papers,
             'stepCounts' => $stepCounts,
             'stepLabels' => ResearchPaper::STEP_LABELS,
+            'sdgs' => Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']),
+            'agendas' => Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -88,7 +92,7 @@ class ResearchController extends Controller
         $this->ensureFacultyOwnsClass($request, $class);
         $this->ensurePaperBelongsToClass($class, $paper);
 
-        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user']);
+        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy']);
 
         return Inertia::render('faculty/Research/Show', [
             'schoolClass' => [
@@ -173,6 +177,16 @@ class ResearchController extends Controller
                     'name' => $comment->user->name,
                 ] : null,
                 'created_at' => $comment->created_at?->toISOString(),
+            ])->values(),
+            'panelDefenses' => $paper->panelDefenses->map(fn ($pd) => [
+                'id' => $pd->id,
+                'defense_type' => $pd->defense_type,
+                'defense_type_label' => $pd->defense_type_label,
+                'panel_members' => $pd->panel_members,
+                'schedule' => $pd->schedule?->toDateTimeString(),
+                'notes' => $pd->notes,
+                'created_by' => $pd->createdBy ? ['id' => $pd->createdBy->id, 'name' => $pd->createdBy->name] : null,
+                'created_at' => $pd->created_at->toISOString(),
             ])->values(),
         ]);
     }

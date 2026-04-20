@@ -22,6 +22,11 @@ interface Props {
         tracking_id: string;
     }>;
     categories?: Array<{ id: number; name: string }>;
+    stats?: {
+        papers: number;
+        students: number;
+        departments: number;
+    };
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -58,6 +63,7 @@ onMounted(() => {
         <LandingHero
             :can-register="props.canRegister"
             :featured-papers="props.featuredPapers"
+            :stats="props.stats"
         />
         <LandingFeatures />
         <LandingShowcase />

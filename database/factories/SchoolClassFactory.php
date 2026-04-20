@@ -17,13 +17,22 @@ class SchoolClassFactory extends Factory
      */
     public function definition(): array
     {
+        $yearStart = fake()->numberBetween((int) now()->format('Y') - 1, (int) now()->format('Y') + 1);
+        $yearEnd = $yearStart + 1;
+        $semester = fake()->numberBetween(1, 2);
         $section = fake()->randomElement(['A', 'B', 'C', 'D']);
+        $codePrefix = strtoupper(fake()->lexify('CLS'));
 
         return [
+            'name' => "{$codePrefix} {$section}",
+            'class_code' => "{$codePrefix}{$section}-S{$semester}-".substr((string) $yearStart, -2).substr((string) $yearEnd, -2),
+            'school_year' => "{$yearStart}-{$yearEnd}",
+            'semester' => $semester,
+            'term' => null,
             'section' => $section,
-            'name' => "Class {$section}",
             'description' => fake()->optional()->sentence(),
             'is_active' => true,
+            'join_code' => fake()->boolean(40) ? strtoupper(fake()->bothify('??##??##')) : null,
         ];
     }
 }

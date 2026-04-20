@@ -13,6 +13,7 @@ import {
 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Program {
@@ -34,6 +35,8 @@ interface Department {
 }
 
 defineProps<{ departments: Department[] }>();
+
+const { confirm } = useConfirm();
 
 defineOptions({
     layout: {
@@ -104,12 +107,13 @@ function submitDept() {
     }
 }
 
-function deleteDept(dept: Department) {
-    if (
-        !confirm(
-            `Delete "${dept.name}"? All its programs will also be removed.`,
-        )
-    ) {
+async function deleteDept(dept: Department) {
+    const ok = await confirm(
+        `Delete "${dept.name}"? All its programs will also be removed.`,
+        { title: 'Delete Department', confirmLabel: 'Delete' },
+    );
+
+    if (!ok) {
         return;
     }
 
@@ -164,8 +168,13 @@ function submitProg() {
     }
 }
 
-function deleteProg(prog: Program) {
-    if (!confirm(`Delete program "${prog.name}"?`)) {
+async function deleteProg(prog: Program) {
+    const ok = await confirm(`Delete program "${prog.name}"?`, {
+        title: 'Delete Program',
+        confirmLabel: 'Delete',
+    });
+
+    if (!ok) {
         return;
     }
 

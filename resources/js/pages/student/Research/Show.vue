@@ -4,6 +4,7 @@ import {
     AlertTriangle,
     BookCheck,
     Check,
+    MessageSquare,
     CheckCircle2,
     ClipboardCopy,
     Clock3,
@@ -18,6 +19,7 @@ import {
     Send,
     Shield,
     Trophy,
+    Users,
     X,
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
@@ -75,6 +77,26 @@ interface Props {
     steps: string[];
     sdgs: Array<{ id: number; name: string; number?: number }>;
     agendas: Array<{ id: number; name: string }>;
+    panelDefenses?: PanelDefenseRecord[];
+    comments?: Comment[];
+}
+
+interface Comment {
+    id: number;
+    body: string;
+    user: { id: number; name: string } | null;
+    created_at: string;
+}
+
+interface PanelDefenseRecord {
+    id: number;
+    defense_type: 'title' | 'outline' | 'final';
+    defense_type_label: string;
+    panel_members: string[];
+    schedule: string | null;
+    notes: string | null;
+    created_by: { id: number; name: string } | null;
+    created_at: string;
 }
 
 const props = defineProps<Props>();
@@ -331,6 +353,34 @@ function isCurrentStep(idx: number): boolean {
 
 function isFutureStep(idx: number): boolean {
     return currentStepIndex.value < idx;
+}
+
+function timeAgo(value: string): string {
+    const seconds = Math.floor((Date.now() - new Date(value).getTime()) / 1000);
+
+    if (seconds < 60) {
+        return 'just now';
+    }
+
+    const minutes = Math.floor(seconds / 60);
+
+    if (minutes < 60) {
+        return `${minutes}m ago`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+
+    if (hours < 24) {
+        return `${hours}h ago`;
+    }
+
+    const days = Math.floor(hours / 24);
+
+    if (days < 30) {
+        return `${days}d ago`;
+    }
+
+    return formatDateTime(value);
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -609,7 +659,10 @@ setLayoutProps({
                 </section>
 
                 <!-- Tracking History -->
-                <section class="rounded-2xl border border-border bg-card p-5">
+                <section
+                    class="rounded-2xl border border-border bg-card p-5"
+                    id="tracking-history"
+                >
                     <div class="mb-4 flex items-center gap-2">
                         <Clock3 class="h-4 w-4 text-orange-500" />
                         <h2 class="text-base font-bold text-foreground">
@@ -718,10 +771,130 @@ setLayoutProps({
                         </div>
                     </div>
                 </section>
+                <!-- Comments (read-only) -->
+                <section class="rounded-2xl border border-border bg-card p-5">
+                    <div class="mb-4 flex items-center gap-2">
+                        <MessageSquare class="h-4 w-4 text-violet-500" />
+                        <h2 class="text-base font-bold text-foreground">
+                            Comments
+                        </h2>
+                        <span
+                            v-if="(comments ?? []).length"
+                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                        >
+                            {{ (comments ?? []).length }}
+                        </span>
+                    </div>
+
+                    <div
+                        v-if="(comments ?? []).length === 0"
+                        class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+                    >
+                        No comments yet.
+                    </div>
+
+                    <div v-else class="space-y-3">
+                        <div
+                            v-for="comment in comments"
+                            :key="comment.id"
+                            class="rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
+                        >
+                            <div
+                                class="flex items-center justify-between gap-2"
+                            >
+                                <div class="flex items-center gap-2">
+                                    <div
+                                        class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-300"
+                                    >
+                                        {{
+                                            comment.user?.name
+                                                .charAt(0)
+                                                .toUpperCase() ?? '?'
+                                        }}
+                                    </div>
+                                    <p
+                                        class="text-sm font-semibold text-foreground"
+                                    >
+                                        {{ comment.user?.name ?? 'Unknown' }}
+                                    </p>
+                                </div>
+                                <span
+                                    class="text-[11px] text-muted-foreground"
+                                    >{{ timeAgo(comment.created_at) }}</span
+                                >
+                            </div>
+                            <p
+                                class="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-foreground"
+                            >
+                                {{ comment.body }}
+                            </p>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <!-- Right Sidebar -->
             <div class="space-y-6">
+                <!-- Panel History (read-only) -->
+                <section
+                    v-if="(panelDefenses ?? []).length"
+                    class="rounded-2xl border border-border bg-card p-5"
+                >
+                    <div class="mb-4 flex items-center gap-2">
+                        <Users class="h-4 w-4 text-indigo-500" />
+                        <h2 class="text-base font-bold text-foreground">
+                            Panels
+                        </h2>
+                        <span
+                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                        >
+                            {{ (panelDefenses ?? []).length }}
+                        </span>
+                    </div>
+                    <div class="space-y-3">
+                        <div
+                            v-for="pd in panelDefenses"
+                            :key="pd.id"
+                            class="rounded-xl border border-border/60 bg-muted/20 p-4"
+                        >
+                            <div class="flex items-center gap-2">
+                                <span
+                                    :class="[
+                                        'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                                        pd.defense_type === 'title'
+                                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+                                            : pd.defense_type === 'outline'
+                                              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                              : 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300',
+                                    ]"
+                                >
+                                    {{ pd.defense_type_label }}
+                                </span>
+                                <span
+                                    v-if="pd.schedule"
+                                    class="text-xs text-muted-foreground"
+                                    >{{ formatDateTime(pd.schedule) }}</span
+                                >
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                <span
+                                    v-for="member in pd.panel_members"
+                                    :key="member"
+                                    class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                >
+                                    {{ member }}
+                                </span>
+                            </div>
+                            <p
+                                v-if="pd.notes"
+                                class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                            >
+                                {{ pd.notes }}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Paper Info -->
                 <section class="rounded-2xl border border-border bg-card p-5">
                     <h3
