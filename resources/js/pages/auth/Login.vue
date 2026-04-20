@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { Briefcase, GraduationCap } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Mail } from 'lucide-vue-next';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -25,59 +24,21 @@ const props = defineProps<{
     canRegister: boolean;
 }>();
 
-const roleTab = ref<'student' | 'faculty'>('student');
-
 function redirectToGoogle() {
-    window.location.href = `/auth/google?role=${roleTab.value}`;
+    window.location.href = '/auth/google';
 }
 </script>
 
 <template>
     <Head title="Log in" />
 
-    <!-- Role toggle -->
-    <div
-        class="mb-6 flex rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800"
-    >
-        <button
-            type="button"
-            @click="roleTab = 'student'"
-            class="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-medium transition-all duration-200"
-            :class="
-                roleTab === 'student'
-                    ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-            "
-        >
-            <GraduationCap class="h-3.5 w-3.5" />
-            Student
-        </button>
-        <button
-            type="button"
-            @click="roleTab = 'faculty'"
-            class="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-medium transition-all duration-200"
-            :class="
-                roleTab === 'faculty'
-                    ? 'bg-white text-teal-600 shadow-sm dark:bg-gray-700 dark:text-teal-400'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-            "
-        >
-            <Briefcase class="h-3.5 w-3.5" />
-            Faculty
-        </button>
-    </div>
-
-    <!-- Contextual heading -->
-    <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {{ roleTab === 'student' ? 'Student Sign In' : 'Faculty Sign In' }}
+    <!-- Heading -->
+    <div class="mb-7 text-center">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-50">
+            Welcome back
         </h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {{
-                roleTab === 'student'
-                    ? 'Access your research dashboard and track submissions'
-                    : 'Manage research papers and student submissions'
-            }}
+        <p class="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
+            Sign in to your UMRIC account
         </p>
     </div>
 
@@ -85,7 +46,7 @@ function redirectToGoogle() {
     <button
         type="button"
         @click="redirectToGoogle"
-        class="flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600"
+        class="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600 dark:hover:bg-gray-700"
     >
         <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -121,42 +82,51 @@ function redirectToGoogle() {
         v-slot="{ errors, processing }"
         class="flex flex-col gap-4"
     >
+        <!-- Email -->
         <div class="grid gap-1.5">
             <label
                 for="email"
                 class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                >Email address</label
             >
-            <input
-                id="email"
-                type="email"
-                name="email"
-                required
-                autofocus
-                :tabindex="1"
-                autocomplete="email"
-                placeholder="you@umindanao.edu.ph"
-                class="h-10 w-full rounded-lg border bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-                :class="
-                    errors.email || props.status
-                        ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20 dark:border-red-500'
-                        : 'border-gray-200 focus:border-orange-400 focus:ring-orange-400/20 dark:border-gray-600'
-                "
-            />
+                Email address
+            </label>
+            <div class="relative">
+                <Mail
+                    class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    required
+                    autofocus
+                    :tabindex="1"
+                    autocomplete="email"
+                    placeholder="you@umindanao.edu.ph"
+                    class="h-11 w-full rounded-xl border bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:outline-none dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                    :class="
+                        errors.email || props.status
+                            ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20 dark:border-red-500'
+                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-400/20 dark:border-gray-700'
+                    "
+                />
+            </div>
             <InputError :message="errors.email || props.status" />
         </div>
 
+        <!-- Password -->
         <div class="grid gap-1.5">
             <div class="flex items-center justify-between">
                 <label
                     for="password"
                     class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                    >Password</label
                 >
+                    Password
+                </label>
                 <TextLink
                     v-if="canResetPassword"
                     :href="request()"
-                    class="text-xs text-orange-600 hover:text-orange-500"
+                    class="text-xs text-orange-600 hover:text-orange-500 dark:text-orange-400"
                     :tabindex="5"
                 >
                     Forgot password?
@@ -169,22 +139,26 @@ function redirectToGoogle() {
                 :tabindex="2"
                 autocomplete="current-password"
                 placeholder="••••••••"
+                class="h-11 rounded-xl border-gray-200 dark:border-gray-700"
             />
             <InputError :message="errors.password" />
         </div>
 
+        <!-- Remember me -->
         <div class="flex items-center gap-2">
             <Checkbox id="remember" name="remember" :tabindex="3" />
             <label
                 for="remember"
                 class="cursor-pointer text-sm text-gray-600 dark:text-gray-400"
-                >Remember me</label
             >
+                Remember me
+            </label>
         </div>
 
+        <!-- Submit -->
         <Button
             type="submit"
-            class="w-full font-semibold text-white"
+            class="h-11 w-full rounded-xl font-semibold text-white shadow-sm"
             style="background: linear-gradient(135deg, #f97316, #ea580c)"
             :tabindex="4"
             :disabled="processing"
@@ -194,6 +168,7 @@ function redirectToGoogle() {
             Sign In
         </Button>
 
+        <!-- Register link -->
         <p
             v-if="canRegister"
             class="text-center text-sm text-gray-500 dark:text-gray-400"
@@ -202,9 +177,10 @@ function redirectToGoogle() {
             <TextLink
                 :href="register()"
                 :tabindex="5"
-                class="font-medium text-orange-600 hover:text-orange-500"
-                >Sign up</TextLink
+                class="font-semibold text-orange-600 hover:text-orange-500 dark:text-orange-400"
             >
+                Sign up
+            </TextLink>
         </p>
     </Form>
 </template>

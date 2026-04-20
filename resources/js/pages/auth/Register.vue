@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { Briefcase, GraduationCap } from 'lucide-vue-next';
+import { Briefcase, GraduationCap, Mail, User } from 'lucide-vue-next';
 import { ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
@@ -28,18 +28,18 @@ defineOptions({
     <Head title="Register" />
 
     <!-- Heading -->
-    <div class="mb-6">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+    <div class="mb-7 text-center">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-50">
             Create your account
         </h2>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p class="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
             Join UMRIC to track and manage research
         </p>
     </div>
 
     <!-- Role toggle -->
     <div
-        class="mb-6 flex rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800"
+        class="mb-5 flex rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800"
     >
         <button
             type="button"
@@ -69,11 +69,11 @@ defineOptions({
         </button>
     </div>
 
-    <!-- Google Sign Up (primary action) -->
+    <!-- Google Sign Up -->
     <button
         type="button"
         @click="redirectToGoogle"
-        class="flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-all hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600"
+        class="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600 dark:hover:bg-gray-700"
     >
         <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -96,7 +96,7 @@ defineOptions({
         Continue with Google
     </button>
 
-    <!-- "or fill in manually" divider -->
+    <!-- Divider -->
     <div class="relative my-5 flex items-center gap-3">
         <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
         <span class="text-xs tracking-wide text-gray-400 uppercase"
@@ -121,16 +121,21 @@ defineOptions({
                 class="text-sm font-medium text-gray-700 dark:text-gray-300"
                 >Full name</label
             >
-            <input
-                id="name"
-                type="text"
-                name="name"
-                required
-                autofocus
-                autocomplete="name"
-                placeholder="Juan dela Cruz"
-                class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
+            <div class="relative">
+                <User
+                    class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                    id="name"
+                    type="text"
+                    name="name"
+                    required
+                    autofocus
+                    autocomplete="name"
+                    placeholder="Juan dela Cruz"
+                    class="h-11 w-full rounded-xl border border-gray-200 bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                />
+            </div>
             <InputError :message="errors.name" />
         </div>
 
@@ -141,15 +146,20 @@ defineOptions({
                 class="text-sm font-medium text-gray-700 dark:text-gray-300"
                 >Email address</label
             >
-            <input
-                id="email"
-                type="email"
-                name="email"
-                required
-                autocomplete="email"
-                placeholder="you@umindanao.edu.ph"
-                class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            />
+            <div class="relative">
+                <Mail
+                    class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400"
+                />
+                <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    required
+                    autocomplete="email"
+                    placeholder="you@umindanao.edu.ph"
+                    class="h-11 w-full rounded-xl border border-gray-200 bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                />
+            </div>
             <InputError :message="errors.email" />
         </div>
 
@@ -167,6 +177,7 @@ defineOptions({
                 autocomplete="new-password"
                 placeholder="Create a strong password"
                 :tabindex="5"
+                class="h-11 rounded-xl border-gray-200 dark:border-gray-700"
             />
             <InputError :message="errors.password" />
         </div>
@@ -185,6 +196,7 @@ defineOptions({
                 autocomplete="new-password"
                 placeholder="Repeat your password"
                 :tabindex="6"
+                class="h-11 rounded-xl border-gray-200 dark:border-gray-700"
             />
             <InputError :message="errors.password_confirmation" />
         </div>
@@ -194,8 +206,12 @@ defineOptions({
             type="submit"
             :tabindex="7"
             :disabled="processing"
-            class="w-full font-semibold text-white"
-            style="background: linear-gradient(135deg, #f97316, #ea580c)"
+            class="h-11 w-full rounded-xl font-semibold text-white shadow-sm transition-all duration-300"
+            :style="
+                roleTab === 'faculty'
+                    ? 'background: linear-gradient(135deg, #0d9488, #0f766e)'
+                    : 'background: linear-gradient(135deg, #f97316, #ea580c)'
+            "
         >
             <Spinner v-if="processing" />
             Create Account
@@ -205,10 +221,11 @@ defineOptions({
             Already have an account?
             <TextLink
                 :href="login()"
-                class="font-medium text-orange-600 hover:text-orange-500"
+                class="font-semibold text-orange-600 hover:text-orange-500 dark:text-orange-400"
                 :tabindex="8"
-                >Log in</TextLink
             >
+                Log in
+            </TextLink>
         </p>
     </Form>
 </template>
