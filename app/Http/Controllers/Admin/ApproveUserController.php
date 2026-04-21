@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\LogsAdminActions;
+use App\Mail\FacultyRegistrationStatusMail;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 
 class ApproveUserController extends Controller
@@ -23,6 +25,8 @@ class ApproveUserController extends Controller
         $this->logAdminAction()
             ->approve($user);
 
+        Mail::to($user)->queue(new FacultyRegistrationStatusMail($user, 'approved'));
+
         Inertia::flash('toast', ['type' => 'success', 'message' => "$user->name approved successfully."]);
 
         return back();
@@ -38,6 +42,8 @@ class ApproveUserController extends Controller
 
         $this->logAdminAction()
             ->reject($user);
+
+        Mail::to($user)->queue(new FacultyRegistrationStatusMail($user, 'rejected'));
 
         Inertia::flash('toast', ['type' => 'warning', 'message' => "$user->name has been suspended."]);
 

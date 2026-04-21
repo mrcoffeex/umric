@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
+    AlertCircle,
     ArrowRight,
     Bell,
     BookOpen,
@@ -46,6 +47,7 @@ interface Props {
     paper: Paper | null;
     stepLabels: Record<string, string>;
     steps: string[];
+    hasClass: boolean;
 }
 
 const props = defineProps<Props>();
@@ -277,7 +279,28 @@ defineOptions({
                     <p class="mt-1 text-sm text-muted-foreground">
                         Submit your title proposal to start.
                     </p>
+
+                    <!-- No class: show disabled button with instruction -->
+                    <div
+                        v-if="!hasClass"
+                        class="mt-4 flex flex-col items-center gap-2"
+                    >
+                        <div
+                            class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                        >
+                            <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                            Join a class first to submit a title proposal.
+                        </div>
+                        <button
+                            disabled
+                            class="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-orange-200 px-4 py-2 text-sm font-semibold text-white dark:bg-orange-900/40"
+                        >
+                            Submit Title Proposal
+                        </button>
+                    </div>
+
                     <Link
+                        v-else
                         :href="student.research.create.url()"
                         class="mt-4 inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
                     >
@@ -358,7 +381,22 @@ defineOptions({
         <!-- Two-column layout for Classes and Announcements -->
         <div class="grid gap-6 lg:grid-cols-2">
             <!-- Classes -->
-            <section class="rounded-2xl border border-border bg-card">
+            <section
+                :class="[
+                    'rounded-2xl border bg-card',
+                    !hasClass
+                        ? 'border-teal-400 ring-2 ring-teal-400/40 dark:border-teal-500 dark:ring-teal-500/30'
+                        : 'border-border',
+                ]"
+            >
+                <!-- Attention banner when no class -->
+                <div
+                    v-if="!hasClass"
+                    class="flex items-center gap-2 rounded-t-2xl bg-teal-500 px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                    <AlertCircle class="h-4 w-4 shrink-0" />
+                    Join a class to unlock title proposal submission.
+                </div>
                 <div
                     class="flex items-center justify-between border-b border-border p-5"
                 >

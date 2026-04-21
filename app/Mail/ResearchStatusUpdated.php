@@ -112,7 +112,7 @@ class ResearchStatusUpdated extends Mailable
                 $mailer->cc($ccUsers);
             }
 
-            $mailer->send($mailable);
+            $mailer->queue($mailable);
 
             Log::info('ResearchStatusUpdated: sent successfully to '.$mainUser->email, ['paper_id' => $paper->id]);
         } catch (\Throwable $e) {

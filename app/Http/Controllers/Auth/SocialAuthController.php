@@ -82,8 +82,7 @@ class SocialAuthController extends Controller
             if ($existing->isFaculty() && ! $existing->isApproved()) {
                 Auth::logout();
 
-                return redirect()->route('login')
-                    ->with('status', 'This account is not approved yet');
+                return redirect()->route('registration.pending');
             }
 
             return redirect()->intended(route('dashboard'));
@@ -106,8 +105,7 @@ class SocialAuthController extends Controller
         if ($user->isFaculty() && ! $user->isApproved()) {
             Auth::logout();
 
-            return redirect()->route('login')
-                ->with('status', 'This account is not approved yet');
+            return redirect()->route('registration.pending');
         }
 
         return redirect()->intended(route('dashboard'));

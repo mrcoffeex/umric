@@ -55,6 +55,10 @@ Route::get('/faq', function () {
     return Inertia::render('Faq');
 })->name('faq');
 
+Route::get('/registration-pending', function () {
+    return Inertia::render('auth/RegistrationPending');
+})->name('registration.pending')->middleware('guest');
+
 Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 

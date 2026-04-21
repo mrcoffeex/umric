@@ -99,10 +99,20 @@ class ResearchController extends Controller
         return response()->json($result);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
         if (! $request->user()->isStudent()) {
             abort(403);
+        }
+
+        $hasClass = SchoolClass::query()
+            ->whereHas('members', fn ($query) => $query->where('student_id', $request->user()->id))
+            ->exists();
+
+        if (! $hasClass) {
+            Inertia::flash('toast', ['type' => 'warning', 'message' => 'You must join a class before creating a title proposal.']);
+
+            return to_route('student.classes.index');
         }
 
         return Inertia::render('student/Research/Create', [
@@ -138,7 +148,9 @@ class ResearchController extends Controller
             ->first();
 
         if (! $schoolClass) {
-            return back()->withErrors(['class' => 'Join a class before submitting a research paper.']);
+            Inertia::flash('toast', ['type' => 'warning', 'message' => 'You must join a class before submitting a title proposal.']);
+
+            return to_route('student.classes.index');
         }
 
         $paper = ResearchPaper::create([

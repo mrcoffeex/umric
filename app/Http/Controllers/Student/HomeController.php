@@ -44,6 +44,7 @@ class HomeController extends Controller
             'paper' => $paper,
             'stepLabels' => ResearchPaper::STEP_LABELS,
             'steps' => ResearchPaper::STEPS,
+            'hasClass' => $classes->isNotEmpty(),
         ]);
     }
 }

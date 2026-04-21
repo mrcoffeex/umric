@@ -23,8 +23,7 @@ class EnsureApproved
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route('login')
-                ->with('status', 'This account is not approved yet');
+            return redirect()->route('registration.pending');
         }
 
         return $next($request);
