@@ -102,6 +102,15 @@ const filteredClasses = computed(() => {
     );
 });
 
+const visibleClassCount = ref(10);
+const visibleClasses = computed(() =>
+    filteredClasses.value.slice(0, visibleClassCount.value),
+);
+
+watch(classSearch, () => {
+    visibleClassCount.value = 10;
+});
+
 const subjectSearch = ref('');
 
 const filteredSubjects = computed(() => {
@@ -385,7 +394,7 @@ function semesterLabel(semester: number | null): string {
                 <TooltipProvider v-else :delay-duration="300">
                     <div class="space-y-3">
                         <div
-                            v-for="item in filteredClasses"
+                            v-for="item in visibleClasses"
                             :key="item.id"
                             class="group relative overflow-hidden rounded-2xl border border-border bg-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                             :class="
@@ -633,6 +642,23 @@ function semesterLabel(semester: number | null): string {
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Show more -->
+                    <div
+                        v-if="visibleClassCount < filteredClasses.length"
+                        class="pt-1 text-center"
+                    >
+                        <button
+                            type="button"
+                            class="text-xs font-semibold text-orange-500 hover:underline"
+                            @click="visibleClassCount += 10"
+                        >
+                            Show more ({{
+                                filteredClasses.length - visibleClassCount
+                            }}
+                            remaining)
+                        </button>
                     </div>
                 </TooltipProvider>
             </div>

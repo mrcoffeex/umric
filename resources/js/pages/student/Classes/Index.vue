@@ -6,7 +6,7 @@ import {
     School,
     UserRoundPlus,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import classesRoutes from '@/routes/classes';
 import student from '@/routes/student';
 
@@ -37,9 +37,14 @@ interface Props {
     classes: ClassInfo[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const joinCode = ref('');
+
+const visibleClassCount = ref(12);
+const visibleClasses = computed(() =>
+    props.classes.slice(0, visibleClassCount.value),
+);
 
 function joinClassUrl(): string {
     if (!joinCode.value.trim()) {
@@ -120,7 +125,7 @@ defineOptions({
 
         <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Link
-                v-for="classItem in classes"
+                v-for="classItem in visibleClasses"
                 :key="classItem.id"
                 :href="student.classes.show.url(classItem.id)"
                 class="block overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md"
@@ -227,6 +232,16 @@ defineOptions({
                     </div>
                 </div>
             </Link>
+        </div>
+
+        <div v-if="visibleClassCount < classes.length" class="pt-2 text-center">
+            <button
+                type="button"
+                class="text-xs font-semibold text-teal-600 hover:underline"
+                @click="visibleClassCount += 12"
+            >
+                Show more ({{ classes.length - visibleClassCount }} remaining)
+            </button>
         </div>
     </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { BookOpen, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,32 @@ defineOptions({
 
 const showForm = ref(false);
 const editingSubject = ref<Subject | null>(null);
+const subjectSearch = ref('');
+const visibleSubjectCount = ref(15);
+
+const filteredSubjects = computed(() => {
+    const q = subjectSearch.value.toLowerCase().trim();
+
+    if (!q) {
+        return props.subjects;
+    }
+
+    return props.subjects.filter(
+        (s) =>
+            s.name.toLowerCase().includes(q) ||
+            s.code.toLowerCase().includes(q) ||
+            (s.program?.name.toLowerCase().includes(q) ?? false) ||
+            (s.program?.code.toLowerCase().includes(q) ?? false),
+    );
+});
+
+const visibleSubjects = computed(() =>
+    filteredSubjects.value.slice(0, visibleSubjectCount.value),
+);
+
+watch(subjectSearch, () => {
+    visibleSubjectCount.value = 15;
+});
 
 const form = useForm({
     name: '',
@@ -137,6 +163,19 @@ async function deleteSubject(subject: Subject) {
                     </Button>
                 </div>
 
+                <!-- Search -->
+                <div class="relative">
+                    <Search
+                        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <input
+                        v-model="subjectSearch"
+                        type="text"
+                        placeholder="Search subjects…"
+                        class="w-full rounded-xl border border-input bg-background py-2.5 pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    />
+                </div>
+
                 <div
                     v-if="subjects.length === 0"
                     class="rounded-2xl border border-sidebar-border/70 bg-white p-12 text-center dark:bg-sidebar"
@@ -154,9 +193,26 @@ async function deleteSubject(subject: Subject) {
                     </p>
                 </div>
 
+                <div
+                    v-else-if="filteredSubjects.length === 0"
+                    class="rounded-2xl border border-sidebar-border/70 bg-white p-8 text-center dark:bg-sidebar"
+                >
+                    <p
+                        class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                    >
+                        No subjects match your search.
+                    </p>
+                    <button
+                        class="mt-2 text-xs text-orange-500 hover:underline"
+                        @click="subjectSearch = ''"
+                    >
+                        Clear search
+                    </button>
+                </div>
+
                 <div v-else class="space-y-3">
                     <div
-                        v-for="subject in subjects"
+                        v-for="subject in visibleSubjects"
                         :key="subject.id"
                         class="flex items-center gap-3 rounded-2xl border border-sidebar-border/70 bg-white px-5 py-4 dark:bg-sidebar"
                     >
@@ -215,6 +271,23 @@ async function deleteSubject(subject: Subject) {
                                 <Trash2 class="h-3.5 w-3.5" />
                             </Button>
                         </div>
+                    </div>
+
+                    <!-- Show more -->
+                    <div
+                        v-if="visibleSubjectCount < filteredSubjects.length"
+                        class="pt-1 text-center"
+                    >
+                        <button
+                            type="button"
+                            class="text-xs font-semibold text-orange-500 hover:underline"
+                            @click="visibleSubjectCount += 15"
+                        >
+                            Show more ({{
+                                filteredSubjects.length - visibleSubjectCount
+                            }}
+                            remaining)
+                        </button>
                     </div>
                 </div>
             </div>

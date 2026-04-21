@@ -91,6 +91,15 @@ const filteredClasses = computed(() => {
     );
 });
 
+const visibleClassCount = ref(10);
+const visibleClasses = computed(() =>
+    filteredClasses.value.slice(0, visibleClassCount.value),
+);
+
+watch(classSearch, () => {
+    visibleClassCount.value = 10;
+});
+
 const form = useForm({
     faculty_id: '' as string | number,
     subject_id: '' as string | null,
@@ -361,7 +370,7 @@ const activeCount = computed(
                 <!-- Class Cards -->
                 <div v-else class="space-y-3">
                     <div
-                        v-for="schoolClass in filteredClasses"
+                        v-for="schoolClass in visibleClasses"
                         :key="schoolClass.id"
                         class="overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-md"
                     >
@@ -519,6 +528,23 @@ const activeCount = computed(
                                 No join link
                             </span>
                         </div>
+                    </div>
+
+                    <!-- Show more -->
+                    <div
+                        v-if="visibleClassCount < filteredClasses.length"
+                        class="pt-1 text-center"
+                    >
+                        <button
+                            type="button"
+                            class="text-xs font-semibold text-orange-500 hover:underline"
+                            @click="visibleClassCount += 10"
+                        >
+                            Show more ({{
+                                filteredClasses.length - visibleClassCount
+                            }}
+                            remaining)
+                        </button>
                     </div>
                 </div>
             </div>

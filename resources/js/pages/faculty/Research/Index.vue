@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { watchDebounced } from '@vueuse/core';
 import {
+    ChevronLeft,
+    ChevronRight,
     FileSearch,
     Filter,
     Loader2,
@@ -9,7 +10,7 @@ import {
     ScrollText,
     Users,
 } from 'lucide-vue-next';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
@@ -49,14 +50,29 @@ interface Paper {
     created_at?: string;
 }
 
+interface Paginator<T> {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    links: { url: string | null; label: string; active: boolean }[];
+}
+
 interface Props {
     class?: SchoolClass;
     schoolClass?: SchoolClass;
-    papers: Paper[];
+    papers: Paginator<Paper>;
     sdgs: SdgItem[];
     agendas: AgendaItem[];
     stepCounts: Record<string, number>;
     stepLabels: Record<string, string>;
+    filters: {
+        search?: string | null;
+        step?: string | null;
+    };
 }
 
 const props = defineProps<Props>();
@@ -94,10 +110,12 @@ function paperAgendas(paper: Paper): AgendaItem[] {
         .map((id) => agendaMap.value.get(id))
         .filter((a): a is AgendaItem => !!a);
 }
-const activeStep = ref<string>('all');
-const searchQuery = ref('');
-const debouncedSearch = ref('');
+
+const search = ref(props.filters.search ?? '');
+const selectedStep = ref(props.filters.step ?? '');
 const loading = ref(false);
+const mounted = ref(false);
+let debounce: ReturnType<typeof setTimeout>;
 
 const stopStart = router.on('start', () => {
     loading.value = true;
@@ -110,17 +128,29 @@ onUnmounted(() => {
     stopFinish();
 });
 
-watch(searchQuery, () => {
-    loading.value = true;
+onMounted(() => {
+    mounted.value = true;
 });
-watchDebounced(
-    searchQuery,
-    (val) => {
-        debouncedSearch.value = val;
-        loading.value = false;
-    },
-    { debounce: 300 },
-);
+
+function applyFilters() {
+    if (!mounted.value) {
+        return;
+    }
+
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+        router.get(
+            research.index.url({ class: schoolClass.value?.id ?? '' }),
+            {
+                search: search.value || undefined,
+                step: selectedStep.value || undefined,
+            },
+            { preserveState: true, replace: true },
+        );
+    }, 350);
+}
+
+watch([search, selectedStep], applyFilters);
 
 const orderedSteps = [
     'title_proposal',
@@ -134,39 +164,18 @@ const orderedSteps = [
     'completed',
 ];
 
-const stepPills = computed(() => {
-    const allCount = props.papers.length;
+const totalPaperCount = computed(() =>
+    Object.values(props.stepCounts).reduce((s, c) => s + c, 0),
+);
 
-    return [
-        { key: 'all', label: 'All', count: allCount },
-        ...orderedSteps.map((step) => ({
-            key: step,
-            label: props.stepLabels[step] ?? step,
-            count: Number(props.stepCounts[step] ?? 0),
-        })),
-    ];
-});
-
-const filteredPapers = computed(() => {
-    let list = props.papers;
-
-    if (activeStep.value !== 'all') {
-        list = list.filter((p) => p.current_step === activeStep.value);
-    }
-
-    const q = debouncedSearch.value.trim().toLowerCase();
-
-    if (q) {
-        list = list.filter(
-            (p) =>
-                p.title.toLowerCase().includes(q) ||
-                p.tracking_id.toLowerCase().includes(q) ||
-                studentName(p).toLowerCase().includes(q),
-        );
-    }
-
-    return list;
-});
+const stepPills = computed(() => [
+    { key: '', label: 'All', count: totalPaperCount.value },
+    ...orderedSteps.map((step) => ({
+        key: step,
+        label: props.stepLabels[step] ?? step,
+        count: Number(props.stepCounts[step] ?? 0),
+    })),
+]);
 
 const completedCount = computed(() => props.stepCounts['completed'] ?? 0);
 
@@ -226,7 +235,7 @@ defineOptions({
                             Papers
                         </div>
                         <p class="mt-1 text-xl font-bold text-foreground">
-                            {{ papers.length }}
+                            {{ totalPaperCount }}
                         </p>
                     </div>
                     <div
@@ -272,7 +281,7 @@ defineOptions({
                         class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-orange-500"
                     />
                     <input
-                        v-model="searchQuery"
+                        v-model="search"
                         type="text"
                         placeholder="Search by title, tracking ID, or student..."
                         class="w-full rounded-xl border border-input bg-background py-2.5 pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
@@ -291,10 +300,10 @@ defineOptions({
                         v-for="pill in stepPills"
                         :key="pill.key"
                         type="button"
-                        @click="activeStep = pill.key"
+                        @click="selectedStep = pill.key"
                         :class="[
                             'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
-                            activeStep === pill.key
+                            selectedStep === pill.key
                                 ? 'border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
                                 : 'border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-orange-600',
                         ]"
@@ -315,19 +324,19 @@ defineOptions({
             class="flex items-center justify-between text-xs text-muted-foreground"
         >
             <span v-if="loading" class="italic">Fetching results…</span>
-            <span v-else-if="filteredPapers.length === 0">No results</span>
+            <template v-else-if="papers.total === 0">
+                <span>No results</span>
+            </template>
             <span v-else>
                 Showing
+                <span class="font-semibold text-foreground"
+                    >{{ papers.from }}–{{ papers.to }}</span
+                >
+                of
                 <span class="font-semibold text-foreground">{{
-                    filteredPapers.length
+                    papers.total
                 }}</span>
-                <template v-if="filteredPapers.length !== papers.length">
-                    of
-                    <span class="font-semibold text-foreground">{{
-                        papers.length
-                    }}</span>
-                </template>
-                {{ filteredPapers.length === 1 ? 'paper' : 'papers' }}
+                {{ papers.total === 1 ? 'paper' : 'papers' }}
             </span>
         </div>
 
@@ -348,7 +357,7 @@ defineOptions({
                     >
                 </div>
             </div>
-            <div v-if="filteredPapers.length === 0" class="p-12 text-center">
+            <div v-if="papers.data.length === 0" class="p-12 text-center">
                 <div
                     class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30"
                 >
@@ -406,7 +415,7 @@ defineOptions({
                     </thead>
                     <tbody class="divide-y divide-border">
                         <tr
-                            v-for="paper in filteredPapers"
+                            v-for="paper in papers.data"
                             :key="paper.id"
                             class="hover:bg-muted/50"
                         >
@@ -512,5 +521,48 @@ defineOptions({
                 </table>
             </div>
         </section>
+
+        <!-- Pagination -->
+        <div
+            v-if="papers.last_page > 1"
+            class="flex items-center justify-end text-sm"
+        >
+            <div class="flex items-center gap-1">
+                <template
+                    v-for="(link, index) in papers.links"
+                    :key="link.label"
+                >
+                    <button
+                        v-if="index === 0"
+                        :disabled="!link.url"
+                        class="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        <ChevronLeft class="h-4 w-4" />
+                    </button>
+                    <button
+                        v-else-if="index === papers.links.length - 1"
+                        :disabled="!link.url"
+                        class="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        <ChevronRight class="h-4 w-4" />
+                    </button>
+                    <button
+                        v-else
+                        :disabled="!link.url"
+                        :class="[
+                            'min-w-[2rem] rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                            link.active
+                                ? 'border-orange-500 bg-orange-500 text-white'
+                                : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ]"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        {{ link.label }}
+                    </button>
+                </template>
+            </div>
+        </div>
     </div>
 </template>

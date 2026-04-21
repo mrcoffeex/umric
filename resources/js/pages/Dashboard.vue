@@ -34,7 +34,10 @@ import { getStepBadgeClass } from '@/lib/step-colors';
 import { dashboard } from '@/routes';
 import admin from '@/routes/admin';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
-import { index as facultyResearchIndex } from '@/routes/faculty/research';
+import {
+    index as facultyResearchIndex,
+    show as facultyResearchShow,
+} from '@/routes/faculty/research';
 import {
     create as papersCreate,
     index as papersIndex,
@@ -495,6 +498,10 @@ function paperLink(paperId: string): string {
         return admin.research.show.url({ paper: paperId });
     }
 
+    if (props.role === 'faculty') {
+        return facultyResearchShow.url(paperId);
+    }
+
     return papersShow.url({ paper: paperId });
 }
 
@@ -841,7 +848,9 @@ defineOptions({
                             :href="
                                 role === 'admin' || role === 'staff'
                                     ? admin.research.index.url()
-                                    : papersIndex.url()
+                                    : role === 'faculty'
+                                      ? facultyResearchIndex.url()
+                                      : papersIndex.url()
                             "
                             class="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
                         >

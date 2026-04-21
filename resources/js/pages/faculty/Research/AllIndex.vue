@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { watchDebounced } from '@vueuse/core';
 import {
+    ChevronLeft,
+    ChevronRight,
     ChevronDown,
     FileSearch,
     Filter,
@@ -12,7 +13,7 @@ import {
     Search,
     Target,
 } from 'lucide-vue-next';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
@@ -55,13 +56,31 @@ interface Paper {
     school_class?: SchoolClassInfo | null;
 }
 
+interface Paginator<T> {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    links: { url: string | null; label: string; active: boolean }[];
+}
+
 interface Props {
-    papers: Paper[];
+    papers: Paginator<Paper>;
     classes: SchoolClassInfo[];
     sdgs: SdgItem[];
     agendas: AgendaItem[];
     stepCounts: Record<string, number>;
     stepLabels: Record<string, string>;
+    filters: {
+        search?: string | null;
+        step?: string | null;
+        sdg?: string | null;
+        agenda?: string | null;
+        class?: string | null;
+    };
 }
 
 const props = defineProps<Props>();
@@ -97,9 +116,18 @@ function paperAgendas(paper: Paper): AgendaItem[] {
         .map((id) => agendaMap.value.get(id))
         .filter((a): a is AgendaItem => !!a);
 }
-const searchQuery = ref('');
-const debouncedSearch = ref('');
+
+const search = ref(props.filters.search ?? '');
+const selectedStep = ref(props.filters.step ?? '');
+const selectedClass = ref(props.filters.class ?? '');
+const selectedSdg = ref(props.filters.sdg ?? '');
+const selectedAgenda = ref(props.filters.agenda ?? '');
+const filtersOpen = ref(
+    !!props.filters.sdg || !!props.filters.agenda || !!props.filters.class,
+);
+const mounted = ref(false);
 const loading = ref(false);
+let debounce: ReturnType<typeof setTimeout>;
 
 const stopStart = router.on('start', () => {
     loading.value = true;
@@ -112,22 +140,35 @@ onUnmounted(() => {
     stopFinish();
 });
 
-watch(searchQuery, () => {
-    loading.value = true;
+onMounted(() => {
+    mounted.value = true;
 });
-watchDebounced(
-    searchQuery,
-    (val) => {
-        debouncedSearch.value = val;
-        loading.value = false;
-    },
-    { debounce: 300 },
+
+function applyFilters() {
+    if (!mounted.value) {
+        return;
+    }
+
+    clearTimeout(debounce);
+    debounce = setTimeout(() => {
+        router.get(
+            researchIndex(),
+            {
+                search: search.value || undefined,
+                step: selectedStep.value || undefined,
+                class: selectedClass.value || undefined,
+                sdg: selectedSdg.value || undefined,
+                agenda: selectedAgenda.value || undefined,
+            },
+            { preserveState: true, replace: true },
+        );
+    }, 350);
+}
+
+watch(
+    [search, selectedStep, selectedClass, selectedSdg, selectedAgenda],
+    applyFilters,
 );
-const filtersOpen = ref(false);
-const activeStep = ref<string>('all');
-const activeClass = ref<number | 'all'>('all');
-const activeSdg = ref<string>('all');
-const activeAgenda = ref<string>('all');
 
 const orderedSteps = [
     'title_proposal',
@@ -141,82 +182,31 @@ const orderedSteps = [
     'completed',
 ];
 
-const baseFilteredPapers = computed(() => {
-    let result = props.papers as Paper[];
+const totalPaperCount = computed(() =>
+    Object.values(props.stepCounts).reduce((s, c) => s + c, 0),
+);
 
-    const q = debouncedSearch.value.trim().toLowerCase();
-
-    if (q) {
-        result = result.filter(
-            (p) =>
-                p.title.toLowerCase().includes(q) ||
-                p.tracking_id.toLowerCase().includes(q) ||
-                (p.student?.name ?? '').toLowerCase().includes(q),
-        );
-    }
-
-    if (activeClass.value !== 'all') {
-        result = result.filter((p) => p.school_class?.id === activeClass.value);
-    }
-
-    if (activeSdg.value !== 'all') {
-        result = result.filter((p) =>
-            (p.sdg_ids ?? []).includes(activeSdg.value),
-        );
-    }
-
-    if (activeAgenda.value !== 'all') {
-        result = result.filter((p) =>
-            (p.agenda_ids ?? []).includes(activeAgenda.value),
-        );
-    }
-
-    return result;
-});
-
-const stepPills = computed(() => {
-    return [
-        { key: 'all', label: 'All', count: baseFilteredPapers.value.length },
-        ...orderedSteps.map((step) => ({
-            key: step,
-            label: props.stepLabels[step] ?? step,
-            count: baseFilteredPapers.value.filter(
-                (p) => p.current_step === step,
-            ).length,
-        })),
-    ];
-});
-
-const filteredPapers = computed(() => {
-    if (activeStep.value === 'all') {
-        return baseFilteredPapers.value;
-    }
-
-    return baseFilteredPapers.value.filter(
-        (p) => p.current_step === activeStep.value,
-    );
-});
+const stepPills = computed(() => [
+    { key: '', label: 'All', count: totalPaperCount.value },
+    ...orderedSteps.map((step) => ({
+        key: step,
+        label: props.stepLabels[step] ?? step,
+        count: Number(props.stepCounts[step] ?? 0),
+    })),
+]);
 
 const activeFilterCount = computed(() => {
     let count = 0;
 
-    if (searchQuery.value.trim()) {
+    if (selectedClass.value) {
         count++;
     }
 
-    if (activeClass.value !== 'all') {
+    if (selectedSdg.value) {
         count++;
     }
 
-    if (activeSdg.value !== 'all') {
-        count++;
-    }
-
-    if (activeAgenda.value !== 'all') {
-        count++;
-    }
-
-    if (activeStep.value !== 'all') {
+    if (selectedAgenda.value) {
         count++;
     }
 
@@ -224,11 +214,9 @@ const activeFilterCount = computed(() => {
 });
 
 function clearAllFilters() {
-    searchQuery.value = '';
-    activeClass.value = 'all';
-    activeSdg.value = 'all';
-    activeAgenda.value = 'all';
-    activeStep.value = 'all';
+    selectedClass.value = '';
+    selectedSdg.value = '';
+    selectedAgenda.value = '';
 }
 
 function stepLabel(step: string): string {
@@ -277,7 +265,7 @@ defineOptions({
                         Total Papers
                     </p>
                     <p class="text-lg font-bold text-foreground">
-                        {{ papers.length }}
+                        {{ totalPaperCount }}
                     </p>
                 </div>
             </div>
@@ -331,7 +319,7 @@ defineOptions({
                         class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-orange-500"
                     />
                     <input
-                        v-model="searchQuery"
+                        v-model="search"
                         type="text"
                         placeholder="Search by title, tracking ID, or student name..."
                         class="w-full rounded-xl border border-input bg-background py-2.5 pr-3 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
@@ -385,18 +373,15 @@ defineOptions({
                             <GraduationCap class="h-3.5 w-3.5" /> Class
                         </p>
                         <select
-                            :value="activeClass"
+                            :value="selectedClass"
                             class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                             @change="
-                                activeClass =
+                                selectedClass =
                                     ($event.target as HTMLSelectElement)
                                         .value === 'all'
-                                        ? 'all'
-                                        : Number(
-                                              (
-                                                  $event.target as HTMLSelectElement
-                                              ).value,
-                                          )
+                                        ? ''
+                                        : ($event.target as HTMLSelectElement)
+                                              .value
                             "
                         >
                             <option value="all">All Classes</option>
@@ -423,11 +408,11 @@ defineOptions({
                                 type="button"
                                 :class="[
                                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                    activeSdg === 'all'
+                                    selectedSdg === ''
                                         ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
                                         : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600',
                                 ]"
-                                @click="activeSdg = 'all'"
+                                @click="selectedSdg = ''"
                             >
                                 All
                             </button>
@@ -437,12 +422,12 @@ defineOptions({
                                 type="button"
                                 :class="[
                                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                    activeSdg === sdg.id
+                                    selectedSdg === sdg.id
                                         ? 'border-teal-500 bg-teal-50 text-teal-700 dark:border-teal-700 dark:bg-teal-950/30 dark:text-teal-300'
                                         : 'border-border bg-card text-muted-foreground hover:border-teal-300 hover:text-teal-600',
                                 ]"
                                 :title="sdg.name"
-                                @click="activeSdg = sdg.id"
+                                @click="selectedSdg = sdg.id"
                             >
                                 <span
                                     class="inline-block h-2 w-2 rounded-full"
@@ -465,11 +450,11 @@ defineOptions({
                                 type="button"
                                 :class="[
                                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                    activeAgenda === 'all'
+                                    selectedAgenda === ''
                                         ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
                                         : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600',
                                 ]"
-                                @click="activeAgenda = 'all'"
+                                @click="selectedAgenda = ''"
                             >
                                 All
                             </button>
@@ -479,12 +464,12 @@ defineOptions({
                                 type="button"
                                 :class="[
                                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                    activeAgenda === agenda.id
+                                    selectedAgenda === agenda.id
                                         ? 'border-violet-500 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
                                         : 'border-border bg-card text-muted-foreground hover:border-violet-300 hover:text-violet-600',
                                 ]"
                                 :title="agenda.name"
-                                @click="activeAgenda = agenda.id"
+                                @click="selectedAgenda = agenda.id"
                             >
                                 {{ agenda.name }}
                             </button>
@@ -505,11 +490,11 @@ defineOptions({
                                 type="button"
                                 :class="[
                                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors',
-                                    activeStep === pill.key
+                                    selectedStep === pill.key
                                         ? 'border-orange-500 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300'
                                         : 'border-border bg-card text-muted-foreground hover:border-orange-300 hover:text-orange-600',
                                 ]"
-                                @click="activeStep = pill.key"
+                                @click="selectedStep = pill.key"
                             >
                                 {{ pill.label }}
                                 <span
@@ -528,19 +513,19 @@ defineOptions({
             class="flex items-center justify-between text-xs text-muted-foreground"
         >
             <span v-if="loading" class="italic">Fetching results…</span>
-            <span v-else-if="filteredPapers.length === 0">No results</span>
+            <template v-else-if="papers.total === 0">
+                <span>No results</span>
+            </template>
             <span v-else>
                 Showing
+                <span class="font-semibold text-foreground"
+                    >{{ papers.from }}–{{ papers.to }}</span
+                >
+                of
                 <span class="font-semibold text-foreground">{{
-                    filteredPapers.length
+                    papers.total
                 }}</span>
-                <template v-if="filteredPapers.length !== papers.length">
-                    of
-                    <span class="font-semibold text-foreground">{{
-                        papers.length
-                    }}</span>
-                </template>
-                {{ filteredPapers.length === 1 ? 'paper' : 'papers' }}
+                {{ papers.total === 1 ? 'paper' : 'papers' }}
             </span>
         </div>
 
@@ -562,7 +547,7 @@ defineOptions({
                     >
                 </div>
             </div>
-            <div v-if="filteredPapers.length === 0" class="p-12 text-center">
+            <div v-if="papers.data.length === 0" class="p-12 text-center">
                 <div
                     class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30"
                 >
@@ -620,7 +605,7 @@ defineOptions({
                     </thead>
                     <tbody class="divide-y divide-border">
                         <tr
-                            v-for="paper in filteredPapers"
+                            v-for="paper in papers.data"
                             :key="paper.id"
                             class="hover:bg-muted/50"
                         >
@@ -734,5 +719,48 @@ defineOptions({
                 </table>
             </div>
         </section>
+
+        <!-- Pagination -->
+        <div
+            v-if="papers.last_page > 1"
+            class="flex items-center justify-end text-sm"
+        >
+            <div class="flex items-center gap-1">
+                <template
+                    v-for="(link, index) in papers.links"
+                    :key="link.label"
+                >
+                    <button
+                        v-if="index === 0"
+                        :disabled="!link.url"
+                        class="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        <ChevronLeft class="h-4 w-4" />
+                    </button>
+                    <button
+                        v-else-if="index === papers.links.length - 1"
+                        :disabled="!link.url"
+                        class="rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        <ChevronRight class="h-4 w-4" />
+                    </button>
+                    <button
+                        v-else
+                        :disabled="!link.url"
+                        :class="[
+                            'min-w-[2rem] rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                            link.active
+                                ? 'border-orange-500 bg-orange-500 text-white'
+                                : 'border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
+                        ]"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        {{ link.label }}
+                    </button>
+                </template>
+            </div>
+        </div>
     </div>
 </template>

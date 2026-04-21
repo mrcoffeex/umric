@@ -19,6 +19,7 @@ class AllResearchController extends Controller
     public function index(Request $request): Response
     {
         $facultyUserId = $request->user()->id;
+        $facultyName = $request->user()->name;
 
         $classIds = SchoolClass::query()
             ->where('faculty_id', $facultyUserId)
@@ -29,34 +30,63 @@ class AllResearchController extends Controller
             ->pluck('student_id')
             ->all();
 
-        $facultyName = $request->user()->name;
-
-        $papers = ResearchPaper::query()
-            ->where(function ($query) use ($studentIds, $facultyUserId, $facultyName) {
-                if ($studentIds !== []) {
-                    $query->whereIn('user_id', $studentIds)
-                        ->orWhere('adviser_id', $facultyUserId)
-                        ->orWhere('statistician_id', $facultyUserId)
-                        ->orWhereHas('panelDefenses', fn ($q) => $q->whereRaw(
-                            'panel_members::jsonb @> ?::jsonb',
-                            [json_encode([$facultyName])]
-                        ));
-
-                    return;
-                }
-
-                $query->where('adviser_id', $facultyUserId)
+        $facultyScope = function ($query) use ($studentIds, $facultyUserId, $facultyName) {
+            if ($studentIds !== []) {
+                $query->whereIn('user_id', $studentIds)
+                    ->orWhere('adviser_id', $facultyUserId)
                     ->orWhere('statistician_id', $facultyUserId)
                     ->orWhereHas('panelDefenses', fn ($q) => $q->whereRaw(
                         'panel_members::jsonb @> ?::jsonb',
                         [json_encode([$facultyName])]
                     ));
-            })
-            ->with(['user'])
-            ->latest()
-            ->get();
 
-        $studentIdsFromPapers = $papers->pluck('user_id')
+                return;
+            }
+
+            $query->where('adviser_id', $facultyUserId)
+                ->orWhere('statistician_id', $facultyUserId)
+                ->orWhereHas('panelDefenses', fn ($q) => $q->whereRaw(
+                    'panel_members::jsonb @> ?::jsonb',
+                    [json_encode([$facultyName])]
+                ));
+        };
+
+        $paperQuery = ResearchPaper::query()
+            ->where($facultyScope)
+            ->with(['user']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $paperQuery->where(function ($q) use ($search) {
+                $q->where('title', 'ilike', "%{$search}%")
+                    ->orWhere('tracking_id', 'ilike', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
+            });
+        }
+
+        if ($request->filled('step')) {
+            $paperQuery->where('current_step', $request->step);
+        }
+
+        if ($request->filled('class')) {
+            $paperQuery->whereIn('user_id', function ($sub) use ($request) {
+                $sub->select('student_id')
+                    ->from('school_class_members')
+                    ->where('school_class_id', $request->input('class'));
+            });
+        }
+
+        if ($request->filled('sdg')) {
+            $paperQuery->whereJsonContains('sdg_ids', $request->sdg);
+        }
+
+        if ($request->filled('agenda')) {
+            $paperQuery->whereJsonContains('agenda_ids', $request->agenda);
+        }
+
+        $papers = $paperQuery->latest()->paginate(20)->withQueryString();
+
+        $studentIdsFromPapers = $papers->getCollection()->pluck('user_id')
             ->filter()
             ->unique()
             ->values()
@@ -80,63 +110,60 @@ class AllResearchController extends Controller
                 ->keyBy('id');
         }
 
-        $papers = $papers->map(function (ResearchPaper $paper) use ($classesById, $studentClassMap) {
-            $classMembership = $studentClassMap->get($paper->user_id);
-            $studentClass = $classMembership
-                ? $classesById->get($classMembership->school_class_id)
-                : null;
+        $papers->setCollection(
+            $papers->getCollection()->map(function (ResearchPaper $paper) use ($classesById, $studentClassMap) {
+                $classMembership = $studentClassMap->get($paper->user_id);
+                $studentClass = $classMembership
+                    ? $classesById->get($classMembership->school_class_id)
+                    : null;
 
-            return [
-                'id' => $paper->id,
-                'tracking_id' => $paper->tracking_id,
-                'title' => $paper->title,
-                'status' => $paper->status,
-                'current_step' => $paper->current_step,
-                'step_label' => $paper->step_label,
-                'grade' => $paper->grade,
-                'sdg_ids' => $paper->sdg_ids ?? [],
-                'agenda_ids' => $paper->agenda_ids ?? [],
-                'outline_defense_schedule' => $paper->outline_defense_schedule?->toISOString(),
-                'final_defense_schedule' => $paper->final_defense_schedule?->toISOString(),
-                'student' => $paper->user ? [
-                    'id' => $paper->user->id,
-                    'name' => $paper->user->name,
-                ] : null,
-                'school_class' => $studentClass ? [
-                    'id' => $studentClass->id,
-                    'name' => $studentClass->name,
-                    'section' => $studentClass->section,
-                    'class_code' => $studentClass->class_code,
-                ] : null,
-            ];
-        });
+                return [
+                    'id' => $paper->id,
+                    'tracking_id' => $paper->tracking_id,
+                    'title' => $paper->title,
+                    'status' => $paper->status,
+                    'current_step' => $paper->current_step,
+                    'step_label' => $paper->step_label,
+                    'grade' => $paper->grade,
+                    'sdg_ids' => $paper->sdg_ids ?? [],
+                    'agenda_ids' => $paper->agenda_ids ?? [],
+                    'outline_defense_schedule' => $paper->outline_defense_schedule?->toISOString(),
+                    'final_defense_schedule' => $paper->final_defense_schedule?->toISOString(),
+                    'student' => $paper->user ? [
+                        'id' => $paper->user->id,
+                        'name' => $paper->user->name,
+                    ] : null,
+                    'school_class' => $studentClass ? [
+                        'id' => $studentClass->id,
+                        'name' => $studentClass->name,
+                        'section' => $studentClass->section,
+                        'class_code' => $studentClass->class_code,
+                    ] : null,
+                ];
+            })
+        );
 
-        $classIdsFromPapers = $papers->pluck('school_class.id')
-            ->filter()
-            ->unique()
-            ->values();
-
-        $classIdsForFilter = $classIds
-            ->merge($classIdsFromPapers)
-            ->unique()
-            ->values();
-
-        $classes = SchoolClass::query()
-            ->whereIn('id', $classIdsForFilter)
-            ->orderBy('name')
-            ->get();
+        $stepCountsRaw = ResearchPaper::query()
+            ->where($facultyScope)
+            ->selectRaw('current_step, count(*) as cnt')
+            ->groupBy('current_step')
+            ->pluck('cnt', 'current_step');
 
         $stepCounts = [];
         foreach (ResearchPaper::STEPS as $step) {
-            $stepCounts[$step] = $papers->where('current_step', $step)->count();
+            $stepCounts[$step] = (int) ($stepCountsRaw[$step] ?? 0);
         }
 
-        $classesForView = $classes->map(fn (SchoolClass $class) => [
-            'id' => $class->id,
-            'name' => $class->name,
-            'section' => $class->section,
-            'class_code' => $class->class_code,
-        ]);
+        $classesForView = SchoolClass::query()
+            ->whereIn('id', $classIds)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (SchoolClass $class) => [
+                'id' => $class->id,
+                'name' => $class->name,
+                'section' => $class->section,
+                'class_code' => $class->class_code,
+            ]);
 
         $sdgs = Sdg::query()
             ->where('is_active', true)
@@ -167,6 +194,7 @@ class AllResearchController extends Controller
             'agendas' => $agendas,
             'stepCounts' => $stepCounts,
             'stepLabels' => ResearchPaper::STEP_LABELS,
+            'filters' => $request->only(['search', 'step', 'sdg', 'agenda', 'class']),
         ]);
     }
 

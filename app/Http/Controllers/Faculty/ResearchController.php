@@ -28,12 +28,27 @@ class ResearchController extends Controller
             ->where('school_class_id', $class->id)
             ->pluck('student_id');
 
-        $papers = ResearchPaper::query()
+        $paperQuery = ResearchPaper::query()
             ->whereIn('user_id', $studentIds)
-            ->with(['user', 'adviser', 'statistician'])
-            ->latest()
-            ->get()
-            ->map(fn (ResearchPaper $paper) => [
+            ->with(['user', 'adviser', 'statistician']);
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $paperQuery->where(function ($q) use ($search) {
+                $q->where('title', 'ilike', "%{$search}%")
+                    ->orWhere('tracking_id', 'ilike', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
+            });
+        }
+
+        if ($request->filled('step')) {
+            $paperQuery->where('current_step', $request->step);
+        }
+
+        $papers = $paperQuery->latest()->paginate(20)->withQueryString();
+
+        $papers->setCollection(
+            $papers->getCollection()->map(fn (ResearchPaper $paper) => [
                 'id' => $paper->id,
                 'tracking_id' => $paper->tracking_id,
                 'title' => $paper->title,
@@ -59,14 +74,18 @@ class ResearchController extends Controller
                 'statistician' => $paper->statistician ? ['id' => $paper->statistician->id, 'name' => $paper->statistician->name] : null,
                 'sdg_ids' => $paper->sdg_ids ?? [],
                 'agenda_ids' => $paper->agenda_ids ?? [],
-            ]);
+            ])
+        );
+
+        $stepCountsRaw = ResearchPaper::query()
+            ->whereIn('user_id', $studentIds)
+            ->selectRaw('current_step, count(*) as cnt')
+            ->groupBy('current_step')
+            ->pluck('cnt', 'current_step');
 
         $stepCounts = [];
         foreach (ResearchPaper::STEPS as $step) {
-            $stepCounts[$step] = ResearchPaper::query()
-                ->whereIn('user_id', $studentIds)
-                ->where('current_step', $step)
-                ->count();
+            $stepCounts[$step] = (int) ($stepCountsRaw[$step] ?? 0);
         }
 
         return Inertia::render('faculty/Research/Index', [
@@ -84,6 +103,7 @@ class ResearchController extends Controller
             'stepLabels' => ResearchPaper::STEP_LABELS,
             'sdgs' => Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']),
             'agendas' => Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'filters' => $request->only(['search', 'step']),
         ]);
     }
 
