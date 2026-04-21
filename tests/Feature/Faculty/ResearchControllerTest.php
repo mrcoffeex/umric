@@ -62,7 +62,7 @@ it('allows faculty class owner to view class research index', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('faculty/Research/Index')
-            ->has('papers', 1)
+            ->has('papers.data', 1)
             ->has('schoolClass')
             ->has('stepCounts')
             ->has('stepLabels')

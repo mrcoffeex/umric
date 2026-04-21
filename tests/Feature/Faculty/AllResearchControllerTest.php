@@ -40,7 +40,7 @@ it('shows all research papers from faculty classes', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('faculty/Research/AllIndex')
-            ->has('papers', 1)
+            ->has('papers.data', 1)
             ->has('classes', 1)
             ->has('stepCounts')
             ->has('stepLabels')
@@ -85,7 +85,7 @@ it('does not include papers from other faculty classes', function () {
         ->get(route('faculty.research.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('papers', 1)
+            ->has('papers.data', 1)
         );
 });
 
@@ -126,8 +126,7 @@ it('includes papers where faculty is assigned as adviser or statistician', funct
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('faculty/Research/AllIndex')
-            ->has('papers', 2)
-            ->has('classes', 1)
+            ->has('papers.data', 2)
         );
 });
 
@@ -158,8 +157,8 @@ it('uses the student membership class for class column', function () {
         ->get(route('faculty.research.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('papers.0.school_class.id', $memberClass->id)
-            ->where('papers.0.school_class.name', $memberClass->name)
+            ->where('papers.data.0.school_class.id', $memberClass->id)
+            ->where('papers.data.0.school_class.name', $memberClass->name)
         );
 });
 
