@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Plus } from 'lucide-vue-next';
+import {
+    ArrowLeft,
+    FileText,
+    Globe,
+    Loader2,
+    Plus,
+    Sparkles,
+    Tag,
+    Target,
+    Users,
+    X,
+} from 'lucide-vue-next';
 import { computed, nextTick, ref } from 'vue';
+import { extractMetadata } from '@/actions/App/Http/Controllers/Student/ResearchController';
 import FilePreview from '@/components/FilePreview.vue';
 import MultiSelect from '@/components/MultiSelect.vue';
 import TagsInput from '@/components/TagsInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useDocumentExtractor } from '@/composables/useDocumentExtractor';
 import { search as searchProponents } from '@/routes/papers/proponents';
 import student from '@/routes/student';
 
@@ -18,6 +31,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const uploadMaxSizeMb = Number(import.meta.env.VITE_UPLOAD_MAX_SIZE_MB ?? 25);
 const sdgOptions = computed(() =>
     props.sdgs.map((s) => ({
         value: s.id,
@@ -136,168 +150,380 @@ function selectProponent(slot: number, result: SearchResult) {
     closeSearch();
 }
 
+// --- Document auto-extraction ---
+const {
+    state: extractState,
+    extract,
+    reset: resetExtract,
+} = useDocumentExtractor(extractMetadata.url());
+
+async function onFileSelected(file: File | null) {
+    form.file = file;
+
+    if (!file) {
+        resetExtract();
+
+        return;
+    }
+
+    const result = await extract(file);
+
+    if (!result) {
+        return;
+    }
+
+    if (result.title && !form.title) {
+        form.title = result.title;
+    }
+
+    if (result.abstract && !form.abstract) {
+        form.abstract = result.abstract;
+    }
+
+    if (result.keywords.length > 0 && !form.keywords) {
+        form.keywords = result.keywords.join(', ');
+    }
+}
+
 function submit() {
-    form.post(student.research.store.url());
+    form.transform((data) => ({
+        ...data,
+        proponents: data.proponents.filter((p) => p.id !== ''),
+    })).post(student.research.store.url());
 }
 </script>
-
 <template>
-    <div class="flex h-full flex-1 justify-center bg-background p-4 md:p-6">
-        <div class="w-full max-w-5xl space-y-6">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <Link :href="student.research.index()">
-                        <Button variant="outline" size="sm" class="gap-1.5">
-                            <ArrowLeft class="h-3.5 w-3.5" />
-                            Back
-                        </Button>
-                    </Link>
-                    <h1 class="text-2xl font-bold text-foreground">
+    <div class="flex h-full flex-1 flex-col bg-background">
+        <!-- Page header -->
+        <div class="border-b border-border bg-card px-4 py-4 md:px-6">
+            <div class="mx-auto flex max-w-3xl items-center gap-3">
+                <Link :href="student.research.index()">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        class="gap-1.5 text-muted-foreground hover:text-foreground"
+                    >
+                        <ArrowLeft class="h-3.5 w-3.5" />
+                        Back
+                    </Button>
+                </Link>
+                <div class="h-4 w-px bg-border" />
+                <div>
+                    <h1 class="text-lg font-bold text-foreground">
                         Create Title Proposal
                     </h1>
+                    <p class="text-xs text-muted-foreground">
+                        Fill in all required fields and submit for review.
+                    </p>
                 </div>
             </div>
+        </div>
 
-            <form @submit.prevent="submit" class="space-y-6">
+        <!-- Form body -->
+        <div class="flex-1 overflow-y-auto px-4 py-6 md:px-6">
+            <form
+                id="create-form"
+                @submit.prevent="submit"
+                class="mx-auto max-w-3xl space-y-5"
+            >
+                <!-- File Upload — at the top so the form auto-fills on file pick -->
                 <section
-                    class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                    class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
                 >
-                    <h2
-                        class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    <div
+                        class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
                     >
-                        Basic Information
-                    </h2>
-
-                    <div class="space-y-4">
+                        <div
+                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-500/20"
+                        >
+                            <FileText
+                                class="h-3.5 w-3.5 text-orange-600 dark:text-orange-400"
+                            />
+                        </div>
                         <div>
-                            <Label
-                                class="mb-1.5 block text-sm font-medium text-foreground"
+                            <h2 class="text-sm font-semibold text-foreground">
+                                Upload Document
+                            </h2>
+                            <p class="text-xs text-muted-foreground">
+                                Title, abstract, and keywords will be
+                                auto-filled.
+                            </p>
+                        </div>
+                        <span class="ml-auto text-xs text-muted-foreground"
+                            >PDF, DOCX · max {{ uploadMaxSizeMb }} MB</span
+                        >
+                    </div>
+                    <div class="p-5">
+                        <FilePreview
+                            :file="form.file"
+                            hover-border-class="hover:border-orange-400 hover:bg-orange-50/30 dark:hover:bg-orange-500/10"
+                            @update:file="onFileSelected"
+                        />
+
+                        <!-- Extraction status -->
+                        <div
+                            v-if="extractState === 'extracting'"
+                            class="mt-3 flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2.5 dark:border-orange-800 dark:bg-orange-950/20"
+                        >
+                            <Loader2
+                                class="h-3.5 w-3.5 shrink-0 animate-spin text-orange-500"
+                            />
+                            <span
+                                class="text-xs font-medium text-orange-700 dark:text-orange-400"
+                                >Analysing document — filling in fields…</span
                             >
-                                Title
-                            </Label>
+                        </div>
+
+                        <div
+                            v-else-if="extractState === 'success'"
+                            class="mt-3 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 dark:border-green-800 dark:bg-green-950/20"
+                        >
+                            <Sparkles
+                                class="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400"
+                            />
+                            <span
+                                class="text-xs font-medium text-green-700 dark:text-green-400"
+                                >Title, abstract, and keywords extracted
+                                automatically. Please review and adjust.</span
+                            >
+                        </div>
+
+                        <div
+                            v-else-if="extractState === 'partial'"
+                            class="mt-3 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 dark:border-green-800 dark:bg-green-950/20"
+                        >
+                            <Sparkles
+                                class="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400"
+                            />
+                            <span
+                                class="text-xs font-medium text-green-700 dark:text-green-400"
+                                >Some information was extracted. Please review
+                                and fill in any missing fields.</span
+                            >
+                        </div>
+
+                        <div
+                            v-else-if="extractState === 'failed'"
+                            class="mt-3 flex items-center gap-2 rounded-lg border border-muted bg-muted/40 px-3 py-2.5"
+                        >
+                            <FileText
+                                class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                            />
+                            <span class="text-xs text-muted-foreground"
+                                >Could not extract information from this
+                                document. Please fill in the fields below
+                                manually.</span
+                            >
+                        </div>
+
+                        <p
+                            v-if="form.errors.file"
+                            class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
+                        >
+                            <X class="h-3 w-3" /> {{ form.errors.file }}
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Basic Information -->
+                <section
+                    class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
+                >
+                    <div
+                        class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
+                    >
+                        <div
+                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-500/20"
+                        >
+                            <FileText
+                                class="h-3.5 w-3.5 text-orange-600 dark:text-orange-400"
+                            />
+                        </div>
+                        <h2 class="text-sm font-semibold text-foreground">
+                            Basic Information
+                        </h2>
+                        <span class="ml-auto text-xs text-red-500"
+                            >* Required</span
+                        >
+                    </div>
+                    <div class="space-y-4 p-5">
+                        <!-- Title -->
+                        <div>
+                            <div
+                                class="mb-1.5 flex items-center justify-between"
+                            >
+                                <Label
+                                    class="text-sm font-medium text-foreground"
+                                >
+                                    Title <span class="text-red-500">*</span>
+                                </Label>
+                                <span
+                                    :class="[
+                                        'text-xs tabular-nums transition',
+                                        form.title.length > 230
+                                            ? form.title.length > 255
+                                                ? 'text-red-500'
+                                                : 'text-amber-500'
+                                            : 'text-muted-foreground',
+                                    ]"
+                                >
+                                    {{ form.title.length }} / 255
+                                </span>
+                            </div>
                             <Input
                                 v-model="form.title"
-                                required
-                                placeholder="Enter title proposal"
-                                class="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm transition focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-100 dark:focus-visible:ring-orange-500/20"
+                                placeholder="Enter your research title"
+                                maxlength="255"
+                                :class="[
+                                    'h-10 w-full rounded-lg border bg-background px-3 py-2 text-sm transition',
+                                    form.errors.title
+                                        ? 'border-red-400 focus-visible:border-red-500 focus-visible:ring-2 focus-visible:ring-red-100 dark:focus-visible:ring-red-500/20'
+                                        : 'border-input focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-100 dark:focus-visible:ring-orange-500/20',
+                                ]"
                             />
                             <p
                                 v-if="form.errors.title"
-                                class="mt-1 text-xs text-red-500"
+                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
                             >
-                                {{ form.errors.title }}
+                                <X class="h-3 w-3" /> {{ form.errors.title }}
                             </p>
                         </div>
 
+                        <!-- Abstract -->
                         <div>
                             <Label
                                 class="mb-1.5 block text-sm font-medium text-foreground"
+                                >Abstract</Label
                             >
-                                Abstract
-                            </Label>
                             <textarea
                                 v-model="form.abstract"
-                                rows="5"
-                                required
-                                placeholder="Write a concise abstract for this proposal"
-                                class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground transition outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-500/20"
+                                rows="6"
+                                placeholder="Write a concise abstract summarising your research proposal, methodology, and expected outcomes..."
+                                :class="[
+                                    'w-full resize-y rounded-lg border bg-background px-3 py-2.5 text-sm text-foreground transition outline-none',
+                                    form.errors.abstract
+                                        ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20'
+                                        : 'border-input focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-500/20',
+                                ]"
                             />
                             <p
                                 v-if="form.errors.abstract"
-                                class="mt-1 text-xs text-red-500"
+                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
                             >
-                                {{ form.errors.abstract }}
+                                <X class="h-3 w-3" /> {{ form.errors.abstract }}
                             </p>
                         </div>
                     </div>
                 </section>
 
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <section
-                        class="rounded-xl border border-border bg-card p-6 shadow-sm"
-                    >
-                        <h2
-                            class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
-                        >
-                            SDG
-                        </h2>
-                        <Label
-                            class="mb-1.5 block text-sm font-medium text-foreground"
-                        >
-                            Sustainable Development Goals
-                        </Label>
-                        <MultiSelect
-                            v-model="form.sdg_ids"
-                            :options="sdgOptions"
-                            search-placeholder="Search SDGs…"
-                            checkbox-accent-class="accent-orange-500"
-                        />
-                        <p
-                            v-if="form.errors.sdg_ids"
-                            class="mt-1 text-xs text-red-500"
-                        >
-                            {{ form.errors.sdg_ids }}
-                        </p>
-                    </section>
-
-                    <section
-                        class="rounded-xl border border-border bg-card p-6 shadow-sm"
-                    >
-                        <h2
-                            class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
-                        >
-                            Agenda
-                        </h2>
-                        <Label
-                            class="mb-1.5 block text-sm font-medium text-foreground"
-                        >
-                            Research Agenda
-                        </Label>
-                        <MultiSelect
-                            v-model="form.agenda_ids"
-                            :options="agendaOptions"
-                            search-placeholder="Search agendas…"
-                            checkbox-accent-class="accent-orange-500"
-                        />
-                        <p
-                            v-if="form.errors.agenda_ids"
-                            class="mt-1 text-xs text-red-500"
-                        >
-                            {{ form.errors.agenda_ids }}
-                        </p>
-                    </section>
-                </div>
-
+                <!-- Keywords -->
                 <section
-                    class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                    class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
                 >
-                    <h2
-                        class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    <div
+                        class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
                     >
-                        Proponents / Researchers
-                    </h2>
+                        <div
+                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-500/20"
+                        >
+                            <Tag
+                                class="h-3.5 w-3.5 text-violet-600 dark:text-violet-400"
+                            />
+                        </div>
+                        <h2 class="text-sm font-semibold text-foreground">
+                            Keywords
+                        </h2>
+                        <span
+                            v-if="form.keywords"
+                            class="ml-auto rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/20 dark:text-violet-400"
+                        >
+                            {{
+                                form.keywords.split(',').filter(Boolean).length
+                            }}
+                            added
+                        </span>
+                    </div>
+                    <div class="p-5">
+                        <TagsInput
+                            v-model="form.keywords"
+                            placeholder="Add keyword…"
+                            wrapper-focus-class="focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-400/30"
+                        />
+                        <p class="mt-1.5 text-xs text-muted-foreground">
+                            Press Enter or comma to add a keyword. Auto-filled
+                            from the document.
+                        </p>
+                        <p
+                            v-if="form.errors.keywords"
+                            class="mt-1 flex items-center gap-1 text-xs text-red-500"
+                        >
+                            <X class="h-3 w-3" /> {{ form.errors.keywords }}
+                        </p>
+                    </div>
+                </section>
 
-                    <div class="space-y-2">
+                <!-- Proponents -->
+                <section
+                    class="rounded-xl border border-border bg-card shadow-xs"
+                >
+                    <div
+                        class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
+                    >
+                        <div
+                            class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-500/20"
+                        >
+                            <Users
+                                class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+                            />
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-semibold text-foreground">
+                                Proponents
+                            </h2>
+                        </div>
+                        <span
+                            class="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                        >
+                            {{ form.proponents.filter((p) => p.id).length }} / 3
+                        </span>
+                    </div>
+                    <div class="space-y-2 p-5">
+                        <!-- Slot 0: always you -->
                         <div class="flex items-center gap-2">
+                            <span
+                                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
+                                >1</span
+                            >
                             <div
                                 class="flex h-10 flex-1 items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm text-foreground"
                             >
                                 <span
-                                    class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
+                                    class="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
                                     >You</span
                                 >
                                 {{ form.proponents[0]?.name }}
                             </div>
                         </div>
 
+                        <!-- Additional proponent slots -->
                         <div
                             v-for="(proponent, idx) in form.proponents.slice(1)"
                             :key="idx + 1"
-                            class="relative flex items-center gap-2"
+                            class="flex items-center gap-2"
                         >
+                            <span
+                                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground"
+                                >{{ idx + 2 }}</span
+                            >
+
                             <template v-if="activeSearchSlot !== idx + 1">
                                 <div
-                                    class="flex h-10 flex-1 cursor-pointer items-center rounded-lg border border-input bg-background px-3 py-2 text-sm transition hover:border-orange-400"
+                                    :class="[
+                                        'flex h-10 flex-1 cursor-pointer items-center rounded-lg border px-3 py-2 text-sm transition',
+                                        proponent.id
+                                            ? 'border-input bg-background text-foreground hover:border-orange-400'
+                                            : 'border-dashed border-orange-300 bg-orange-50/50 text-muted-foreground hover:border-orange-400 hover:bg-orange-50 dark:border-orange-800 dark:bg-orange-950/10 dark:hover:bg-orange-950/20',
+                                    ]"
                                     @click="openSearch(idx + 1)"
                                 >
                                     <span
@@ -305,9 +531,13 @@ function submit() {
                                         class="text-foreground"
                                         >{{ proponent.name }}</span
                                     >
-                                    <span v-else class="text-muted-foreground"
-                                        >Click to search for a student...</span
+                                    <span
+                                        v-else
+                                        class="flex items-center gap-1.5 text-orange-600 dark:text-orange-400"
                                     >
+                                        <Plus class="h-3.5 w-3.5" /> Click to
+                                        search for a co-researcher
+                                    </span>
                                 </div>
                             </template>
 
@@ -335,7 +565,7 @@ function submit() {
                                         <li
                                             v-for="result in searchResults"
                                             :key="result.id"
-                                            class="cursor-pointer px-3 py-2 text-sm text-foreground hover:bg-muted"
+                                            class="cursor-pointer px-3 py-2.5 text-sm text-foreground hover:bg-muted"
                                             @mousedown.prevent="
                                                 selectProponent(idx + 1, result)
                                             "
@@ -347,7 +577,7 @@ function submit() {
                                         v-else-if="
                                             searchQuery.trim().length >= 2
                                         "
-                                        class="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground shadow-lg"
+                                        class="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground shadow-lg"
                                     >
                                         No students found.
                                     </div>
@@ -356,94 +586,157 @@ function submit() {
 
                             <button
                                 type="button"
-                                class="h-10 w-10 text-muted-foreground transition hover:text-red-500"
+                                class="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/20"
+                                title="Remove proponent"
                                 @click="removeProponent(idx + 1)"
                             >
-                                ×
+                                <X class="h-4 w-4" />
                             </button>
                         </div>
+
+                        <p
+                            v-if="form.errors.proponents"
+                            class="mt-1 flex items-center gap-1 text-xs text-red-500"
+                        >
+                            <X class="h-3 w-3" /> {{ form.errors.proponents }}
+                        </p>
+
+                        <button
+                            v-if="canAddProponent"
+                            type="button"
+                            class="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-orange-600 transition hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950/20"
+                            @click="addProponentSlot"
+                        >
+                            <Plus class="h-4 w-4" />
+                            Add Co-Researcher
+                        </button>
                     </div>
-
-                    <p
-                        v-if="form.errors.proponents"
-                        class="mt-1 text-xs text-red-500"
-                    >
-                        {{ form.errors.proponents }}
-                    </p>
-
-                    <button
-                        v-if="canAddProponent"
-                        type="button"
-                        class="mt-3 flex items-center gap-1 text-sm font-medium text-orange-500 hover:text-orange-600"
-                        @click="addProponentSlot"
-                    >
-                        <Plus class="h-4 w-4" />
-                        Add Proponent
-                    </button>
                 </section>
 
-                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <!-- SDG + Agenda -->
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <section
-                        class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                        class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
                     >
-                        <h2
-                            class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                        <div
+                            class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
                         >
-                            Keywords (comma-separated)
-                        </h2>
-                        <TagsInput
-                            v-model="form.keywords"
-                            placeholder="Add keyword…"
-                            wrapper-focus-class="focus-within:border-orange-400 focus-within:ring-2 focus-within:ring-orange-400/30"
-                        />
-                        <p class="mt-1 text-xs text-muted-foreground">
-                            Press Enter or comma to add a keyword.
-                        </p>
-                        <p
-                            v-if="form.errors.keywords"
-                            class="mt-1 text-xs text-red-500"
-                        >
-                            {{ form.errors.keywords }}
-                        </p>
+                            <div
+                                class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-100 dark:bg-green-500/20"
+                            >
+                                <Globe
+                                    class="h-3.5 w-3.5 text-green-600 dark:text-green-400"
+                                />
+                            </div>
+                            <h2 class="text-sm font-semibold text-foreground">
+                                SDGs
+                            </h2>
+                            <span
+                                v-if="form.sdg_ids.length"
+                                class="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                            >
+                                {{ form.sdg_ids.length }} selected
+                            </span>
+                        </div>
+                        <div class="p-5">
+                            <MultiSelect
+                                v-model="form.sdg_ids"
+                                :options="sdgOptions"
+                                search-placeholder="Search SDGs…"
+                                checkbox-accent-class="accent-orange-500"
+                            />
+                            <p
+                                v-if="form.errors.sdg_ids"
+                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
+                            >
+                                <X class="h-3 w-3" /> {{ form.errors.sdg_ids }}
+                            </p>
+                        </div>
                     </section>
 
                     <section
-                        class="rounded-xl border border-border bg-card p-6 shadow-sm"
+                        class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
                     >
-                        <h2
-                            class="mb-4 border-l-4 border-orange-500 pl-3 text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                        <div
+                            class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
                         >
-                            File Upload
-                        </h2>
-                        <FilePreview
-                            :file="form.file"
-                            hover-border-class="hover:border-orange-400 hover:bg-orange-50/30 dark:hover:bg-orange-500/10"
-                            @update:file="form.file = $event"
-                        />
-                        <p
-                            v-if="form.errors.file"
-                            class="mt-1 text-xs text-red-500"
-                        >
-                            {{ form.errors.file }}
-                        </p>
+                            <div
+                                class="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-500/20"
+                            >
+                                <Target
+                                    class="h-3.5 w-3.5 text-teal-600 dark:text-teal-400"
+                                />
+                            </div>
+                            <h2 class="text-sm font-semibold text-foreground">
+                                Agenda
+                            </h2>
+                            <span
+                                v-if="form.agenda_ids.length"
+                                class="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400"
+                            >
+                                {{ form.agenda_ids.length }} selected
+                            </span>
+                        </div>
+                        <div class="p-5">
+                            <MultiSelect
+                                v-model="form.agenda_ids"
+                                :options="agendaOptions"
+                                search-placeholder="Search agendas…"
+                                checkbox-accent-class="accent-orange-500"
+                            />
+                            <p
+                                v-if="form.errors.agenda_ids"
+                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
+                            >
+                                <X class="h-3 w-3" />
+                                {{ form.errors.agenda_ids }}
+                            </p>
+                        </div>
                     </section>
                 </div>
+            </form>
+        </div>
 
-                <div class="flex items-center justify-end gap-3">
+        <!-- Sticky submit bar -->
+        <div
+            class="border-t border-border bg-card/80 px-4 py-3 backdrop-blur-sm md:px-6"
+        >
+            <div
+                class="mx-auto flex max-w-3xl items-center justify-between gap-3"
+            >
+                <p
+                    v-if="form.hasErrors"
+                    class="flex items-center gap-1.5 text-xs text-red-500"
+                >
+                    <X class="h-3.5 w-3.5" />
+                    Please fix the errors above before submitting.
+                </p>
+                <p v-else class="text-xs text-muted-foreground">
+                    Your proposal will be submitted to your class for review.
+                </p>
+                <div class="flex items-center gap-2">
                     <Link :href="student.research.index()">
-                        <Button type="button" variant="outline">Cancel</Button>
+                        <Button type="button" variant="outline" size="sm"
+                            >Cancel</Button
+                        >
                     </Link>
                     <Button
                         type="submit"
+                        form="create-form"
+                        size="sm"
                         :disabled="form.processing"
-                        class="rounded-lg bg-orange-500 px-6 py-2 font-medium text-white transition hover:bg-orange-600"
+                        class="min-w-[130px] gap-2 bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-70"
                     >
+                        <Loader2
+                            v-if="form.processing"
+                            class="h-3.5 w-3.5 animate-spin"
+                        />
                         {{
                             form.processing ? 'Submitting…' : 'Submit Proposal'
                         }}
                     </Button>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </template>

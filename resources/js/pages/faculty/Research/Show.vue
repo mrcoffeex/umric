@@ -57,6 +57,16 @@ interface PanelDefenseRecord {
     created_at: string;
 }
 
+interface PaperFile {
+    id: string;
+    file_name: string;
+    file_path: string;
+    file_type: string;
+    file_size: number;
+    disk: string;
+    url?: string | null;
+}
+
 interface Paper {
     id: string;
     title: string;
@@ -93,6 +103,7 @@ interface Paper {
     adviser?: { id: string; name: string } | null;
     statistician?: { id: string; name: string } | null;
     school_class?: { id: string; name: string; section?: string | null } | null;
+    files?: PaperFile[] | null;
 }
 
 interface Props {
@@ -340,6 +351,22 @@ const statusTypeClasses: Record<string, string> = {
     danger: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
     neutral: 'bg-muted text-muted-foreground',
 };
+
+function fileUrl(file: PaperFile): string {
+    return file.disk === 's3' ? (file.url ?? '') : `/storage/${file.file_path}`;
+}
+
+function formatFileSize(bytes: number): string {
+    if (bytes === 0) {
+        return '0 Bytes';
+    }
+
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
 
 function formatDateTime(value?: string | null): string {
     if (!value) {
@@ -831,6 +858,84 @@ defineOptions({
                             >
                                 {{ comment.body }}
                             </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Documents -->
+                <section
+                    v-if="paper.files && paper.files.length > 0"
+                    class="rounded-2xl border border-border bg-card p-5"
+                >
+                    <div class="mb-4 flex items-center gap-2">
+                        <svg
+                            class="h-4 w-4 shrink-0 text-orange-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                            />
+                        </svg>
+                        <h2 class="text-base font-bold text-foreground">
+                            Documents
+                        </h2>
+                        <span
+                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                            >{{ paper.files.length }}</span
+                        >
+                    </div>
+                    <div class="space-y-2">
+                        <div
+                            v-for="file in paper.files"
+                            :key="file.id"
+                            class="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3 transition hover:bg-muted"
+                        >
+                            <svg
+                                class="h-8 w-8 shrink-0 text-red-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                />
+                            </svg>
+                            <div class="min-w-0 flex-1">
+                                <p
+                                    class="truncate text-sm font-medium text-foreground"
+                                >
+                                    {{ file.file_name }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ formatFileSize(file.file_size) }}
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <a
+                                    v-if="file.file_type === 'application/pdf'"
+                                    :href="fileUrl(file)"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                >
+                                    Preview
+                                </a>
+                                <a
+                                    :href="fileUrl(file)"
+                                    download
+                                    class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                >
+                                    Download
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </section>

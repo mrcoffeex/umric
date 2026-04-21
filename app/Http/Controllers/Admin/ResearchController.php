@@ -150,6 +150,7 @@ class ResearchController extends Controller
             'trackingRecords.updatedBy',
             'comments.user',
             'panelDefenses.createdBy',
+            'files',
         ]);
 
         $facultyUsers = User::whereHas('profile', fn ($q) => $q->where('role', 'faculty'))
@@ -199,6 +200,15 @@ class ResearchController extends Controller
                 ] : null,
                 'adviser' => $paper->adviser ? ['id' => $paper->adviser->id, 'name' => $paper->adviser->name] : null,
                 'statistician' => $paper->statistician ? ['id' => $paper->statistician->id, 'name' => $paper->statistician->name] : null,
+                'files' => $paper->files->map(fn ($f) => [
+                    'id' => $f->id,
+                    'file_name' => $f->file_name,
+                    'file_path' => $f->file_path,
+                    'file_type' => $f->file_type,
+                    'file_size' => $f->file_size,
+                    'disk' => $f->disk,
+                    'url' => $f->url,
+                ])->values()->all(),
             ],
             'trackingRecords' => $paper->trackingRecords->map(fn ($r) => [
                 'id' => $r->id,

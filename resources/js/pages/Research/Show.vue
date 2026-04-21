@@ -34,6 +34,9 @@ interface File {
     file_name: string;
     file_size: number;
     file_path: string;
+    file_type: string;
+    disk: string;
+    url?: string | null;
 }
 
 interface Category {
@@ -124,6 +127,10 @@ const formatFileSize = (bytes: number) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+};
+
+const fileUrl = (file: File) => {
+    return file.disk === 's3' ? (file.url ?? '') : `/storage/${file.file_path}`;
 };
 
 const copyToClipboard = async (text: string) => {
@@ -272,13 +279,24 @@ const copyToClipboard = async (text: string) => {
                                     {{ formatFileSize(file.file_size) }}
                                 </p>
                             </div>
-                            <a
-                                :href="`/storage/${file.file_path}`"
-                                download
-                                class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                            >
-                                Download
-                            </a>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <a
+                                    v-if="file.file_type === 'application/pdf'"
+                                    :href="fileUrl(file)"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                >
+                                    Preview
+                                </a>
+                                <a
+                                    :href="fileUrl(file)"
+                                    download
+                                    class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                >
+                                    Download
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </section>

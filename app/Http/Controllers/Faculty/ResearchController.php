@@ -112,7 +112,7 @@ class ResearchController extends Controller
         $this->ensurePaperBelongsToClass($class, $paper);
         $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
-        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy']);
+        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy', 'files']);
 
         return Inertia::render('faculty/Research/Show', [
             'schoolClass' => [
@@ -170,6 +170,15 @@ class ResearchController extends Controller
                 ] : null,
                 'adviser' => $paper->adviser ? ['id' => $paper->adviser->id, 'name' => $paper->adviser->name] : null,
                 'statistician' => $paper->statistician ? ['id' => $paper->statistician->id, 'name' => $paper->statistician->name] : null,
+                'files' => $paper->files->map(fn ($f) => [
+                    'id' => $f->id,
+                    'file_name' => $f->file_name,
+                    'file_path' => $f->file_path,
+                    'file_type' => $f->file_type,
+                    'file_size' => $f->file_size,
+                    'disk' => $f->disk,
+                    'url' => $f->url,
+                ])->values()->all(),
             ],
             'trackingRecords' => $paper->trackingRecords->map(fn (TrackingRecord $record) => [
                 'id' => $record->id,

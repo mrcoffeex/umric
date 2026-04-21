@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class PaperFile extends Model
 {
@@ -32,6 +33,6 @@ class PaperFile extends Model
             return $this->url ?? '';
         }
 
-        return route('papers.files.download', $this->id);
+        return Storage::disk($this->disk)->url($this->file_path);
     }
 }

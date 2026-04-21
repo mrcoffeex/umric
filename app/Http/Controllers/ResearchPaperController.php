@@ -127,7 +127,8 @@ class ResearchPaperController extends Controller
         // Store file if uploaded
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $path = $file->store('research-papers', 'public');
+            $disk = config('filesystems.default') === 's3' ? 's3' : 'public';
+            $path = $file->store('research-papers', $disk);
 
             $paper->files()->create([
                 'file_name' => $file->getClientOriginalName(),
@@ -135,7 +136,7 @@ class ResearchPaperController extends Controller
                 'file_type' => $file->getMimeType(),
                 'file_size' => $file->getSize(),
                 'file_category' => 'paper',
-                'disk' => 'public',
+                'disk' => $disk,
             ]);
         }
 
@@ -225,7 +226,8 @@ class ResearchPaperController extends Controller
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $path = $file->store('research-papers', 'public');
+            $disk = config('filesystems.default') === 's3' ? 's3' : 'public';
+            $path = $file->store('research-papers', $disk);
 
             $paper->files()->create([
                 'file_name' => $file->getClientOriginalName(),
@@ -233,7 +235,7 @@ class ResearchPaperController extends Controller
                 'file_type' => $file->getMimeType(),
                 'file_size' => $file->getSize(),
                 'file_category' => 'paper',
-                'disk' => 'public',
+                'disk' => $disk,
             ]);
         }
 

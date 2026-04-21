@@ -23,3 +23,10 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Increase upload limits for research paper file submissions (Apache mod_php).
+# Keep upload_max_filesize in sync with UPLOAD_MAX_SIZE_MB in .env.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 25M
+    php_value post_max_size 30M
+</IfModule>

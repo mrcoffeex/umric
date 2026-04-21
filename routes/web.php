@@ -134,6 +134,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::get('home', HomeController::class)->name('student.home');
         Route::get('research', [App\Http\Controllers\Student\ResearchController::class, 'index'])->name('student.research.index');
         Route::get('research/create', [App\Http\Controllers\Student\ResearchController::class, 'create'])->name('student.research.create');
+        Route::post('research/extract-metadata', [App\Http\Controllers\Student\ResearchController::class, 'extractMetadata'])->name('student.research.extract-metadata');
         Route::post('research', [App\Http\Controllers\Student\ResearchController::class, 'store'])->name('student.research.store');
         Route::get('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'show'])->name('student.research.show');
         Route::get('research/{paper}/edit', [App\Http\Controllers\Student\ResearchController::class, 'edit'])->name('student.research.edit');

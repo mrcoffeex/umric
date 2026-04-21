@@ -8,6 +8,8 @@ use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
+use App\Services\DocumentExtractorService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -54,7 +56,7 @@ class ResearchController extends Controller
             abort(403);
         }
 
-        $paper->load(['schoolClass', 'trackingRecords.updatedBy', 'adviser', 'statistician', 'panelDefenses.createdBy', 'comments.user']);
+        $paper->load(['schoolClass', 'trackingRecords.updatedBy', 'adviser', 'statistician', 'panelDefenses.createdBy', 'comments.user', 'files']);
 
         return Inertia::render('student/Research/Show', [
             'paper' => $paper,
@@ -80,6 +82,21 @@ class ResearchController extends Controller
                 'created_at' => $c->created_at->toISOString(),
             ])->values(),
         ]);
+    }
+
+    public function extractMetadata(Request $request): JsonResponse
+    {
+        if (! $request->user()->isStudent()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf,docx', 'max:'.config('uploads.max_size_kb')],
+        ]);
+
+        $result = (new DocumentExtractorService())->extract($request->file('file'));
+
+        return response()->json($result);
     }
 
     public function create(Request $request): Response
@@ -109,10 +126,11 @@ class ResearchController extends Controller
             'abstract' => ['nullable', 'string'],
             'proponents' => ['nullable', 'array'],
             'sdg_ids' => ['nullable', 'array'],
-            'sdg_ids.*' => ['integer', 'exists:sdgs,id'],
+            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
             'agenda_ids' => ['nullable', 'array'],
-            'agenda_ids.*' => ['integer', 'exists:agendas,id'],
+            'agenda_ids.*' => ['string', 'exists:agendas,id'],
             'keywords' => ['nullable', 'string', 'max:500'],
+            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
         ]);
 
         $schoolClass = SchoolClass::query()
@@ -137,6 +155,18 @@ class ResearchController extends Controller
             'submission_date' => now(),
             'status' => 'submitted',
         ]);
+
+        if ($request->hasFile('file')) {
+            $uploadedFile = $request->file('file');
+            $disk = config('filesystems.default') === 's3' ? 's3' : 'public';
+            $paper->files()->create([
+                'file_name' => $uploadedFile->getClientOriginalName(),
+                'file_path' => $uploadedFile->store('papers', $disk),
+                'file_type' => $uploadedFile->getMimeType(),
+                'file_size' => $uploadedFile->getSize(),
+                'disk' => $disk,
+            ]);
+        }
 
         TrackingRecord::log(
             $paper->id,
@@ -191,11 +221,11 @@ class ResearchController extends Controller
             'abstract' => ['nullable', 'string'],
             'proponents' => ['nullable', 'array'],
             'sdg_ids' => ['nullable', 'array'],
-            'sdg_ids.*' => ['integer', 'exists:sdgs,id'],
+            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
             'agenda_ids' => ['nullable', 'array'],
-            'agenda_ids.*' => ['integer', 'exists:agendas,id'],
+            'agenda_ids.*' => ['string', 'exists:agendas,id'],
             'keywords' => ['nullable', 'string', 'max:500'],
-            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:20480'],
+            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
         ]);
 
         $paper->update([
@@ -209,17 +239,18 @@ class ResearchController extends Controller
 
         if ($request->hasFile('file')) {
             $paper->files()->each(function ($file) {
-                Storage::delete($file->file_path);
+                Storage::disk($file->disk)->delete($file->file_path);
                 $file->delete();
             });
 
             $uploadedFile = $request->file('file');
+            $disk = config('filesystems.default') === 's3' ? 's3' : 'public';
             $paper->files()->create([
                 'file_name' => $uploadedFile->getClientOriginalName(),
-                'file_path' => $uploadedFile->store('papers', 'local'),
+                'file_path' => $uploadedFile->store('papers', $disk),
                 'file_type' => $uploadedFile->getMimeType(),
                 'file_size' => $uploadedFile->getSize(),
-                'disk' => 'local',
+                'disk' => $disk,
             ]);
         }
 

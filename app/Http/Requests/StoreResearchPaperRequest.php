@@ -36,7 +36,7 @@ class StoreResearchPaperRequest extends FormRequest
             'proponents' => ['required', 'array', 'min:1', 'max:3'],
             'proponents.*.id' => ['required', 'string', 'exists:users,id'],
             'proponents.*.name' => ['required', 'string', 'max:255'],
-            'file' => ['sometimes', 'file', 'mimes:pdf', 'max:50000'],
+            'file' => ['sometimes', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
         ];
     }
 }
