@@ -52,7 +52,9 @@ test('registration creates user profile with role', function () {
         'role' => 'faculty',
     ]);
 
-    $this->assertAuthenticated();
+    // Faculty users are logged out after registration and sent to the pending page
+    $this->assertGuest();
+    $response->assertRedirect(route('registration.pending'));
 
     $user = User::where('email', 'faculty@example.com')->first();
     expect($user->profile)->not->toBeNull()
