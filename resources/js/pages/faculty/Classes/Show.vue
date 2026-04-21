@@ -20,7 +20,7 @@ import { index as classResearchIndex } from '@/routes/faculty/classes/research';
 
 type Props = {
     schoolClass: {
-        id: number;
+        id: string;
         name: string;
         class_code: string | null;
         section: string;
@@ -30,14 +30,14 @@ type Props = {
         is_active: boolean;
         join_code: string | null;
         subjects: Array<{
-            id: number;
+            id: string;
             name: string;
             code: string;
             program: { name: string; code: string } | null;
         }>;
     };
     students: Array<{
-        id: number;
+        id: string;
         name: string;
         email: string;
         avatar_url: string | null;
@@ -104,7 +104,7 @@ const revokeJoinCode = () => {
     }
 };
 
-const removeStudent = (studentId: number) => {
+const removeStudent = (studentId: string) => {
     if (
         confirm('Are you sure you want to remove this student from the class?')
     ) {

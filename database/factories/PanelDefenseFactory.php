@@ -38,4 +38,32 @@ class PanelDefenseFactory extends Factory
             'created_by' => User::factory(),
         ];
     }
+
+    public function forPaper(ResearchPaper $paper): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'research_paper_id' => $paper->id,
+        ]);
+    }
+
+    public function createdBy(User $user): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'created_by' => $user->id,
+        ]);
+    }
+
+    public function ofType(string $type): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'defense_type' => $type,
+        ]);
+    }
+
+    public function withMembers(array $members): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'panel_members' => array_values($members),
+        ]);
+    }
 }

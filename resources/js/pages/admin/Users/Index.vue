@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import admin from '@/routes/admin';
 
 interface UserRow {
-    id: number;
+    id: string;
     name: string;
     email: string;
     role: string | null;

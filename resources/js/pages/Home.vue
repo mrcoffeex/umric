@@ -10,14 +10,14 @@ import { create as papersCreate } from '@/routes/papers';
 interface Props {
     canRegister: boolean;
     featuredPapers?: Array<{
-        id: number;
+        id: string;
         title: string;
         description: string;
         status: string;
         category: { name: string };
         tracking_id: string;
     }>;
-    categories?: Array<{ id: number; name: string }>;
+    categories?: Array<{ id: string; name: string }>;
 }
 
 const props = withDefaults(defineProps<Props>(), {

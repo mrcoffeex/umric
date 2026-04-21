@@ -9,42 +9,43 @@ import {
     Filter,
     Globe,
     GraduationCap,
+    Loader2,
     ScrollText,
     Search,
     Target,
 } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import admin from '@/routes/admin';
 
 interface PaperRow {
-    id: number;
+    id: string;
     tracking_id: string;
     title: string;
     current_step: string;
     step_label?: string;
     created_at: string;
-    sdg_ids?: number[] | null;
-    agenda_ids?: number[] | null;
+    sdg_ids?: string[] | null;
+    agenda_ids?: string[] | null;
     user?: { name: string } | null;
     school_class?: { name: string } | null;
 }
 
 interface SdgItem {
-    id: number;
+    id: string;
     number: number;
     name: string;
     color: string | null;
 }
 
 interface AgendaItem {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface ClassItem {
-    id: number;
+    id: string;
     name: string;
     section: string | null;
 }
@@ -71,8 +72,8 @@ interface Props {
         class: string | null;
     };
     stepLabels: Record<string, string>;
-    facultyUsers: Array<{ id: number; name: string }>;
-    staffUsers: Array<{ id: number; name: string }>;
+    facultyUsers: Array<{ id: string; name: string }>;
+    staffUsers: Array<{ id: string; name: string }>;
     sdgs: SdgItem[];
     agendas: AgendaItem[];
     classes: ClassItem[];
@@ -81,7 +82,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const sdgMap = computed(() => {
-    const map = new Map<number, SdgItem>();
+    const map = new Map<string, SdgItem>();
 
     for (const sdg of props.sdgs) {
         map.set(sdg.id, sdg);
@@ -91,7 +92,7 @@ const sdgMap = computed(() => {
 });
 
 const agendaMap = computed(() => {
-    const map = new Map<number, AgendaItem>();
+    const map = new Map<string, AgendaItem>();
 
     for (const agenda of props.agendas) {
         map.set(agenda.id, agenda);
@@ -121,7 +122,20 @@ const filtersOpen = ref(
     !!props.filters.sdg || !!props.filters.agenda || !!props.filters.class,
 );
 const mounted = ref(false);
+const loading = ref(false);
 let debounce: ReturnType<typeof setTimeout>;
+
+const stopStart = router.on('start', () => {
+    loading.value = true;
+});
+const stopFinish = router.on('finish', () => {
+    loading.value = false;
+});
+
+onUnmounted(() => {
+    stopStart();
+    stopFinish();
+});
 
 onMounted(() => {
     mounted.value = true;
@@ -291,7 +305,12 @@ defineOptions({
             <div class="p-4">
                 <div class="relative">
                     <Search
+                        v-if="!loading"
                         class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Loader2
+                        v-else
+                        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-orange-500"
                     />
                     <input
                         v-model="search"
@@ -470,7 +489,44 @@ defineOptions({
             </button>
         </div>
 
-        <div class="overflow-hidden rounded-2xl border border-border bg-card">
+        <!-- Results count -->
+        <div
+            class="flex items-center justify-between text-xs text-muted-foreground"
+        >
+            <span v-if="!loading">
+                <template v-if="papers.total === 0">No results</template>
+                <template v-else>
+                    Showing
+                    <span class="font-semibold text-foreground"
+                        >{{ papers.from }}–{{ papers.to }}</span
+                    >
+                    of
+                    <span class="font-semibold text-foreground">{{
+                        papers.total
+                    }}</span>
+                    {{ papers.total === 1 ? 'paper' : 'papers' }}
+                </template>
+            </span>
+            <span v-else class="italic">Fetching results…</span>
+        </div>
+
+        <div
+            class="relative overflow-hidden rounded-2xl border border-border bg-card"
+        >
+            <!-- Loading overlay -->
+            <div
+                v-if="loading"
+                class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[2px]"
+            >
+                <div
+                    class="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm"
+                >
+                    <Loader2 class="h-4 w-4 animate-spin text-orange-500" />
+                    <span class="text-xs font-semibold text-muted-foreground"
+                        >Loading results…</span
+                    >
+                </div>
+            </div>
             <div v-if="papers.data.length === 0" class="p-12 text-center">
                 <div
                     class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30"
@@ -643,11 +699,8 @@ defineOptions({
 
         <div
             v-if="papers.last_page > 1"
-            class="flex items-center justify-between text-sm"
+            class="flex items-center justify-end text-sm"
         >
-            <p class="text-muted-foreground">
-                Showing {{ papers.from }}-{{ papers.to }} of {{ papers.total }}
-            </p>
             <div class="flex items-center gap-1">
                 <template
                     v-for="(link, index) in papers.links"

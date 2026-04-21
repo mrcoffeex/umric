@@ -29,17 +29,17 @@ import { receive as receiveRoute } from '@/routes/admin/research';
 import student from '@/routes/student';
 
 interface StepRecord {
-    id: number;
+    id: string;
     step: string | null;
     action: string;
     status: string | null;
     notes?: string | null;
-    updated_by?: { id: number; name: string } | null;
+    updated_by?: { id: string; name: string } | null;
     created_at?: string | null;
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract?: string | null;
     tracking_id: string;
@@ -49,9 +49,9 @@ interface Paper {
     submission_date?: string | null;
     created_at: string;
     keywords?: string | null;
-    sdg_ids?: number[] | null;
-    agenda_ids?: number[] | null;
-    proponents?: string[] | Array<{ id: number; name: string }> | string | null;
+    sdg_ids?: string[] | null;
+    agenda_ids?: string[] | null;
+    proponents?: string[] | Array<{ id: string; name: string }> | string | null;
     step_ric_review?: string | null;
     step_plagiarism?: string | null;
     plagiarism_attempts?: number | null;
@@ -64,10 +64,10 @@ interface Paper {
     step_final_defense?: string | null;
     final_defense_schedule?: string | null;
     step_hard_bound?: string | null;
-    user_id?: number | null;
-    adviser?: { id: number; name: string } | null;
-    statistician?: { id: number; name: string } | null;
-    school_class?: { id: number; name: string; section?: string | null } | null;
+    user_id?: string | null;
+    adviser?: { id: string; name: string } | null;
+    statistician?: { id: string; name: string } | null;
+    school_class?: { id: string; name: string; section?: string | null } | null;
 }
 
 interface Props {
@@ -75,27 +75,27 @@ interface Props {
     trackingLog?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
-    sdgs: Array<{ id: number; name: string; number?: number }>;
-    agendas: Array<{ id: number; name: string }>;
+    sdgs: Array<{ id: string; name: string; number?: number }>;
+    agendas: Array<{ id: string; name: string }>;
     panelDefenses?: PanelDefenseRecord[];
     comments?: Comment[];
 }
 
 interface Comment {
-    id: number;
+    id: string;
     body: string;
-    user: { id: number; name: string } | null;
+    user: { id: string; name: string } | null;
     created_at: string;
 }
 
 interface PanelDefenseRecord {
-    id: number;
+    id: string;
     defense_type: 'title' | 'outline' | 'final';
     defense_type_label: string;
     panel_members: string[];
     schedule: string | null;
     notes: string | null;
-    created_by: { id: number; name: string } | null;
+    created_by: { id: string; name: string } | null;
     created_at: string;
 }
 
@@ -103,7 +103,7 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const authUserId = computed(
-    () => (page.props.auth as { user: { id: number } }).user.id,
+    () => (page.props.auth as { user: { id: string } }).user.id,
 );
 const canEdit = computed(() => {
     if (props.paper.current_step !== 'title_proposal') {

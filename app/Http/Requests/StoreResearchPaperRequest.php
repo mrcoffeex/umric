@@ -26,7 +26,7 @@ class StoreResearchPaperRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'abstract' => ['required', 'string', 'max:5000'],
-            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'category_id' => ['nullable', 'string', 'exists:categories,id'],
             'sdg_ids' => ['nullable', 'array'],
             'agenda_ids' => ['nullable', 'array'],
             'status' => ['sometimes', 'string', 'in:submitted,under_review,approved,presented,published,archived'],
@@ -34,7 +34,7 @@ class StoreResearchPaperRequest extends FormRequest
             'authors' => ['sometimes', 'array'],
             'authors.*' => ['string', 'max:255'],
             'proponents' => ['required', 'array', 'min:1', 'max:3'],
-            'proponents.*.id' => ['required', 'integer', 'exists:users,id'],
+            'proponents.*.id' => ['required', 'string', 'exists:users,id'],
             'proponents.*.name' => ['required', 'string', 'max:255'],
             'file' => ['sometimes', 'file', 'mimes:pdf', 'max:50000'],
         ];

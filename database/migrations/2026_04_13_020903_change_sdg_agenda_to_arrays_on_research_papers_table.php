@@ -26,8 +26,8 @@ return new class extends Migration
     {
         Schema::table('research_papers', function (Blueprint $table) {
             $table->dropColumn(['sdg_ids', 'agenda_ids']);
-            $table->foreignId('sdg_id')->nullable()->constrained('sdgs')->nullOnDelete();
-            $table->foreignId('agenda_id')->nullable()->constrained('agendas')->nullOnDelete();
+            $table->foreignUlid('sdg_id')->nullable()->constrained('sdgs')->nullOnDelete();
+            $table->foreignUlid('agenda_id')->nullable()->constrained('agendas')->nullOnDelete();
         });
     }
 };

@@ -17,7 +17,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Program {
-    id: number;
+    id: string;
     name: string;
     code: string;
     description: string | null;
@@ -25,7 +25,7 @@ interface Program {
 }
 
 interface Department {
-    id: number;
+    id: string;
     name: string;
     code: string;
     description: string | null;
@@ -51,11 +51,11 @@ defineOptions({
 });
 
 // Expanded rows — use array, not Set, for Vue reactivity
-const expanded = ref<number[]>([]);
-function isExpanded(id: number) {
+const expanded = ref<string[]>([]);
+function isExpanded(id: string) {
     return expanded.value.includes(id);
 }
-function toggleExpand(id: number) {
+function toggleExpand(id: string) {
     const idx = expanded.value.indexOf(id);
 
     if (idx === -1) {
@@ -123,9 +123,9 @@ async function deleteDept(dept: Department) {
 // Program form
 const showProgForm = ref(false);
 const editingProg = ref<Program | null>(null);
-const progDeptId = ref<number>(0);
+const progDeptId = ref<string>('');
 const progForm = useForm({
-    department_id: 0,
+    department_id: '',
     name: '',
     code: '',
     description: '',
@@ -140,7 +140,7 @@ function openNewProg(dept: Department) {
     showProgForm.value = true;
 }
 
-function openEditProg(prog: Program, deptId: number) {
+function openEditProg(prog: Program, deptId: string) {
     editingProg.value = prog;
     progDeptId.value = deptId;
     progForm.department_id = deptId;

@@ -9,32 +9,32 @@ import { Button } from '@/components/ui/button';
 import { create, index, show } from '@/routes/papers';
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract: string;
     status: string;
     tracking_id: string;
     created_at: string;
     authors_count?: number;
-    category?: { id: number; name: string };
-    sdg_ids?: number[];
-    agenda_ids?: number[];
+    category?: { id: string; name: string };
+    sdg_ids?: string[];
+    agenda_ids?: string[];
 }
 
 interface Category {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface Sdg {
-    id: number;
+    id: string;
     name: string;
     code: string;
     color?: string;
 }
 
 interface Agenda {
-    id: number;
+    id: string;
     name: string;
     code: string;
 }
@@ -67,7 +67,7 @@ watchDebounced(
     { debounce: 300 },
 );
 const selectedStatus = ref('');
-const selectedCategory = ref<number | ''>('');
+const selectedCategory = ref<string>('');
 const isStudent = computed(() => props.role === 'student');
 const pageTitle = computed(() =>
     isStudent.value ? 'My Title Proposals' : 'Research Papers',

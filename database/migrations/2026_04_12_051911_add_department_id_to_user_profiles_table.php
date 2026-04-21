@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('user_profiles', function (Blueprint $table) {
-            $table->foreignId('department_id')->nullable()->after('role')->constrained()->nullOnDelete();
-            $table->foreignId('program_id')->nullable()->after('department_id')->constrained()->nullOnDelete();
+            $table->foreignUlid('department_id')->nullable()->after('role')->constrained()->nullOnDelete();
+            $table->foreignUlid('program_id')->nullable()->after('department_id')->constrained()->nullOnDelete();
             $table->string('avatar_disk', 20)->default('local')->after('profile_photo');
         });
     }

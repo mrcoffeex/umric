@@ -12,9 +12,9 @@ import { create, index, store } from '@/routes/papers';
 import { search as searchProponents } from '@/routes/papers/proponents';
 
 interface Props {
-    sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
-    agendas: Array<{ id: number; name: string }>;
-    auth_user: { id: number; name: string };
+    sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
+    agendas: Array<{ id: string; name: string }>;
+    auth_user: { id: string; name: string };
 }
 
 const props = defineProps<Props>();
@@ -40,17 +40,17 @@ defineOptions({
 const form = useForm({
     title: '',
     abstract: '',
-    sdg_ids: [] as number[],
-    agenda_ids: [] as number[],
+    sdg_ids: [] as string[],
+    agenda_ids: [] as string[],
     proponents: [
         { id: props.auth_user.id, name: props.auth_user.name },
-    ] as Array<{ id: number; name: string }>,
+    ] as Array<{ id: string; name: string }>,
     keywords: '',
     file: null as File | null,
 });
 
 interface SearchResult {
-    id: number;
+    id: string;
     name: string;
 }
 
@@ -80,7 +80,7 @@ function addProponentSlot() {
         return;
     }
 
-    form.proponents.push({ id: 0, name: '' });
+    form.proponents.push({ id: '', name: '' });
     openSearch(form.proponents.length - 1);
 }
 
@@ -121,7 +121,7 @@ async function onSearchInput(value: string) {
             const data: SearchResult[] = await res.json();
             const selectedIds = form.proponents
                 .map((proponent) => proponent.id)
-                .filter((id) => id !== 0);
+                .filter((id) => id !== '');
             searchResults.value = data.filter(
                 (user) => !selectedIds.includes(user.id),
             );

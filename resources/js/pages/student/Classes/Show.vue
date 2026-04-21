@@ -5,7 +5,7 @@ import student from '@/routes/student';
 
 type Props = {
     schoolClass: {
-        id: number;
+        id: string;
         name: string;
         class_code: string | null;
         section: string;
@@ -13,16 +13,16 @@ type Props = {
         semester: number | null;
         description: string | null;
         is_active: boolean;
-        faculty: { id: number; name: string } | null;
+        faculty: { id: string; name: string } | null;
         subjects: Array<{
-            id: number;
+            id: string;
             name: string;
             code: string;
             program: { name: string; code: string } | null;
         }>;
     };
     students: Array<{
-        id: number;
+        id: string;
         name: string;
         avatar_url: string | null;
         joined_at: string;

@@ -16,24 +16,24 @@ import TrackingTimeline from '@/components/TrackingTimeline.vue';
 import { useAppearance } from '@/composables/useAppearance';
 
 interface Author {
-    id: number;
+    id: string;
     name: string;
     pivot?: { author_order?: number };
 }
 
 interface Category {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface SchoolClass {
-    id: number;
+    id: string;
     name: string;
     section?: string;
 }
 
 interface Publication {
-    id: number;
+    id: string;
     journal_name: string;
     doi?: string;
     publisher?: string;
@@ -42,13 +42,13 @@ interface Publication {
 }
 
 interface Citation {
-    id: number;
+    id: string;
     citation_text: string;
     format?: string;
 }
 
 interface TrackingRecord {
-    id: number;
+    id: string;
     step?: string;
     action?: string;
     status?: string;
@@ -57,7 +57,7 @@ interface TrackingRecord {
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract: string;
     status: string;

@@ -13,23 +13,23 @@ import student from '@/routes/student';
 
 interface Props {
     paper: {
-        id: number;
+        id: string;
         title: string;
         abstract?: string | null;
-        sdg_ids?: number[] | null;
-        agenda_ids?: number[] | null;
-        proponents?: Array<{ id: number; name: string }> | null;
+        sdg_ids?: string[] | null;
+        agenda_ids?: string[] | null;
+        proponents?: Array<{ id: string; name: string }> | null;
         keywords?: string | null;
         files?: Array<{
-            id: number;
+            id: string;
             file_name: string;
             file_size: number;
             file_path: string;
         }> | null;
     };
-    sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
-    agendas: Array<{ id: number; name: string }>;
-    auth_user: { id: number; name: string };
+    sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
+    agendas: Array<{ id: string; name: string }>;
+    auth_user: { id: string; name: string };
 }
 
 const props = defineProps<Props>();
@@ -47,12 +47,12 @@ defineOptions({
 const form = useForm({
     title: paper.title,
     abstract: paper.abstract ?? '',
-    sdg_ids: (paper.sdg_ids ?? []).map(Number),
-    agenda_ids: (paper.agenda_ids ?? []).map(Number),
+    sdg_ids: paper.sdg_ids ?? [],
+    agenda_ids: paper.agenda_ids ?? [],
     proponents: paper.proponents?.length
         ? paper.proponents
         : ([{ id: props.auth_user.id, name: props.auth_user.name }] as Array<{
-              id: number;
+              id: string;
               name: string;
           }>),
     keywords: paper.keywords ?? '',
@@ -60,7 +60,7 @@ const form = useForm({
 });
 
 interface SearchResult {
-    id: number;
+    id: string;
     name: string;
 }
 
@@ -115,7 +115,7 @@ function addProponentSlot() {
         return;
     }
 
-    form.proponents.push({ id: 0, name: '' });
+    form.proponents.push({ id: '', name: '' });
     openSearch(form.proponents.length - 1);
 }
 
@@ -156,7 +156,7 @@ async function onSearchInput(value: string) {
             const data: SearchResult[] = await res.json();
             const selectedIds = form.proponents
                 .map((p) => p.id)
-                .filter((id) => id !== 0);
+                .filter((id) => id !== '');
             searchResults.value = data.filter(
                 (u) => !selectedIds.includes(u.id),
             );
@@ -175,7 +175,7 @@ function submit() {
     form.transform((data) => ({
         ...data,
         _method: 'put',
-        proponents: data.proponents.filter((p) => p.id !== 0),
+        proponents: data.proponents.filter((p) => p.id !== ''),
     })).post(student.research.update.url(paper.id));
 }
 </script>

@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('research_papers', function (Blueprint $table) {
             $table->renameColumn('description', 'abstract');
-            $table->foreignId('sdg_id')->nullable()->constrained('sdgs')->nullOnDelete();
-            $table->foreignId('agenda_id')->nullable()->constrained('agendas')->nullOnDelete();
+            $table->foreignUlid('sdg_id')->nullable()->constrained('sdgs')->nullOnDelete();
+            $table->foreignUlid('agenda_id')->nullable()->constrained('agendas')->nullOnDelete();
             $table->json('proponents')->nullable();
-            $table->foreignId('category_id')->nullable()->change();
+            $table->foreignUlid('category_id')->nullable()->change();
         });
     }
 

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import {
     Sheet,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
@@ -383,8 +384,10 @@ function statusBadgeClass(status: string | null) {
                     <SheetTitle class="mt-2 text-base leading-snug">
                         {{ selectedEvent?.title }}
                     </SheetTitle>
+                    <SheetDescription class="sr-only">
+                        Defense event details for {{ selectedEvent?.title }}
+                    </SheetDescription>
                 </SheetHeader>
-
                 <div v-if="selectedEvent" class="space-y-4 p-3">
                     <div
                         class="flex items-start gap-3 rounded-xl bg-muted/50 p-3.5"

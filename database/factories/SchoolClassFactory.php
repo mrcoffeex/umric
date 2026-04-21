@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\SchoolClass;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -24,6 +25,7 @@ class SchoolClassFactory extends Factory
         $codePrefix = strtoupper(fake()->lexify('CLS'));
 
         return [
+            'faculty_id' => null,
             'name' => "{$codePrefix} {$section}",
             'class_code' => "{$codePrefix}{$section}-S{$semester}-".substr((string) $yearStart, -2).substr((string) $yearEnd, -2),
             'school_year' => "{$yearStart}-{$yearEnd}",
@@ -34,5 +36,29 @@ class SchoolClassFactory extends Factory
             'is_active' => true,
             'join_code' => fake()->boolean(40) ? strtoupper(fake()->bothify('??##??##')) : null,
         ];
+    }
+
+    public function forFaculty(User $faculty): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'faculty_id' => $faculty->id,
+        ]);
+    }
+
+    public function forTerm(string $schoolYear, int $semester): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'school_year' => $schoolYear,
+            'semester' => $semester,
+        ]);
+    }
+
+    public function identifiedAs(string $name, string $classCode, string $section): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'name' => $name,
+            'class_code' => $classCode,
+            'section' => $section,
+        ]);
     }
 }

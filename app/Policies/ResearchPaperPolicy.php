@@ -30,10 +30,10 @@ class ResearchPaperPolicy
 
         $proponentIds = collect($researchPaper->proponents)
             ->pluck('id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn ($id) => (string) $id)
             ->all();
 
-        return in_array($user->id, $proponentIds, true);
+        return in_array((string) $user->id, $proponentIds, true);
     }
 
     /**

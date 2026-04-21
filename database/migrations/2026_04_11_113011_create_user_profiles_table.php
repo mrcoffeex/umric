@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('user_profiles', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('user_id')->unique()->constrained()->cascadeOnDelete();
             $table->enum('role', ['student', 'faculty', 'staff', 'admin'])->default('student');
             $table->enum('department', ['computer_science', 'engineering', 'business', 'science', 'humanities', 'other'])->nullable();
             $table->string('specialization')->nullable();

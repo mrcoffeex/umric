@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Department;
+use App\Models\Program;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -63,6 +65,14 @@ class UserProfileFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'role' => 'student',
+        ]);
+    }
+
+    public function forAcademicUnit(?Department $department, ?Program $program = null): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'department_id' => $department?->id,
+            'program_id' => $program?->id,
         ]);
     }
 }

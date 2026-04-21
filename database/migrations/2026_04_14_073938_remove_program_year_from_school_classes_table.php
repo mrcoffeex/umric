@@ -23,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('school_classes', function (Blueprint $table) {
-            $table->foreignId('program_id')->nullable()->constrained()->cascadeOnDelete()->after('name');
+            $table->foreignUlid('program_id')->nullable()->constrained()->cascadeOnDelete()->after('name');
             $table->unsignedTinyInteger('year_level')->nullable()->after('program_id');
         });
     }

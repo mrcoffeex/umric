@@ -9,7 +9,7 @@ import { register, dashboard } from '@/routes';
 const props = defineProps<{
     canRegister: boolean;
     featuredPapers?: Array<{
-        id: number;
+        id: string;
         title: string;
         status: string;
         tracking_id: string;

@@ -10,7 +10,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Sdg {
-    id: number;
+    id: string;
     number: number;
     name: string;
     code: string;

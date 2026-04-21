@@ -349,11 +349,11 @@ class ResearchController extends Controller
 
     private function ensureFacultyCanAccessPaper(Request $request, SchoolClass $class, ResearchPaper $paper): void
     {
-        $facultyUserId = (int) $request->user()->id;
+        $facultyUserId = $request->user()->id;
 
-        $isClassFaculty = (int) $class->faculty_id === $facultyUserId;
-        $isAssignedFaculty = (int) $paper->adviser_id === $facultyUserId
-            || (int) $paper->statistician_id === $facultyUserId;
+        $isClassFaculty = $class->faculty_id === $facultyUserId;
+        $isAssignedFaculty = $paper->adviser_id === $facultyUserId
+            || $paper->statistician_id === $facultyUserId;
 
         if (! $isClassFaculty && ! $isAssignedFaculty) {
             abort(403);

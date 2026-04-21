@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('publications', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('research_paper_id')->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('research_paper_id')->constrained()->cascadeOnDelete();
             $table->string('journal_name')->nullable();
             $table->string('publisher')->nullable();
             $table->date('publication_date');

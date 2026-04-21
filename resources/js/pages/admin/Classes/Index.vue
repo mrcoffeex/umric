@@ -21,19 +21,19 @@ import admin from '@/routes/admin';
 import { show as classesShow } from '@/routes/admin/classes';
 
 interface FacultyUser {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface SubjectItem {
-    id: number;
+    id: string;
     name: string;
     code: string;
-    program: { id: number; name: string; code: string } | null;
+    program: { id: string; name: string; code: string } | null;
 }
 
 interface SchoolClass {
-    id: number;
+    id: string;
     name: string;
     class_code: string | null;
     school_year: string | null;
@@ -41,7 +41,7 @@ interface SchoolClass {
     term: string | null;
     section: string;
     subjects: SubjectItem[];
-    subject_id: number | null;
+    subject_id: string | null;
     faculty_id: number | null;
     faculty: { name: string } | null;
     description: string | null;
@@ -93,7 +93,7 @@ const filteredClasses = computed(() => {
 
 const form = useForm({
     faculty_id: '' as string | number,
-    subject_id: '' as number | string,
+    subject_id: '' as string | null,
     name: '',
     class_code: '',
     school_year: '',
@@ -124,7 +124,7 @@ const filteredSubjects = computed(() => {
 watch(
     () => form.subject_id,
     (id) => {
-        const found = props.subjects.find((s) => s.id === Number(id));
+        const found = props.subjects.find((s) => s.id === id);
 
         if (found) {
             form.name = found.name;
@@ -140,9 +140,7 @@ watch(
 watch(
     () => form.section,
     (section) => {
-        const found = props.subjects.find(
-            (s) => s.id === Number(form.subject_id),
-        );
+        const found = props.subjects.find((s) => s.id === form.subject_id);
 
         if (found) {
             form.class_code = found.code + (section ? '-' + section : '');
@@ -206,7 +204,7 @@ async function deleteClass(schoolClass: SchoolClass) {
     useForm({}).delete(admin.classes.destroy.url(schoolClass.id));
 }
 
-const copiedId = ref<number | null>(null);
+const copiedId = ref<string | null>(null);
 
 function joinUrl(schoolClass: SchoolClass): string {
     return schoolClass.join_code

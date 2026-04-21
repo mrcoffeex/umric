@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +15,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class ResearchPaper extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, HasUlids, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -49,7 +50,6 @@ class ResearchPaper extends Model
     ];
 
     protected $casts = [
-        'user_id' => 'integer',
         'submission_date' => 'date',
         'publication_date' => 'date',
         'outline_defense_schedule' => 'datetime',

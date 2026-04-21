@@ -12,7 +12,7 @@ import { dashboard } from '@/routes';
 
 type Props = {
     schoolClass: {
-        id: number;
+        id: string;
         name: string;
         section: string;
         school_year: string | null;
@@ -22,7 +22,7 @@ type Props = {
         faculty_name: string | null;
         members_count: number;
         subjects: Array<{
-            id: number;
+            id: string;
             code: string;
             name: string;
             program: { name: string; code: string } | null;

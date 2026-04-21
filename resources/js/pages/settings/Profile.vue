@@ -15,8 +15,8 @@ import { send } from '@/routes/verification';
 
 type ProfileData = {
     role: string | null;
-    department_id: number | null;
-    program_id: number | null;
+    department_id: string | null;
+    program_id: string | null;
     specialization: string | null;
     institution: string | null;
     degree: string | null;
@@ -25,8 +25,8 @@ type ProfileData = {
     avatar_url: string | null;
 };
 
-type Program = { id: number; name: string; department_id: number };
-type Department = { id: number; name: string; programs: Program[] };
+type Program = { id: string; name: string; department_id: string };
+type Department = { id: string; name: string; programs: Program[] };
 
 type Props = {
     mustVerifyEmail: boolean;
@@ -111,16 +111,14 @@ async function onRemoveAvatar() {
 }
 
 // Profile details form
-const selectedDept = ref<number | ''>(props.profile?.department_id ?? '');
+const selectedDept = ref<string>(props.profile?.department_id ?? '');
 
 const filteredPrograms = computed(() => {
     if (!selectedDept.value) {
         return [];
     }
 
-    const dept = props.departments.find(
-        (d) => d.id === Number(selectedDept.value),
-    );
+    const dept = props.departments.find((d) => d.id === selectedDept.value);
 
     return dept?.programs ?? [];
 });
@@ -131,8 +129,8 @@ const detailsForm = useForm({
     bio: props.profile?.bio ?? '',
     specialization: props.profile?.specialization ?? '',
     institution: props.profile?.institution ?? '',
-    department_id: props.profile?.department_id ?? ('' as number | ''),
-    program_id: props.profile?.program_id ?? ('' as number | ''),
+    department_id: props.profile?.department_id ?? '',
+    program_id: props.profile?.program_id ?? '',
 });
 
 function submitDetails() {
@@ -334,9 +332,7 @@ function submitDetails() {
                             id="department_id"
                             v-model="selectedDept"
                             @change="
-                                detailsForm.department_id = selectedDept as
-                                    | number
-                                    | '';
+                                detailsForm.department_id = selectedDept;
                                 detailsForm.program_id = '';
                             "
                             class="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:ring-2 focus:ring-ring focus:outline-none"

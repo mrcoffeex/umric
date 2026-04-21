@@ -2,12 +2,12 @@
 import { computed, ref } from 'vue';
 
 interface Option {
-    value: number;
+    value: string;
     label: string;
 }
 
 interface Props {
-    modelValue: number[];
+    modelValue: string[];
     options: Option[];
     placeholder?: string;
     searchPlaceholder?: string;
@@ -21,7 +21,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    'update:modelValue': [value: number[]];
+    'update:modelValue': [value: string[]];
 }>();
 
 const query = ref('');
@@ -34,7 +34,7 @@ const filteredOptions = computed(() =>
           ),
 );
 
-function toggle(value: number) {
+function toggle(value: string) {
     const current = [...props.modelValue];
     const idx = current.indexOf(value);
 

@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tracking_records', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('research_paper_id')->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('research_paper_id')->constrained()->cascadeOnDelete();
             $table->enum('status', ['submitted', 'under_review', 'approved', 'presented', 'published', 'archived'])->default('submitted');
             $table->text('notes')->nullable();
-            $table->foreignId('updated_by')->nullable()->constrained('users')->cascadeOnDelete();
+            $table->foreignUlid('updated_by')->nullable()->constrained('users')->cascadeOnDelete();
             $table->timestamp('status_changed_at');
             $table->timestamps();
             $table->index(['research_paper_id', 'status', 'status_changed_at']);

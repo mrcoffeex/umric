@@ -34,14 +34,14 @@ import {
 } from '@/routes/faculty/classes';
 
 type SubjectItem = {
-    id: number;
+    id: string;
     name: string;
     code: string;
-    program: { id: number; name: string; code: string } | null;
+    program: { id: string; name: string; code: string } | null;
 };
 
 type SchoolClassItem = {
-    id: number;
+    id: string;
     name: string;
     class_code: string | null;
     section: string | null;
@@ -66,7 +66,7 @@ const classSearch = ref('');
 
 const form = useForm({
     name: '',
-    subject_id: '' as number | string,
+    subject_id: '' as string | null,
     class_code: '',
     school_year: '',
     semester: '' as string | number,
@@ -126,7 +126,7 @@ watch(
             return;
         }
 
-        const found = props.subjects.find((s) => s.id === Number(id));
+        const found = props.subjects.find((s) => s.id === id);
 
         if (found) {
             form.name = found.name;
@@ -146,9 +146,7 @@ watch(
             return;
         }
 
-        const found = props.subjects.find(
-            (s) => s.id === Number(form.subject_id),
-        );
+        const found = props.subjects.find((s) => s.id === form.subject_id);
 
         if (found) {
             form.class_code = found.code + (section ? '-' + section : '');
@@ -222,9 +220,9 @@ async function deleteClass(schoolClass: SchoolClassItem) {
     );
 }
 
-const copiedId = ref<number | null>(null);
+const copiedId = ref<string | null>(null);
 
-function copyJoinLink(classId: number, joinCode: string) {
+function copyJoinLink(classId: string, joinCode: string) {
     const url = `${window.location.origin}/classes/join/${joinCode}`;
     navigator.clipboard.writeText(url);
     copiedId.value = classId;

@@ -18,7 +18,7 @@ class AllResearchController extends Controller
 {
     public function index(Request $request): Response
     {
-        $facultyUserId = (int) $request->user()->id;
+        $facultyUserId = $request->user()->id;
 
         $classIds = SchoolClass::query()
             ->where('faculty_id', $facultyUserId)
@@ -58,7 +58,6 @@ class AllResearchController extends Controller
 
         $studentIdsFromPapers = $papers->pluck('user_id')
             ->filter()
-            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values()
             ->all();
@@ -82,9 +81,9 @@ class AllResearchController extends Controller
         }
 
         $papers = $papers->map(function (ResearchPaper $paper) use ($classesById, $studentClassMap) {
-            $classMembership = $studentClassMap->get((int) $paper->user_id);
+            $classMembership = $studentClassMap->get($paper->user_id);
             $studentClass = $classMembership
-                ? $classesById->get((int) $classMembership->school_class_id)
+                ? $classesById->get($classMembership->school_class_id)
                 : null;
 
             return [
@@ -114,11 +113,10 @@ class AllResearchController extends Controller
 
         $classIdsFromPapers = $papers->pluck('school_class.id')
             ->filter()
-            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
-        $classIdsForFilter = $classIds->map(fn ($id) => (int) $id)
+        $classIdsForFilter = $classIds
             ->merge($classIdsFromPapers)
             ->unique()
             ->values();
@@ -174,11 +172,11 @@ class AllResearchController extends Controller
 
     public function show(Request $request, ResearchPaper $paper): Response
     {
-        $facultyUserId = (int) $request->user()->id;
+        $facultyUserId = $request->user()->id;
         $facultyName = $request->user()->name;
 
-        $isAdviserOrStatistician = (int) $paper->adviser_id === $facultyUserId
-            || (int) $paper->statistician_id === $facultyUserId;
+        $isAdviserOrStatistician = $paper->adviser_id === $facultyUserId
+            || $paper->statistician_id === $facultyUserId;
 
         $isPanelMember = $paper->panelDefenses()
             ->whereRaw('panel_members::jsonb @> ?::jsonb', [json_encode([$facultyName])])

@@ -90,7 +90,7 @@ class ResearchPaperController extends Controller
 
         // Validate first proponent is the authenticated user
         $proponents = $request->input('proponents', []);
-        if (empty($proponents) || (int) ($proponents[0]['id'] ?? 0) !== $request->user()->id) {
+        if (empty($proponents) || (string) ($proponents[0]['id'] ?? '') !== (string) $request->user()->id) {
             return back()->withErrors(['proponents' => 'You must be the first proponent.']);
         }
 

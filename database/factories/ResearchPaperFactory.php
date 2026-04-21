@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Category;
 use App\Models\ResearchPaper;
+use App\Models\SchoolClass;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -27,7 +28,7 @@ class ResearchPaperFactory extends Factory
             'category_id' => Category::factory(),
             'title' => $this->faker->words(8, true),
             'abstract' => $this->faker->paragraphs(3, true),
-            'proponents' => [['id' => 0, 'name' => 'Test Proponent']],
+            'proponents' => [],
             'sdg_ids' => [],
             'agenda_ids' => [],
             'tracking_id' => 'RP-'.strtoupper($this->faker->randomLetter().$this->faker->randomLetter().$this->faker->numberBetween(100000, 999999)),
@@ -50,5 +51,31 @@ class ResearchPaperFactory extends Factory
             'keywords' => implode(', ', $this->faker->words(5)),
             'views' => $this->faker->numberBetween(0, 1000),
         ];
+    }
+
+    public function submittedBy(User $student): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'user_id' => $student->id,
+            'proponents' => [[
+                'id' => $student->id,
+                'name' => $student->name,
+            ]],
+        ]);
+    }
+
+    public function forClass(SchoolClass $schoolClass): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'school_class_id' => $schoolClass->id,
+        ]);
+    }
+
+    public function assignedTo(?User $adviser, ?User $statistician): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'adviser_id' => $adviser?->id,
+            'statistician_id' => $statistician?->id,
+        ]);
     }
 }

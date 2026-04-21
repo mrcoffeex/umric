@@ -18,7 +18,7 @@ interface Props {
     steps: string[];
     stepLabels: Record<string, string>;
     tracking: Array<{
-        id: number;
+        id: string;
         step?: string;
         action?: string;
         status?: string;

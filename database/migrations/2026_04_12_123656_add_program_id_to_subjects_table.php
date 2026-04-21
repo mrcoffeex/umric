@@ -13,7 +13,7 @@ return new class extends Migration
     {
         if (! Schema::hasColumn('subjects', 'program_id')) {
             Schema::table('subjects', function (Blueprint $table) {
-                $table->foreignId('program_id')->nullable()->constrained()->nullOnDelete()->after('id');
+                $table->foreignUlid('program_id')->nullable()->constrained()->nullOnDelete()->after('id');
             });
         }
     }

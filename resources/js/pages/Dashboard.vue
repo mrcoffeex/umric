@@ -54,7 +54,7 @@ ChartJS.register(
 );
 
 interface Announcement {
-    id: number;
+    id: string;
     title: string;
     content: string;
     type: 'info' | 'success' | 'warning' | 'danger';
@@ -63,7 +63,7 @@ interface Announcement {
 }
 
 interface DashboardPaper {
-    id: number;
+    id: string;
     title: string;
     tracking_id: string;
     current_step?: string | null;
@@ -74,7 +74,7 @@ interface DashboardPaper {
 }
 
 interface ClassSummary {
-    id: number;
+    id: string;
     name: string;
     members_count?: number;
     research_papers_count?: number;
@@ -83,7 +83,7 @@ interface ClassSummary {
 }
 
 interface StudentPaper {
-    id: number;
+    id: string;
     title: string;
     tracking_id: string;
     current_step: string;
@@ -188,7 +188,7 @@ const submissionsChartOptions = computed(() => ({
         y: {
             beginAtZero: true,
             ticks: {
-                stepSize: 1,
+                maxTicksLimit: 10,
                 font: { size: 11 },
                 color: '#9ca3af',
             },
@@ -452,7 +452,7 @@ const pipelineChartOptions = computed(() => ({
         },
         y: {
             beginAtZero: true,
-            ticks: { stepSize: 1, font: { size: 11 }, color: '#9ca3af' },
+            ticks: { maxTicksLimit: 10, font: { size: 11 }, color: '#9ca3af' },
             grid: { color: 'rgba(156, 163, 175, 0.1)' },
         },
     },
@@ -490,7 +490,7 @@ function stepLabel(step?: string | null): string {
     return props.stepLabels[step] ?? step;
 }
 
-function paperLink(paperId: number): string {
+function paperLink(paperId: string): string {
     if (props.role === 'admin' || props.role === 'staff') {
         return admin.research.show.url({ paper: paperId });
     }

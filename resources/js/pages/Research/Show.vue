@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button';
 import { edit, index, publicTracking } from '@/routes/papers';
 
 interface Author {
-    id: number;
+    id: string;
     name: string;
     pivot?: { author_order?: number };
 }
 
 interface Publication {
-    id: number;
+    id: string;
     journal_name: string;
     doi?: string;
     publisher?: string;
@@ -24,25 +24,25 @@ interface Publication {
 }
 
 interface Citation {
-    id: number;
+    id: string;
     citation_text: string;
     format?: string;
 }
 
 interface File {
-    id: number;
+    id: string;
     file_name: string;
     file_size: number;
     file_path: string;
 }
 
 interface Category {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface TrackingRecord {
-    id: number;
+    id: string;
     step?: string;
     action?: string;
     status?: string;
@@ -51,7 +51,7 @@ interface TrackingRecord {
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract: string;
     status: string;
@@ -61,10 +61,10 @@ interface Paper {
     progress?: number;
     keywords?: string;
     category?: Category;
-    sdg_ids?: number[] | null;
-    agenda_ids?: number[] | null;
+    sdg_ids?: string[] | null;
+    agenda_ids?: string[] | null;
     authors?: Author[];
-    proponents?: Array<{ id: number; name: string }> | null;
+    proponents?: Array<{ id: string; name: string }> | null;
     publication?: Publication[];
     citations?: Citation[];
     files?: File[];
@@ -75,8 +75,8 @@ interface Props {
     paper: Paper;
     steps: string[];
     stepLabels: Record<string, string>;
-    sdgs: Array<{ id: number; name: string; number?: number }>;
-    agendas: Array<{ id: number; name: string }>;
+    sdgs: Array<{ id: string; name: string; number?: number }>;
+    agendas: Array<{ id: string; name: string }>;
 }
 
 const props = defineProps<Props>();

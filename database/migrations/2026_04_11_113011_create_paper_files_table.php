@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('paper_files', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('research_paper_id')->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('research_paper_id')->constrained()->cascadeOnDelete();
             $table->string('file_name');
             $table->string('file_path');
             $table->string('file_type');

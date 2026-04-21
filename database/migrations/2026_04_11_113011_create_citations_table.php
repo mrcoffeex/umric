@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('citations', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('research_paper_id')->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('research_paper_id')->constrained()->cascadeOnDelete();
             $table->text('citation_text');
             $table->string('source_url')->nullable();
             $table->string('citation_format')->default('APA');

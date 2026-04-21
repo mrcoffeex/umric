@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('paper_authors', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('research_paper_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('research_paper_id')->constrained()->cascadeOnDelete();
+            $table->foreignUlid('user_id')->constrained()->cascadeOnDelete();
             $table->integer('author_order')->default(1);
             $table->timestamps();
             $table->unique(['research_paper_id', 'user_id']);

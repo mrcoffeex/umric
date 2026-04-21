@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('announcements', function (Blueprint $table) {
-            $table->id();
+            $table->ulid('id')->primary();
             $table->string('title');
             $table->text('content');
             $table->enum('type', ['info', 'success', 'warning', 'danger'])->default('info');
@@ -21,7 +21,7 @@ return new class extends Migration
             $table->json('target_roles')->nullable(); // null = all roles
             $table->timestamp('published_at')->nullable();
             $table->timestamp('expires_at')->nullable();
-            $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignUlid('created_by')->constrained('users')->cascadeOnDelete();
             $table->timestamps();
         });
     }

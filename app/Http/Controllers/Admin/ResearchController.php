@@ -41,17 +41,15 @@ class ResearchController extends Controller
         }
 
         if ($request->filled('sdg')) {
-            $sdgId = (int) $request->sdg;
-            $query->whereJsonContains('sdg_ids', $sdgId);
+            $query->whereJsonContains('sdg_ids', $request->sdg);
         }
 
         if ($request->filled('agenda')) {
-            $agendaId = (int) $request->agenda;
-            $query->whereJsonContains('agenda_ids', $agendaId);
+            $query->whereJsonContains('agenda_ids', $request->agenda);
         }
 
         if ($request->filled('class')) {
-            $selectedClassId = (int) $request->class;
+            $selectedClassId = $request->class;
             $query->whereIn('user_id', function ($subQuery) use ($selectedClassId) {
                 $subQuery->select('student_id')
                     ->from('school_class_members')
@@ -63,7 +61,6 @@ class ResearchController extends Controller
 
         $studentIds = $papers->getCollection()->pluck('user_id')
             ->filter()
-            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values()
             ->all();
@@ -88,9 +85,9 @@ class ResearchController extends Controller
 
         $papers->setCollection(
             $papers->getCollection()->map(function (ResearchPaper $paper) use ($classesById, $studentClassMap) {
-                $classMembership = $studentClassMap->get((int) $paper->user_id);
+                $classMembership = $studentClassMap->get($paper->user_id);
                 $studentClass = $classMembership
-                    ? $classesById->get((int) $classMembership->school_class_id)
+                    ? $classesById->get($classMembership->school_class_id)
                     : null;
 
                 return [

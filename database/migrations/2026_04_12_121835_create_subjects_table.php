@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('subjects', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('program_id')->nullable()->constrained()->nullOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('program_id')->nullable()->constrained()->nullOnDelete();
             $table->string('name');
             $table->string('code', 20)->unique();
             $table->text('description')->nullable();

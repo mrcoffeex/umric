@@ -16,7 +16,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface AnnouncementItem {
-    id: number;
+    id: string;
     title: string;
     content: string;
     type: 'info' | 'success' | 'warning' | 'danger';

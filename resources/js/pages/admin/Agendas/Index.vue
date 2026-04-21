@@ -10,7 +10,7 @@ import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Agenda {
-    id: number;
+    id: string;
     name: string;
     code: string;
     description: string | null;

@@ -1,44 +1,51 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { watchDebounced } from '@vueuse/core';
-import { FileSearch, Filter, Search, ScrollText, Users } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import {
+    FileSearch,
+    Filter,
+    Loader2,
+    Search,
+    ScrollText,
+    Users,
+} from 'lucide-vue-next';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { index as classesIndex } from '@/routes/faculty/classes';
 import research from '@/routes/faculty/classes/research';
 
 interface SchoolClass {
-    id: number;
+    id: string;
     name: string;
     section?: string | null;
-    subjects?: Array<{ id: number; name: string; code?: string }>;
+    subjects?: Array<{ id: string; name: string; code?: string }>;
     faculty_id?: number;
     members_count?: number;
 }
 
 interface SdgItem {
-    id: number;
+    id: string;
     number: number;
     name: string;
     color: string | null;
 }
 
 interface AgendaItem {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     tracking_id: string;
     current_step: string;
     step_label?: string;
     student_name?: string;
-    student?: { id: number; name: string } | null;
-    sdg_ids?: number[];
-    agenda_ids?: number[];
+    student?: { id: string; name: string } | null;
+    sdg_ids?: string[];
+    agenda_ids?: string[];
     created_at?: string;
 }
 
@@ -57,7 +64,7 @@ const props = defineProps<Props>();
 const schoolClass = computed(() => props.schoolClass ?? props.class);
 
 const sdgMap = computed(() => {
-    const map = new Map<number, SdgItem>();
+    const map = new Map<string, SdgItem>();
 
     for (const sdg of props.sdgs) {
         map.set(sdg.id, sdg);
@@ -67,7 +74,7 @@ const sdgMap = computed(() => {
 });
 
 const agendaMap = computed(() => {
-    const map = new Map<number, AgendaItem>();
+    const map = new Map<string, AgendaItem>();
 
     for (const agenda of props.agendas) {
         map.set(agenda.id, agenda);
@@ -90,10 +97,27 @@ function paperAgendas(paper: Paper): AgendaItem[] {
 const activeStep = ref<string>('all');
 const searchQuery = ref('');
 const debouncedSearch = ref('');
+const loading = ref(false);
+
+const stopStart = router.on('start', () => {
+    loading.value = true;
+});
+const stopFinish = router.on('finish', () => {
+    loading.value = false;
+});
+onUnmounted(() => {
+    stopStart();
+    stopFinish();
+});
+
+watch(searchQuery, () => {
+    loading.value = true;
+});
 watchDebounced(
     searchQuery,
     (val) => {
         debouncedSearch.value = val;
+        loading.value = false;
     },
     { debounce: 300 },
 );
@@ -240,7 +264,12 @@ defineOptions({
             <div class="p-4">
                 <div class="relative">
                     <Search
+                        v-if="!loading"
                         class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <Loader2
+                        v-else
+                        class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 animate-spin text-orange-500"
                     />
                     <input
                         v-model="searchQuery"
@@ -281,9 +310,44 @@ defineOptions({
             </div>
         </section>
 
-        <section
-            class="overflow-hidden rounded-2xl border border-border bg-card"
+        <!-- Results count -->
+        <div
+            class="flex items-center justify-between text-xs text-muted-foreground"
         >
+            <span v-if="loading" class="italic">Fetching results…</span>
+            <span v-else-if="filteredPapers.length === 0">No results</span>
+            <span v-else>
+                Showing
+                <span class="font-semibold text-foreground">{{
+                    filteredPapers.length
+                }}</span>
+                <template v-if="filteredPapers.length !== papers.length">
+                    of
+                    <span class="font-semibold text-foreground">{{
+                        papers.length
+                    }}</span>
+                </template>
+                {{ filteredPapers.length === 1 ? 'paper' : 'papers' }}
+            </span>
+        </div>
+
+        <section
+            class="relative overflow-hidden rounded-2xl border border-border bg-card"
+        >
+            <!-- Loading overlay -->
+            <div
+                v-if="loading"
+                class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-[2px]"
+            >
+                <div
+                    class="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm"
+                >
+                    <Loader2 class="h-4 w-4 animate-spin text-orange-500" />
+                    <span class="text-xs font-semibold text-muted-foreground"
+                        >Loading results…</span
+                    >
+                </div>
+            </div>
             <div v-if="filteredPapers.length === 0" class="p-12 text-center">
                 <div
                     class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 dark:bg-orange-950/30"
@@ -434,7 +498,7 @@ defineOptions({
                                 <Link
                                     :href="
                                         research.show.url({
-                                            class: schoolClass?.id ?? 0,
+                                            class: schoolClass?.id ?? '',
                                             paper: paper.id,
                                         })
                                     "

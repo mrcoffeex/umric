@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TrackingRecord extends Model
 {
+    use HasUlids;
+
     protected $fillable = [
         'research_paper_id',
         'step',
@@ -36,12 +39,12 @@ class TrackingRecord extends Model
 
     // Helper to create a log entry
     public static function log(
-        int $paperId,
+        string $paperId,
         string $step,
         string $action,
         string $newStatus,
         ?string $oldStatus = null,
-        ?int $performedBy = null,
+        ?string $performedBy = null,
         ?string $notes = null,
         ?array $metadata = null,
     ): self {

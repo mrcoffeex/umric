@@ -10,13 +10,13 @@ import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
 
 interface Program {
-    id: number;
+    id: string;
     name: string;
     code: string;
 }
 
 interface Subject {
-    id: number;
+    id: string;
     name: string;
     code: string;
     program_id: number | null;

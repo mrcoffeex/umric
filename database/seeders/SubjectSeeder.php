@@ -8,6 +8,11 @@ use Illuminate\Database\Seeder;
 
 class SubjectSeeder extends Seeder
 {
+    /**
+     * @var array<string, bool>
+     */
+    private array $usedCodes = [];
+
     public function run(): void
     {
         // Structure: 'PROGRAM_CODE' => [['code' => 'SUBJ101', 'name' => '...'], ...]
@@ -199,15 +204,45 @@ class SubjectSeeder extends Seeder
             }
 
             foreach ($subjects as $subject) {
+                $subjectCode = $this->resolveSubjectCode($program->code, $subject['code']);
+
                 Subject::updateOrCreate(
-                    ['code' => $subject['code']],
+                    ['code' => $subjectCode],
                     [
                         'program_id' => $program->id,
                         'name' => $subject['name'],
+                        'year_level' => $this->inferYearLevel($subject['code']),
                         'is_active' => true,
                     ],
                 );
             }
         }
+    }
+
+    private function inferYearLevel(string $code): int
+    {
+        preg_match('/(\d{3})/', $code, $matches);
+
+        if (! isset($matches[1])) {
+            return 1;
+        }
+
+        $hundreds = (int) floor(((int) $matches[1]) / 100);
+
+        return max(1, min(4, $hundreds));
+    }
+
+    private function resolveSubjectCode(string $programCode, string $baseCode): string
+    {
+        if (! isset($this->usedCodes[$baseCode]) && ! Subject::query()->where('code', $baseCode)->exists()) {
+            $this->usedCodes[$baseCode] = true;
+
+            return $baseCode;
+        }
+
+        $namespacedCode = substr("{$programCode}-{$baseCode}", 0, 20);
+        $this->usedCodes[$namespacedCode] = true;
+
+        return $namespacedCode;
     }
 }

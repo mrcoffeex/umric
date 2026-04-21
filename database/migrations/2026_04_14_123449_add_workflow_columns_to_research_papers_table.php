@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::table('research_papers', function (Blueprint $table) {
             // Link to class
-            $table->foreignId('school_class_id')->nullable()->constrained('school_classes')->nullOnDelete()->after('user_id');
+            $table->foreignUlid('school_class_id')->nullable()->constrained('school_classes')->nullOnDelete()->after('user_id');
             // Assigned members
-            $table->foreignId('adviser_id')->nullable()->constrained('users')->nullOnDelete()->after('school_class_id');
-            $table->foreignId('statistician_id')->nullable()->constrained('users')->nullOnDelete()->after('adviser_id');
+            $table->foreignUlid('adviser_id')->nullable()->constrained('users')->nullOnDelete()->after('school_class_id');
+            $table->foreignUlid('statistician_id')->nullable()->constrained('users')->nullOnDelete()->after('adviser_id');
             // Workflow step tracking
             $table->string('current_step')->default('title_proposal')->after('status');
             // Step statuses

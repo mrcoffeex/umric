@@ -11,22 +11,22 @@ import classesRoutes from '@/routes/classes';
 import student from '@/routes/student';
 
 interface ClassInfo {
-    id: number;
+    id: string;
     name: string;
     section?: string | null;
     school_year?: string | null;
     semester?: number | null;
     class_code?: string | null;
     description?: string | null;
-    faculty?: { id: number; name: string } | null;
+    faculty?: { id: string; name: string } | null;
     subjects?: Array<{
-        id: number;
+        id: string;
         name: string;
         code?: string;
-        program?: { id: number; name: string } | null;
+        program?: { id: string; name: string } | null;
     }>;
     research_papers?: Array<{
-        id: number;
+        id: string;
         title: string;
         current_step: string;
         tracking_id: string;

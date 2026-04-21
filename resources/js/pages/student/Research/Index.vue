@@ -14,17 +14,17 @@ import { getStepBadgeClass } from '@/lib/step-colors';
 import student from '@/routes/student';
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract?: string | null;
     tracking_id: string;
     status: string;
     current_step: string;
     created_at: string;
-    user_id: number;
+    user_id: string;
     proponents?: Array<{ id: string; name: string }> | null;
-    school_class?: { id: number; name: string; section?: string | null } | null;
-    adviser?: { id: number; name: string } | null;
+    school_class?: { id: string; name: string; section?: string | null } | null;
+    adviser?: { id: string; name: string } | null;
 }
 
 interface Props {
@@ -36,7 +36,7 @@ interface Props {
 const props = defineProps<Props>();
 const page = usePage();
 const authUserId = computed(
-    () => (page.props.auth as { user: { id: number } }).user.id,
+    () => (page.props.auth as { user: { id: string } }).user.id,
 );
 
 defineOptions({

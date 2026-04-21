@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('school_classes', function (Blueprint $table) {
-            $table->foreignId('faculty_id')->nullable()->constrained('users')->nullOnDelete()->after('program_id');
+            $table->foreignUlid('faculty_id')->nullable()->constrained('users')->nullOnDelete()->after('program_id');
             $table->string('join_code', 10)->nullable()->unique()->after('is_active');
         });
     }

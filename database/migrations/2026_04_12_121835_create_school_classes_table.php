@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('school_classes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('program_id')->constrained()->cascadeOnDelete();
+            $table->ulid('id')->primary();
+            $table->foreignUlid('program_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->unsignedTinyInteger('year_level');
             $table->string('section', 5);

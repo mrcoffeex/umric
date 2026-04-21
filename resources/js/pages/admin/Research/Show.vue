@@ -41,36 +41,36 @@ import {
 import panelDefensesRoutes from '@/routes/admin/research/panel-defenses';
 
 interface StepRecord {
-    id: number;
+    id: string;
     step: string | null;
     action: string;
     status: string | null;
     old_status?: string | null;
     notes?: string | null;
-    updated_by?: { id: number; name: string } | null;
+    updated_by?: { id: string; name: string } | null;
     created_at?: string | null;
 }
 
 interface Comment {
-    id: number;
+    id: string;
     body: string;
-    user: { id: number; name: string } | null;
+    user: { id: string; name: string } | null;
     created_at: string;
 }
 
 interface PanelDefenseRecord {
-    id: number;
+    id: string;
     defense_type: 'title' | 'outline' | 'final';
     defense_type_label: string;
     panel_members: string[];
     schedule: string | null;
     notes: string | null;
-    created_by: { id: number; name: string } | null;
+    created_by: { id: string; name: string } | null;
     created_at: string;
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract?: string | null;
     tracking_id: string;
@@ -80,9 +80,9 @@ interface Paper {
     submission_date?: string | null;
     created_at: string;
     keywords?: string | null;
-    sdg_ids?: number[] | null;
-    agenda_ids?: number[] | null;
-    proponents?: string[] | Array<{ id: number; name: string }> | string | null;
+    sdg_ids?: string[] | null;
+    agenda_ids?: string[] | null;
+    proponents?: string[] | Array<{ id: string; name: string }> | string | null;
     user_id?: number | null;
     step_ric_review?: string | null;
     step_plagiarism?: string | null;
@@ -96,10 +96,10 @@ interface Paper {
     step_final_defense?: string | null;
     final_defense_schedule?: string | null;
     step_hard_bound?: string | null;
-    student?: { id: number; name: string; email?: string } | null;
-    adviser?: { id: number; name: string } | null;
-    statistician?: { id: number; name: string } | null;
-    school_class?: { id: number; name: string; section?: string | null } | null;
+    student?: { id: string; name: string; email?: string } | null;
+    adviser?: { id: string; name: string } | null;
+    statistician?: { id: string; name: string } | null;
+    school_class?: { id: string; name: string; section?: string | null } | null;
 }
 
 interface Props {
@@ -107,10 +107,10 @@ interface Props {
     trackingRecords?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
-    sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
-    agendas: Array<{ id: number; name: string }>;
-    facultyUsers: Array<{ id: number; name: string }>;
-    staffUsers: Array<{ id: number; name: string }>;
+    sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
+    agendas: Array<{ id: string; name: string }>;
+    facultyUsers: Array<{ id: string; name: string }>;
+    staffUsers: Array<{ id: string; name: string }>;
     comments?: Comment[];
     panelDefenses?: PanelDefenseRecord[];
 }
@@ -413,7 +413,7 @@ const { confirm } = useConfirm();
 
 const panelForm = useForm({
     defense_type: 'title' as 'title' | 'outline' | 'final',
-    panel_member_ids: [] as number[],
+    panel_member_ids: [] as string[],
     schedule: '',
     notes: '',
 });

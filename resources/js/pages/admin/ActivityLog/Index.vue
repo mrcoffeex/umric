@@ -30,7 +30,7 @@ interface Pagination<T> {
 }
 
 interface ActivityLog {
-    id: number;
+    id: string;
     description: string;
     event: string;
     causer: string | null;
@@ -60,7 +60,7 @@ interface Props {
     options: {
         events: string[];
         causers: Array<{
-            id: number;
+            id: string;
             name: string | null;
             email: string | null;
         }>;

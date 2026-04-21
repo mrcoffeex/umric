@@ -29,36 +29,36 @@ import research from '@/routes/faculty/classes/research';
 import { index as researchIndex } from '@/routes/faculty/research';
 
 interface StepRecord {
-    id: number;
+    id: string;
     step: string | null;
     action: string;
     status: string | null;
     old_status?: string | null;
     notes?: string | null;
-    updated_by?: { id: number; name: string } | null;
+    updated_by?: { id: string; name: string } | null;
     created_at?: string | null;
 }
 
 interface Comment {
-    id: number;
+    id: string;
     body: string;
-    user: { id: number; name: string } | null;
+    user: { id: string; name: string } | null;
     created_at: string;
 }
 
 interface PanelDefenseRecord {
-    id: number;
+    id: string;
     defense_type: 'title' | 'outline' | 'final';
     defense_type_label: string;
     panel_members: string[];
     schedule: string | null;
     notes: string | null;
-    created_by: { id: number; name: string } | null;
+    created_by: { id: string; name: string } | null;
     created_at: string;
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     abstract?: string | null;
     tracking_id: string;
@@ -68,9 +68,9 @@ interface Paper {
     submission_date?: string | null;
     created_at: string;
     keywords?: string | null;
-    sdg_ids?: number[] | null;
-    agenda_ids?: number[] | null;
-    proponents?: string[] | Array<{ id: number; name: string }> | string | null;
+    sdg_ids?: string[] | null;
+    agenda_ids?: string[] | null;
+    proponents?: string[] | Array<{ id: string; name: string }> | string | null;
     user_id?: number | null;
     step_ric_review?: string | null;
     step_plagiarism?: string | null;
@@ -85,24 +85,24 @@ interface Paper {
     final_defense_schedule?: string | null;
     step_hard_bound?: string | null;
     student?: {
-        id: number;
+        id: string;
         name: string;
         email?: string;
         avatar_url?: string | null;
     } | null;
-    adviser?: { id: number; name: string } | null;
-    statistician?: { id: number; name: string } | null;
-    school_class?: { id: number; name: string; section?: string | null } | null;
+    adviser?: { id: string; name: string } | null;
+    statistician?: { id: string; name: string } | null;
+    school_class?: { id: string; name: string; section?: string | null } | null;
 }
 
 interface Props {
     paper: Paper;
-    schoolClass?: { id: number; name: string; section?: string | null } | null;
+    schoolClass?: { id: string; name: string; section?: string | null } | null;
     trackingRecords?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
-    sdgs: Array<{ id: number; name: string; number?: number; color?: string }>;
-    agendas: Array<{ id: number; name: string }>;
+    sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
+    agendas: Array<{ id: string; name: string }>;
     comments?: Comment[];
     panelDefenses?: PanelDefenseRecord[];
 }
@@ -269,7 +269,7 @@ const commentForm = useForm({ body: '' });
 function submitComment(): void {
     commentForm.post(
         research.storeComment.url({
-            class: schoolClass.value?.id ?? 0,
+            class: schoolClass.value?.id ?? '',
             paper: props.paper.id,
         }),
         { preserveScroll: true, onSuccess: () => commentForm.reset() },

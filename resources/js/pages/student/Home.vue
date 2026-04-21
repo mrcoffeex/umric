@@ -16,7 +16,7 @@ import classesRoutes from '@/routes/classes';
 import student from '@/routes/student';
 
 interface Announcement {
-    id: number;
+    id: string;
     title: string;
     content: string;
     type: 'info' | 'success' | 'warning' | 'danger';
@@ -25,15 +25,15 @@ interface Announcement {
 }
 
 interface ClassInfo {
-    id: number;
+    id: string;
     name: string;
     section?: string | null;
     class_code?: string | null;
-    subjects?: Array<{ id: number; name: string; code?: string }>;
+    subjects?: Array<{ id: string; name: string; code?: string }>;
 }
 
 interface Paper {
-    id: number;
+    id: string;
     title: string;
     tracking_id: string;
     current_step: string;

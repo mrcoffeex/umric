@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PaperAuthor extends Model
 {
+    use HasUlids;
+
     protected $table = 'paper_authors';
 
     protected $fillable = [

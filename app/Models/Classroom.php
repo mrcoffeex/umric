@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Illuminate\Support\Str;
 #[Fillable(['faculty_id', 'name', 'description', 'join_code', 'is_active'])]
 class Classroom extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUlids;
 
     protected function casts(): array
     {
