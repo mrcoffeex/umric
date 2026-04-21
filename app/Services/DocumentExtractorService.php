@@ -19,7 +19,7 @@ class DocumentExtractorService
         $path = $file->getRealPath();
 
         $base = match ($extension) {
-            'pdf'  => $this->extractPdf($path),
+            'pdf' => $this->extractPdf($path),
             'docx' => $this->extractDocx($path),
             default => ['title' => '', 'abstract' => ''],
         };
@@ -37,7 +37,7 @@ class DocumentExtractorService
     private function extractPdf(string $path): array
     {
         try {
-            $parser = new PdfParser();
+            $parser = new PdfParser;
             $pdf = $parser->parseFile($path);
             $text = $pdf->getText();
         } catch (\Throwable) {
@@ -56,7 +56,7 @@ class DocumentExtractorService
      */
     private function extractDocx(string $path): array
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($path) !== true) {
             return ['title' => '', 'abstract' => ''];

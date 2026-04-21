@@ -94,7 +94,7 @@ class ResearchController extends Controller
             'file' => ['required', 'file', 'mimes:pdf,docx', 'max:'.config('uploads.max_size_kb')],
         ]);
 
-        $result = (new DocumentExtractorService())->extract($request->file('file'));
+        $result = (new DocumentExtractorService)->extract($request->file('file'));
 
         return response()->json($result);
     }
