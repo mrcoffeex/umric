@@ -81,6 +81,8 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::get('/claim/{token}', [DocumentTransmissionController::class, 'claim'])->name('claim');
         Route::get('/{transmission}/items/{item}/file', [DocumentTransmissionController::class, 'downloadItemFile'])->name('items.file');
         Route::post('/{transmission}/receive', [DocumentTransmissionController::class, 'receive'])->name('receive');
+        Route::get('/{transmission}/forward', [DocumentTransmissionController::class, 'createForward'])->name('forward.create');
+        Route::post('/{transmission}/forward', [DocumentTransmissionController::class, 'storeForward'])->name('forward.store');
         Route::get('/{transmission}', [DocumentTransmissionController::class, 'show'])->name('show');
     });
 

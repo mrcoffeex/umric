@@ -344,7 +344,7 @@ class PanelDefenseEvaluationController extends Controller
      */
     private function indexRedirectQuery(Request $request): array
     {
-        return $request->only(['q', 'defense_type', 'status', 'per_page', 'page']);
+        return $request->only(['q', 'defense_type', 'status', 'per_page', 'page', 'schedule_date']);
     }
 
     /**
@@ -375,6 +375,16 @@ class PanelDefenseEvaluationController extends Controller
         $type = $request->get('defense_type');
         if (is_string($type) && $type !== '' && array_key_exists($type, PanelDefense::DEFENSE_TYPES)) {
             $query->where('defense_type', $type);
+        }
+
+        $scheduleDate = trim((string) $request->get('schedule_date', ''));
+        if ($scheduleDate !== '' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $scheduleDate, $m)) {
+            $y = (int) $m[1];
+            $mon = (int) $m[2];
+            $d = (int) $m[3];
+            if (checkdate($mon, $d, $y)) {
+                $query->whereDate('schedule', $scheduleDate);
+            }
         }
 
         $status = (string) $request->get('status', 'all');
@@ -409,6 +419,7 @@ class PanelDefenseEvaluationController extends Controller
             'q' => (string) $request->get('q', ''),
             'defense_type' => (string) $request->get('defense_type', ''),
             'status' => (string) $request->get('status', 'all'),
+            'schedule_date' => (string) $request->get('schedule_date', ''),
             'per_page' => $perPage,
         ];
         if ($isAdmin) {
@@ -449,6 +460,9 @@ class PanelDefenseEvaluationController extends Controller
             'schedule' => $d->schedule?->toIso8601String(),
             'defense_type' => $d->defense_type,
             'defense_type_label' => $d->defense_type_label,
+            'research_paper_id' => $d->research_paper_id !== null
+                ? (string) $d->research_paper_id
+                : null,
             'paper_title' => $d->researchPaper?->title,
             'tracking_id' => $d->researchPaper?->tracking_id,
             'student_name' => $d->researchPaper?->user?->name,
@@ -467,6 +481,9 @@ class PanelDefenseEvaluationController extends Controller
                 'final_score' => (int) $e->final_score,
                 'is_mine' => (string) $e->evaluator_id === (string) $user->id,
             ])->values()->all();
+            $row['average_score'] = $d->evaluations->isEmpty()
+                ? null
+                : round((float) $d->evaluations->avg('final_score'), 1);
         } else {
             $row['evaluations'] = [];
         }

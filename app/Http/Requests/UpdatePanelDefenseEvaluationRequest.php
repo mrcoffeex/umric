@@ -38,6 +38,7 @@ class UpdatePanelDefenseEvaluationRequest extends FormRequest
             'q' => ['nullable', 'string', 'max:200'],
             'defense_type' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:100'],
+            'schedule_date' => ['nullable', 'string', 'date_format:Y-m-d'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page' => ['nullable', 'integer', 'min:1'],
         ];

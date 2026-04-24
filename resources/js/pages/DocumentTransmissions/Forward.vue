@@ -4,13 +4,12 @@ import {
     ArrowLeft,
     FileText,
     Loader2,
-    Plus,
-    Trash2,
+    PackageOpen,
     Users,
-    X,
 } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { dashboard } from '@/routes';
@@ -25,43 +24,76 @@ defineOptions({
                 title: 'Document handoffs',
                 href: documentTransmissions.index.url(),
             },
-            { title: 'New handoff' },
+            { title: 'Forward handoff' },
         ],
     },
 });
 
-const uploadMaxSizeMb = Number(import.meta.env.VITE_UPLOAD_MAX_SIZE_MB ?? 25);
-
-interface ItemRow {
-    label: string;
-    file: File | null;
+interface UserRef {
+    id: string;
+    name: string;
+    email: string;
 }
+
+interface SourceItem {
+    id: string;
+    label: string;
+    has_attachment: boolean;
+    file_name: string | null;
+}
+
+const props = defineProps<{
+    source: {
+        id: string;
+        purpose: string;
+        status: string;
+        created_at: string;
+        sender: UserRef | null;
+        receiver: UserRef | null;
+        items: SourceItem[];
+    };
+}>();
 
 const form = useForm({
     receiver_id: '',
-    purpose: '',
-    items: [{ label: '', file: null }] as ItemRow[],
+    purpose: `Forward: ${props.source.purpose}`.slice(0, 5000),
+    item_ids: props.source.items.map((i) => i.id) as string[],
 });
 
-const hasDuplicateItemLabels = computed(() => {
-    const seen = new Set<string>();
+const nDocuments = computed(() => props.source.items.length);
 
-    for (const row of form.items) {
-        const k = row.label.trim().toLowerCase();
+const allDocumentsSelected = computed(
+    () =>
+        nDocuments.value > 0 &&
+        form.item_ids.length === nDocuments.value &&
+        props.source.items.every((row) => form.item_ids.includes(row.id)),
+);
 
-        if (k === '') {
-            continue;
-        }
+const noDocumentsSelected = computed(() => form.item_ids.length === 0);
 
-        if (seen.has(k)) {
-            return true;
-        }
+function documentSelected(id: string): boolean {
+    return form.item_ids.includes(id);
+}
 
-        seen.add(k);
+function setDocumentSelected(id: string, checked: boolean) {
+    const next = new Set(form.item_ids);
+
+    if (checked) {
+        next.add(id);
+    } else {
+        next.delete(id);
     }
 
-    return false;
-});
+    form.item_ids = [...next];
+}
+
+function checkAllDocuments() {
+    form.item_ids = props.source.items.map((i) => i.id);
+}
+
+function uncheckAllDocuments() {
+    form.item_ids = [];
+}
 
 interface SearchResult {
     id: string;
@@ -74,8 +106,6 @@ const recipientSearchOpen = ref(false);
 const searchQuery = ref('');
 const searchResults = ref<SearchResult[]>([]);
 const searchInput = ref<HTMLInputElement | null>(null);
-
-/** Debounce delay (ms) — avoids a request on every keystroke */
 const RECIPIENT_SEARCH_DEBOUNCE_MS = 400;
 
 let recipientSearchAbort: AbortController | null = null;
@@ -182,85 +212,33 @@ onBeforeUnmount(() => {
     recipientSearchAbort?.abort();
 });
 
-function addItemRow() {
-    if (form.items.length >= 100) {
-        return;
-    }
-
-    form.items.push({ label: '', file: null });
-}
-
-function removeItemRow(index: number) {
-    if (form.items.length <= 1) {
-        form.items[0] = { label: '', file: null };
-        nextTick(() => {
-            const el = document.getElementById(
-                'item-file-0',
-            ) as HTMLInputElement | null;
-
-            if (el) {
-                el.value = '';
-            }
-        });
-
-        return;
-    }
-
-    form.items.splice(index, 1);
-}
-
-function onItemFileChange(index: number, e: Event) {
-    const input = e.target as HTMLInputElement;
-    const f = input.files?.[0] ?? null;
-
-    if (f && f.type !== 'application/pdf') {
-        input.value = '';
-        form.items[index].file = null;
-
-        return;
-    }
-
-    form.items[index].file = f;
-}
-
-function clearItemFile(index: number) {
-    form.items[index].file = null;
-    nextTick(() => {
-        const el = document.getElementById(
-            `item-file-${index}`,
-        ) as HTMLInputElement | null;
-
-        if (el) {
-            el.value = '';
-        }
-    });
-}
-
 function submit() {
-    form.transform((data) => ({
-        receiver_id: data.receiver_id,
-        purpose: data.purpose,
-        items: data.items
-            .map((row) => ({
-                label: row.label.trim(),
-                file: row.file,
-            }))
-            .filter((row) => row.label !== ''),
-    })).post(documentTransmissions.store.url(), {
-        forceFormData: true,
-    });
+    if (form.item_ids.length < 1) {
+        return;
+    }
+
+    form.post(
+        documentTransmissions.forward.store.url({
+            transmission: props.source.id,
+        }),
+        { preserveScroll: true },
+    );
 }
 </script>
 
 <template>
     <div class="flex h-full flex-1 flex-col bg-background">
-        <Head title="New document handoff" />
+        <Head title="Forward handoff" />
 
         <div class="border-b border-border bg-card px-4 py-4 md:px-6">
             <div class="mx-auto flex max-w-2xl items-center gap-3">
                 <Button variant="ghost" size="sm" as-child>
                     <Link
-                        :href="documentTransmissions.index.url()"
+                        :href="
+                            documentTransmissions.show.url({
+                                transmission: source.id,
+                            })
+                        "
                         class="gap-1.5 text-muted-foreground hover:text-foreground"
                     >
                         <ArrowLeft class="h-3.5 w-3.5" />
@@ -270,12 +248,13 @@ function submit() {
                 <div class="h-4 w-px bg-border" />
                 <div>
                     <h1 class="text-lg font-bold text-foreground">
-                        New document handoff
+                        Forward handoff
                     </h1>
                     <p class="text-xs text-muted-foreground">
-                        Choose who receives the bundle, describe why you are
-                        sending it, list each document, and optionally attach a
-                        PDF per line.
+                        The same document list and file copies are sent to a new
+                        recipient. The original handoff’s activity log is
+                        updated on each line. Duplicate pending handoffs to the
+                        same person are blocked.
                     </p>
                 </div>
             </div>
@@ -289,19 +268,51 @@ function submit() {
                     <div
                         class="flex items-center gap-2 border-b border-border bg-muted/40 px-5 py-3.5"
                     >
+                        <PackageOpen class="h-4 w-4 text-teal-600" />
+                        <h2 class="text-sm font-semibold text-foreground">
+                            Source handoff
+                        </h2>
+                    </div>
+                    <div class="space-y-2 p-5 text-sm">
+                        <p class="whitespace-pre-wrap text-foreground">
+                            {{ source.purpose }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            From
+                            <span class="font-medium text-foreground">{{
+                                source.sender?.name ?? '—'
+                            }}</span>
+                            · To
+                            <span class="font-medium text-foreground">{{
+                                source.receiver?.name ?? '—'
+                            }}</span>
+                            · Created
+                            {{ new Date(source.created_at).toLocaleString() }}
+                        </p>
+                    </div>
+                </section>
+
+                <section
+                    class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
+                >
+                    <div
+                        class="flex items-center gap-2 border-b border-border bg-muted/40 px-5 py-3.5"
+                    >
                         <Users
                             class="h-4 w-4 text-orange-600 dark:text-orange-400"
                         />
                         <h2 class="text-sm font-semibold text-foreground">
-                            Recipient
+                            New recipient
                         </h2>
                     </div>
                     <div class="space-y-3 p-5">
                         <div class="flex flex-wrap items-end gap-2">
                             <div class="min-w-0 flex-1 space-y-1.5">
-                                <Label for="recipient-display">Send to</Label>
+                                <Label for="recipient-forward-display"
+                                    >Forward to</Label
+                                >
                                 <Input
-                                    id="recipient-display"
+                                    id="recipient-forward-display"
                                     readonly
                                     :value="recipientLabel"
                                     placeholder="Search a user…"
@@ -313,6 +324,7 @@ function submit() {
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                class="border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
                                 @click="openRecipientSearch"
                             >
                                 Search
@@ -386,15 +398,11 @@ function submit() {
                         <h2 class="text-sm font-semibold text-foreground">
                             Purpose
                         </h2>
-                        <p class="text-xs text-muted-foreground">
-                            One or two sentences help the receiver prioritize.
-                        </p>
                     </div>
                     <div class="p-5">
                         <textarea
                             v-model="form.purpose"
                             rows="4"
-                            placeholder="e.g. Title defense packet for adviser review — please sign the routing slip when complete."
                             class="min-h-[100px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground transition outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-500/20"
                         />
                         <p
@@ -410,115 +418,94 @@ function submit() {
                     class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
                 >
                     <div
-                        class="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-5 py-3.5"
+                        class="flex flex-col gap-2 border-b border-border bg-muted/40 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <div>
                             <h2 class="text-sm font-semibold text-foreground">
-                                Documents in this handoff
+                                Documents to include
                             </h2>
                             <p class="text-xs text-muted-foreground">
-                                One line per document. PDF only, up to
-                                {{ uploadMaxSizeMb }} MB each.
+                                Choose which lines to copy. PDFs are copied to
+                                the new handoff.
                             </p>
                         </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            class="gap-1 border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
-                            @click="addItemRow"
-                        >
-                            <Plus class="h-3.5 w-3.5" />
-                            Add line
-                        </Button>
-                    </div>
-                    <div class="space-y-4 p-5">
-                        <div
-                            v-for="(row, idx) in form.items"
-                            :key="idx"
-                            class="rounded-lg border border-border bg-muted/20 p-3"
-                        >
-                            <div class="flex gap-2">
-                                <Input
-                                    v-model="form.items[idx].label"
-                                    :placeholder="`Document ${idx + 1}`"
-                                    class="flex-1"
-                                />
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    class="shrink-0 text-muted-foreground hover:text-destructive"
-                                    :disabled="form.items.length <= 1"
-                                    @click="removeItemRow(idx)"
-                                >
-                                    <Trash2 class="h-4 w-4" />
-                                </Button>
-                            </div>
-                            <div
-                                class="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2"
+                        <div class="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
+                                :disabled="allDocumentsSelected"
+                                @click="checkAllDocuments"
                             >
-                                <FileText
-                                    class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
-                                />
-                                <Label
-                                    :for="`item-file-${idx}`"
-                                    class="cursor-pointer text-xs font-normal text-muted-foreground"
-                                >
-                                    PDF (optional)
-                                </Label>
-                                <input
-                                    :id="`item-file-${idx}`"
-                                    type="file"
-                                    accept="application/pdf,.pdf"
-                                    class="max-w-[200px] cursor-pointer text-xs file:mr-2 file:rounded-md file:border-0 file:bg-orange-500 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white hover:file:bg-orange-600"
-                                    @change="onItemFileChange(idx, $event)"
-                                />
-                                <span
-                                    v-if="row.file"
-                                    class="flex min-w-0 items-center gap-1 text-xs text-foreground"
-                                >
-                                    <span class="truncate">{{
-                                        row.file.name
-                                    }}</span>
-                                    <button
-                                        type="button"
-                                        class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                        title="Remove file"
-                                        @click="clearItemFile(idx)"
-                                    >
-                                        <X class="h-3 w-3" />
-                                    </button>
-                                </span>
-                            </div>
-                            <p
-                                v-if="form.errors[`items.${idx}.label`]"
-                                class="mt-1 text-xs text-destructive"
+                                Check all
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
+                                :disabled="noDocumentsSelected"
+                                @click="uncheckAllDocuments"
                             >
-                                {{ form.errors[`items.${idx}.label`] }}
-                            </p>
-                            <p
-                                v-if="form.errors[`items.${idx}.file`]"
-                                class="mt-1 text-xs text-destructive"
-                            >
-                                {{ form.errors[`items.${idx}.file`] }}
-                            </p>
+                                Uncheck all
+                            </Button>
                         </div>
-                        <p
-                            v-if="form.errors.items"
-                            class="text-xs text-destructive"
-                        >
-                            {{ form.errors.items }}
-                        </p>
-                        <p
-                            v-if="hasDuplicateItemLabels"
-                            class="text-xs text-amber-800 dark:text-amber-200/90"
-                        >
-                            Two or more lines use the same title (ignoring
-                            spaces and letter case). Fix duplicates before
-                            creating the handoff.
-                        </p>
                     </div>
+                    <p
+                        v-if="form.errors.item_ids"
+                        class="px-5 pt-3 text-xs text-destructive"
+                    >
+                        {{ form.errors.item_ids }}
+                    </p>
+                    <ul class="divide-y divide-border p-0">
+                        <li
+                            v-for="row in source.items"
+                            :key="row.id"
+                            class="flex gap-3 px-5 py-3 text-sm"
+                        >
+                            <div class="shrink-0 pt-0.5" @click.stop>
+                                <Checkbox
+                                    :id="`forward-doc-${row.id}`"
+                                    :model-value="documentSelected(row.id)"
+                                    :aria-label="`Include document: ${row.label}`"
+                                    @update:model-value="
+                                        (v) =>
+                                            setDocumentSelected(
+                                                row.id,
+                                                v === true,
+                                            )
+                                    "
+                                />
+                            </div>
+                            <FileText
+                                class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                            />
+                            <div class="min-w-0 flex-1">
+                                <label
+                                    :for="`forward-doc-${row.id}`"
+                                    class="block cursor-pointer font-medium text-foreground"
+                                >
+                                    {{ row.label }}
+                                </label>
+                                <p
+                                    v-if="row.has_attachment"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    {{ row.file_name ?? 'PDF attached' }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    No file on this line
+                                </p>
+                            </div>
+                        </li>
+                    </ul>
+                    <p
+                        class="border-t border-border px-5 py-2 text-xs text-muted-foreground"
+                    >
+                        {{ form.item_ids.length }} of
+                        {{ source.items.length }} selected
+                    </p>
                 </section>
 
                 <div class="flex justify-end gap-2 pb-8">
@@ -528,20 +515,25 @@ function submit() {
                         as-child
                         class="border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
                     >
-                        <Link :href="documentTransmissions.index.url()"
+                        <Link
+                            :href="
+                                documentTransmissions.show.url({
+                                    transmission: source.id,
+                                })
+                            "
                             >Cancel</Link
                         >
                     </Button>
                     <Button
                         type="submit"
                         class="bg-orange-500 text-white hover:bg-orange-600"
-                        :disabled="form.processing"
+                        :disabled="form.processing || noDocumentsSelected"
                     >
                         <Loader2
                             v-if="form.processing"
                             class="mr-2 h-4 w-4 animate-spin"
                         />
-                        Create handoff
+                        Create forwarded handoff
                     </Button>
                 </div>
             </form>

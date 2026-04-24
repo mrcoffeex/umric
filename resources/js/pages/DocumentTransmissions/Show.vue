@@ -6,8 +6,10 @@ import {
     ClipboardCopy,
     Eye,
     FileDown,
+    Forward,
     History,
     Link2,
+    ListTree,
     Maximize2,
     PackageOpen,
     QrCode,
@@ -19,6 +21,13 @@ import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { dashboard } from '@/routes';
 import documentTransmissions from '@/routes/document-transmissions';
 
@@ -35,12 +44,28 @@ interface ItemAttachment {
     download_url: string;
 }
 
+interface ItemActivity {
+    id: string;
+    event: string;
+    meta: Record<string, unknown>;
+    created_at: string;
+    actor: Pick<UserRef, 'id' | 'name'> | null;
+}
+
 interface Item {
     id: string;
     label: string;
     sort_order: number;
     received_at: string | null;
     attachment: ItemAttachment | null;
+    activities: ItemActivity[];
+}
+
+interface ForwardedFromSummary {
+    id: string;
+    purpose: string;
+    created_at: string;
+    sender: Pick<UserRef, 'id' | 'name'> | null;
 }
 
 interface Transmission {
@@ -50,6 +75,7 @@ interface Transmission {
     share_token: string;
     completed_at: string | null;
     created_at: string;
+    forwarded_from: ForwardedFromSummary | null;
     sender: UserRef | null;
     receiver: UserRef | null;
     items: Item[];
@@ -69,6 +95,7 @@ const props = defineProps<{
     claimUrl: string;
     isSender: boolean;
     isReceiver: boolean;
+    canForward: boolean;
 }>();
 
 defineOptions({
@@ -85,6 +112,7 @@ defineOptions({
 });
 
 const qrModalOpen = ref(false);
+const documentActivityModalOpen = ref(false);
 const copied = ref(false);
 const pendingReceiptIds = ref<Set<string>>(new Set());
 const confirming = ref(false);
@@ -95,6 +123,13 @@ const checkedCount = computed(
 const totalCount = computed(() => props.transmission.items.length);
 const isComplete = computed(() => props.transmission.status === 'completed');
 const selectedToReceiveCount = computed(() => pendingReceiptIds.value.size);
+
+const documentActivityEventCount = computed(() =>
+    props.transmission.items.reduce(
+        (n, i) => n + (i.activities?.length ?? 0),
+        0,
+    ),
+);
 
 function syncPendingFromProps() {
     pendingReceiptIds.value = new Set(
@@ -227,6 +262,86 @@ function historyHeading(entry: HandoffHistoryEntry): string {
 function formatHistoryWhen(iso: string) {
     return new Date(iso).toLocaleString();
 }
+
+function itemActivityHeading(event: string): string {
+    if (event === 'added') {
+        return 'Added to handoff';
+    }
+
+    if (event === 'receipt_changed') {
+        return 'Receipt updated';
+    }
+
+    if (event === 'forwarded_in') {
+        return 'Forwarded in';
+    }
+
+    if (event === 'forwarded_out') {
+        return 'Forwarded out';
+    }
+
+    return event.replaceAll('_', ' ');
+}
+
+function formatRecipientFromForwardMeta(
+    meta: Record<string, unknown> | undefined,
+): string {
+    if (!meta) {
+        return 'the next recipient';
+    }
+
+    const name =
+        typeof meta.to_receiver_name === 'string' &&
+        meta.to_receiver_name !== ''
+            ? meta.to_receiver_name
+            : null;
+    const email =
+        typeof meta.to_receiver_email === 'string' &&
+        meta.to_receiver_email !== ''
+            ? meta.to_receiver_email
+            : null;
+
+    if (name && email) {
+        return `${name} (${email})`;
+    }
+
+    if (name) {
+        return name;
+    }
+
+    if (email) {
+        return email;
+    }
+
+    return 'the next recipient';
+}
+
+function itemActivityDescription(act: ItemActivity): string {
+    if (act.event === 'receipt_changed') {
+        return act.meta?.marked_received === true
+            ? 'Marked as received'
+            : 'Cleared (pending)';
+    }
+
+    if (act.event === 'forwarded_out') {
+        const who = formatRecipientFromForwardMeta(act.meta);
+
+        return `This line was included in a new handoff sent to ${who}.`;
+    }
+
+    if (act.event === 'forwarded_in') {
+        const who = formatRecipientFromForwardMeta(act.meta);
+        const fromLine =
+            typeof act.meta.from_label === 'string' &&
+            act.meta.from_label !== ''
+                ? act.meta.from_label
+                : 'the prior handoff’s line item';
+
+        return `This row was created by forwarding. The new handoff is for ${who}. It continues the source document: “${fromLine}”.`;
+    }
+
+    return '';
+}
 </script>
 
 <template>
@@ -241,6 +356,24 @@ function formatHistoryWhen(iso: string) {
                 >
                     <ArrowLeft class="h-3.5 w-3.5" />
                     All handoffs
+                </Link>
+            </Button>
+            <Button
+                v-if="canForward"
+                size="sm"
+                as-child
+                class="bg-teal-500 text-white shadow-sm hover:bg-teal-600"
+            >
+                <Link
+                    :href="
+                        documentTransmissions.forward.create.url({
+                            transmission: transmission.id,
+                        })
+                    "
+                    class="inline-flex items-center gap-1.5"
+                >
+                    <Forward class="h-3.5 w-3.5" />
+                    Forward to someone else
                 </Link>
             </Button>
         </div>
@@ -295,6 +428,35 @@ function formatHistoryWhen(iso: string) {
             </div>
         </div>
 
+        <div
+            v-if="transmission.forwarded_from"
+            class="rounded-xl border border-teal-200/80 bg-teal-50/60 px-4 py-3 text-sm dark:border-teal-900/40 dark:bg-teal-950/25"
+        >
+            <p class="font-medium text-teal-900 dark:text-teal-200">
+                Forwarded from a previous handoff
+            </p>
+            <p class="mt-1 text-xs text-teal-800/90 dark:text-teal-300/90">
+                Original purpose:
+                <span class="whitespace-pre-wrap text-foreground/90">{{
+                    transmission.forwarded_from.purpose
+                }}</span>
+            </p>
+            <p class="mt-1 text-xs text-muted-foreground">
+                Originally from
+                {{ transmission.forwarded_from.sender?.name ?? '—' }} ·
+                <Link
+                    :href="
+                        documentTransmissions.show.url({
+                            transmission: transmission.forwarded_from.id,
+                        })
+                    "
+                    class="font-medium text-teal-800 underline dark:text-teal-300"
+                >
+                    View source handoff
+                </Link>
+            </p>
+        </div>
+
         <div class="grid gap-6 lg:grid-cols-2">
             <Card class="border-border">
                 <CardHeader class="pb-2">
@@ -339,8 +501,8 @@ function formatHistoryWhen(iso: string) {
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant="secondary"
-                                    class="gap-1.5"
+                                    variant="outline"
+                                    class="gap-1.5 border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
                                     @click="openClaimInNewTab"
                                 >
                                     <Link2 class="h-3.5 w-3.5" />
@@ -360,28 +522,53 @@ function formatHistoryWhen(iso: string) {
             </Card>
 
             <Card class="border-border">
-                <CardHeader class="pb-2">
-                    <CardTitle
-                        class="flex items-center gap-2 text-base font-semibold"
+                <CardHeader class="space-y-3 pb-2">
+                    <div
+                        class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
                     >
-                        <PackageOpen class="h-4 w-4 text-teal-600" />
-                        Receiving checklist
-                    </CardTitle>
-                    <p v-if="isReceiver" class="text-xs text-muted-foreground">
-                        Tick the documents you are accepting, then press
-                        <span class="font-medium text-foreground"
-                            >Confirm receipt</span
+                        <div class="min-w-0 space-y-1">
+                            <CardTitle
+                                class="flex items-center gap-2 text-base font-semibold"
+                            >
+                                <PackageOpen class="h-4 w-4 text-teal-600" />
+                                Receiving checklist
+                            </CardTitle>
+                            <p
+                                v-if="isReceiver"
+                                class="text-xs text-muted-foreground"
+                            >
+                                Tick the documents you are accepting, then press
+                                <span class="font-medium text-foreground"
+                                    >Confirm receipt</span
+                                >
+                                once. Unchecked rows stay pending. Download any
+                                PDFs first.
+                            </p>
+                            <p v-else class="text-xs text-muted-foreground">
+                                Only
+                                <span class="font-medium text-foreground">{{
+                                    transmission.receiver?.name
+                                }}</span>
+                                can update this checklist.
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-full shrink-0 gap-1.5 border-teal-500/50 text-teal-800 hover:bg-teal-50 sm:w-auto dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
+                            @click="documentActivityModalOpen = true"
                         >
-                        once. Unchecked rows stay pending. Download any PDFs
-                        first.
-                    </p>
-                    <p v-else class="text-xs text-muted-foreground">
-                        Only
-                        <span class="font-medium text-foreground">{{
-                            transmission.receiver?.name
-                        }}</span>
-                        can update this checklist.
-                    </p>
+                            <ListTree class="h-3.5 w-3.5" />
+                            Document activity
+                            <span
+                                v-if="documentActivityEventCount > 0"
+                                class="rounded-full bg-teal-200/90 px-1.5 py-px text-[10px] font-semibold text-teal-950 dark:bg-teal-800 dark:text-teal-100"
+                            >
+                                {{ documentActivityEventCount }}
+                            </span>
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent class="space-y-2">
                     <div
@@ -510,7 +697,7 @@ function formatHistoryWhen(iso: string) {
                     >
                         <Button
                             type="button"
-                            class="w-full gap-1.5 sm:w-auto"
+                            class="w-full gap-1.5 bg-orange-500 text-white hover:bg-orange-600 sm:w-auto"
                             :disabled="confirming"
                             @click="confirmReceipt"
                         >
@@ -533,7 +720,7 @@ function formatHistoryWhen(iso: string) {
                 <CardTitle
                     class="flex items-center gap-2 text-base font-semibold"
                 >
-                    <History class="h-4 w-4 text-violet-600" />
+                    <History class="h-4 w-4 text-orange-600" />
                     Handoff history
                 </CardTitle>
                 <p class="text-xs text-muted-foreground">
@@ -559,7 +746,7 @@ function formatHistoryWhen(iso: string) {
                         class="relative pb-8 last:pb-0"
                     >
                         <span
-                            class="absolute top-1.5 -left-[21px] flex h-2.5 w-2.5 rounded-full border-2 border-background bg-violet-500 ring-1 ring-border"
+                            class="absolute top-1.5 -left-[21px] flex h-2.5 w-2.5 rounded-full border-2 border-background bg-orange-500 ring-1 ring-border"
                             aria-hidden="true"
                         />
                         <div
@@ -575,6 +762,29 @@ function formatHistoryWhen(iso: string) {
                                     v-if="entry.event === 'handoff_created'"
                                     class="text-xs text-muted-foreground"
                                 >
+                                    <span
+                                        v-if="
+                                            typeof entry.meta
+                                                .forwarded_from_id === 'string'
+                                        "
+                                        class="block text-teal-800 dark:text-teal-300/90"
+                                    >
+                                        Created by forwarding
+                                        <span
+                                            v-if="
+                                                typeof entry.meta
+                                                    .forwarded_from_purpose ===
+                                                'string'
+                                            "
+                                        >
+                                            from “{{
+                                                String(
+                                                    entry.meta
+                                                        .forwarded_from_purpose,
+                                                )
+                                            }}”
+                                        </span>
+                                    </span>
                                     <span
                                         v-if="
                                             typeof entry.meta.receiver_name ===
@@ -749,6 +959,87 @@ function formatHistoryWhen(iso: string) {
                 </ol>
             </CardContent>
         </Card>
+
+        <Dialog v-model:open="documentActivityModalOpen">
+            <DialogContent
+                class="flex max-h-[min(90vh,52rem)] w-full max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
+            >
+                <DialogHeader
+                    class="shrink-0 space-y-1.5 border-b border-border px-6 py-4 pr-12 text-left"
+                >
+                    <DialogTitle class="text-lg">Document activity</DialogTitle>
+                    <DialogDescription>
+                        Per-document timeline: checklist changes, and where this
+                        line was forwarded.
+                    </DialogDescription>
+                </DialogHeader>
+                <div
+                    class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4"
+                >
+                    <div
+                        v-for="item in transmission.items"
+                        :key="item.id"
+                        class="border-b border-border/80 pb-5 last:mb-0 last:border-b-0 last:pb-0"
+                    >
+                        <h3 class="text-sm font-semibold text-foreground">
+                            {{ item.label }}
+                        </h3>
+                        <p
+                            v-if="item.received_at"
+                            class="mt-0.5 text-xs text-muted-foreground"
+                        >
+                            Checklist: received
+                            <time
+                                class="tabular-nums"
+                                :datetime="item.received_at"
+                            >
+                                {{ formatHistoryWhen(item.received_at) }}
+                            </time>
+                        </p>
+                        <ul
+                            v-if="(item.activities ?? []).length"
+                            class="mt-3 space-y-2.5"
+                        >
+                            <li
+                                v-for="act in item.activities"
+                                :key="act.id"
+                                class="flex flex-col gap-1 rounded-lg border border-teal-200/60 bg-teal-50/50 px-3 py-2.5 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-4 dark:border-teal-900/40 dark:bg-teal-950/25"
+                            >
+                                <div class="min-w-0">
+                                    <p class="font-medium text-foreground">
+                                        {{ itemActivityHeading(act.event) }}
+                                    </p>
+                                    <p
+                                        v-if="itemActivityDescription(act)"
+                                        class="mt-0.5 text-sm text-muted-foreground"
+                                    >
+                                        {{ itemActivityDescription(act) }}
+                                    </p>
+                                </div>
+                                <div
+                                    class="shrink-0 text-xs text-muted-foreground sm:text-right"
+                                >
+                                    <span
+                                        class="font-medium text-foreground/80"
+                                        >{{ act.actor?.name ?? '—' }}</span
+                                    >
+                                    <br class="sm:hidden" />
+                                    <time
+                                        class="mt-0.5 inline tabular-nums sm:mt-0 sm:ml-2"
+                                        :datetime="act.created_at"
+                                    >
+                                        {{ formatHistoryWhen(act.created_at) }}
+                                    </time>
+                                </div>
+                            </li>
+                        </ul>
+                        <p v-else class="mt-2 text-sm text-muted-foreground">
+                            No activity recorded for this line yet.
+                        </p>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
 
         <Teleport to="body">
             <Transition

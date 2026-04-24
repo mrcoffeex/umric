@@ -23,6 +23,13 @@ class ThrottleAdminActions
             return $next($request);
         }
 
+        // Only throttle state-changing methods. A single 60/min bucket for all
+        // admin GETs (Inertia, back/forward, etc.) is easy to hit during normal
+        // browsing; reads are still protected by auth and policies.
+        if (! in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            return $next($request);
+        }
+
         $key = $this->resolveRateLimitKey($request);
 
         if (RateLimiter::tooManyAttempts($key, $this->maxAttempts)) {

@@ -3,6 +3,7 @@
 use App\Models\DocumentTransmission;
 use App\Models\DocumentTransmissionHistory;
 use App\Models\DocumentTransmissionItem;
+use App\Models\DocumentTransmissionItemActivity;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Http\UploadedFile;
@@ -247,6 +248,257 @@ test('document handoff index supports search direction and status filters', func
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('handoffs.total', 2));
+});
+
+test('create handoff rejects duplicate document lines and duplicate pending handoffs', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Test duplicate lines.',
+            'items' => [
+                ['label' => '  Same Title  '],
+                ['label' => 'SAME title'],
+            ],
+        ])
+        ->assertSessionHasErrors('items');
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'First handoff',
+            'items' => [
+                ['label' => 'A'],
+                ['label' => 'B'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Second same bundle',
+            'items' => [
+                ['label' => 'b'],
+                ['label' => 'a'],
+            ],
+        ])
+        ->assertSessionHasErrors('items');
+});
+
+test('completing handoff allows forward and copies item events', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $next = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $next->id]);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Packet A',
+            'items' => [
+                ['label' => 'Form'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $t = DocumentTransmission::query()->first();
+    $item = $t->items()->first();
+    expect($item->activities()->where('event', DocumentTransmissionItemActivity::EVENT_ADDED)->count())->toBe(1);
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$item->id],
+        ])
+        ->assertRedirect();
+
+    $t->refresh();
+    expect($t->status)->toBe(DocumentTransmission::STATUS_COMPLETED);
+
+    $this->actingAs($receiver)
+        ->get(route('document-transmissions.forward.create', $t))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('DocumentTransmissions/Forward'));
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.forward.store', $t), [
+            'receiver_id' => $next->id,
+            'purpose' => 'FWD: Packet A',
+            'item_ids' => [$item->id],
+        ])
+        ->assertRedirect();
+
+    $new = DocumentTransmission::query()
+        ->where('forwarded_from_id', $t->id)
+        ->first();
+    expect($new)->not->toBeNull()
+        ->and($new->status)->toBe(DocumentTransmission::STATUS_PENDING)
+        ->and($new->items)->toHaveCount(1)
+        ->and($new->items->first()->source_item_id)->toBe($item->id);
+
+    $out = DocumentTransmissionItemActivity::query()
+        ->where('document_transmission_item_id', $item->id)
+        ->where('event', DocumentTransmissionItemActivity::EVENT_FORWARDED_OUT)
+        ->count();
+    $inn = DocumentTransmissionItemActivity::query()
+        ->where('document_transmission_item_id', $new->items->first()->id)
+        ->where('event', DocumentTransmissionItemActivity::EVENT_FORWARDED_IN)
+        ->count();
+    expect($out)->toBe(1)
+        ->and($inn)->toBe(1);
+
+    $next->refresh();
+    $outAct = DocumentTransmissionItemActivity::query()
+        ->where('document_transmission_item_id', $item->id)
+        ->where('event', DocumentTransmissionItemActivity::EVENT_FORWARDED_OUT)
+        ->first();
+    expect($outAct?->meta['to_receiver_id'])->toBe($next->id)
+        ->and($outAct?->meta['to_receiver_name'])->toBe($next->name)
+        ->and($outAct?->meta['to_receiver_email'])->toBe($next->email);
+});
+
+test('forward can include a subset of documents', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $next = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $next->id]);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Multi',
+            'items' => [
+                ['label' => 'Keep'],
+                ['label' => 'Skip'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $t = DocumentTransmission::query()->first();
+    $ordered = $t->items()->orderBy('sort_order')->get();
+    expect($ordered)->toHaveCount(2);
+    $keep = $ordered->first();
+    $skip = $ordered->last();
+    expect($keep)->not->toBeNull()
+        ->and($skip)->not->toBeNull();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$keep->id, $skip->id],
+        ])
+        ->assertRedirect();
+
+    $t->refresh();
+    expect($t->status)->toBe(DocumentTransmission::STATUS_COMPLETED);
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.forward.store', $t), [
+            'receiver_id' => $next->id,
+            'purpose' => 'Subset forward',
+            'item_ids' => [$keep->id],
+        ])
+        ->assertRedirect();
+
+    $new = DocumentTransmission::query()
+        ->where('forwarded_from_id', $t->id)
+        ->first();
+    expect($new)->not->toBeNull()
+        ->and($new->items)->toHaveCount(1)
+        ->and($new->items->first()->label)->toBe('Keep');
+});
+
+test('original sender can forward a completed handoff', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $next = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $next->id]);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Packet B',
+            'items' => [
+                ['label' => 'Only doc'],
+            ],
+        ])
+        ->assertRedirect();
+
+    $t = DocumentTransmission::query()->first();
+    $item = $t->items()->first();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$item->id],
+        ])
+        ->assertRedirect();
+
+    $t->refresh();
+    expect($t->status)->toBe(DocumentTransmission::STATUS_COMPLETED);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.forward.store', $t), [
+            'receiver_id' => $next->id,
+            'purpose' => 'FWD from sender',
+            'item_ids' => [$item->id],
+        ])
+        ->assertRedirect();
+
+    expect(
+        DocumentTransmission::query()
+            ->where('forwarded_from_id', $t->id)
+            ->where('receiver_id', $next->id)
+            ->count(),
+    )->toBe(1);
+});
+
+test('incomplete handoff cannot be forwarded', function () {
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $t = DocumentTransmission::create([
+        'sender_id' => $sender->id,
+        'receiver_id' => $receiver->id,
+        'purpose' => 'P',
+        'share_token' => 'tok-'.str_repeat('q', 42),
+        'status' => DocumentTransmission::STATUS_PENDING,
+    ]);
+    DocumentTransmissionItem::create([
+        'document_transmission_id' => $t->id,
+        'label' => 'Doc',
+        'sort_order' => 0,
+    ]);
+
+    $this->actingAs($receiver)
+        ->get(route('document-transmissions.forward.create', $t))
+        ->assertForbidden();
 });
 
 test('claim route redirects to handoff for authorized user', function () {

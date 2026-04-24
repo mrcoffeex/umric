@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { AlertTriangle, ClipboardList, Filter, Search } from 'lucide-vue-next';
+import {
+    AlertTriangle,
+    ClipboardList,
+    ExternalLink,
+    Filter,
+    Search,
+} from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import admin from '@/routes/admin';
+import { show as adminResearchShow } from '@/routes/admin/research';
 import faculty from '@/routes/faculty';
+import { show as facultyResearchShow } from '@/routes/faculty/research';
 
 type LineItem = {
     criterion_id: string;
@@ -37,6 +45,7 @@ type DefenseRow = {
     schedule: string | null;
     defense_type: string;
     defense_type_label: string;
+    research_paper_id: string | null;
     paper_title: string | null;
     tracking_id: string | null;
     student_name: string | null;
@@ -46,12 +55,16 @@ type DefenseRow = {
     can_evaluate: boolean;
     my_evaluation: MyEvaluation | null;
     evaluations: AdminEvalRow[];
+    /** Admin: mean of all panelist totals; null if none submitted */
+    average_score?: number | null;
 };
 
 type FilterProps = {
     q: string;
     defense_type: string;
     status: string;
+    /** Y-m-d or empty */
+    schedule_date: string;
     per_page: number;
     status_options: Record<string, string>;
 };
@@ -81,12 +94,20 @@ const props = defineProps<{
 const searchInput = ref(props.filters.q ?? '');
 const defenseType = ref(props.filters.defense_type ?? '');
 const statusFilter = ref(props.filters.status ?? 'all');
+const scheduleDate = ref(props.filters.schedule_date ?? '');
 const perPage = ref(String(props.filters.per_page ?? 15));
 
 watch(
     () => props.filters.q,
     (v) => {
         searchInput.value = v ?? '';
+    },
+);
+
+watch(
+    () => props.filters.schedule_date,
+    (v) => {
+        scheduleDate.value = v ?? '';
     },
 );
 
@@ -125,6 +146,10 @@ function buildQuery(
 
     if (searchInput.value.trim()) {
         q.q = searchInput.value.trim();
+    }
+
+    if (scheduleDate.value) {
+        q.schedule_date = scheduleDate.value;
     }
 
     return { ...q, ...overrides };
@@ -169,8 +194,18 @@ function clearFilters() {
     searchInput.value = '';
     defenseType.value = '';
     statusFilter.value = 'all';
+    scheduleDate.value = '';
     perPage.value = '15';
     runListFetch({ resetPage: true, debounceSearch: false });
+}
+
+function setScheduleToday() {
+    const t = new Date();
+    const y = t.getFullYear();
+    const m = String(t.getMonth() + 1).padStart(2, '0');
+    const d = String(t.getDate()).padStart(2, '0');
+    scheduleDate.value = `${y}-${m}-${d}`;
+    onFilterChange();
 }
 
 function evaluatePageUrl(d: DefenseRow) {
@@ -185,6 +220,12 @@ function evaluatePageUrl(d: DefenseRow) {
               { panelDefense: d.id },
               { query: q as never },
           );
+}
+
+function researchShowUrl(paperId: string) {
+    return isAdmin.value
+        ? adminResearchShow.url({ paper: paperId })
+        : facultyResearchShow.url({ paper: paperId });
 }
 
 function adminEditEvalUrl(evaluationId: string) {
@@ -280,11 +321,20 @@ function isCurrentUserPanelistName(name: string): boolean {
 
     return a === name.trim().toLowerCase();
 }
+
+/** Format mean total (0–100); trim trailing .0 */
+function formatAverageScore(n: number): string {
+    if (Number.isInteger(n)) {
+        return String(n);
+    }
+
+    return n.toFixed(1);
+}
 </script>
 
 <template>
     <div>
-        <Head title="Defense evaluation" />
+        <Head title="Defense Evaluations" />
 
         <div class="mx-auto space-y-6 p-4 md:p-6">
             <div
@@ -302,7 +352,11 @@ function isCurrentUserPanelistName(name: string): boolean {
                     <p class="mt-1 text-amber-900/80 dark:text-amber-200/80">
                         Panelists can only submit when weights add up to 100.
                     </p>
-                    <Button as-child class="mt-3" size="sm">
+                    <Button
+                        as-child
+                        class="mt-3 bg-orange-500 text-white hover:bg-orange-600"
+                        size="sm"
+                    >
                         <Link :href="admin.evaluationCriteria.index.url()">
                             Open criteria settings
                         </Link>
@@ -315,13 +369,13 @@ function isCurrentUserPanelistName(name: string): boolean {
             >
                 <div class="flex items-center gap-3">
                     <div
-                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 text-primary"
+                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-orange-200/70 bg-orange-50/50 text-orange-600 dark:border-orange-800/50 dark:bg-orange-950/30 dark:text-orange-400"
                     >
                         <ClipboardList class="h-5 w-5" />
                     </div>
                     <div>
                         <h1
-                            class="text-xl font-bold tracking-tight text-foreground md:text-2xl"
+                            class="text-xl font-bold tracking-tight text-foreground capitalize md:text-2xl"
                         >
                             Defense evaluation
                         </h1>
@@ -352,7 +406,7 @@ function isCurrentUserPanelistName(name: string): boolean {
                     Filters
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div class="sm:col-span-4">
+                    <div class="sm:col-span-2 lg:col-span-4">
                         <Label class="text-muted-foreground" for="eval-q"
                             >Search</Label
                         >
@@ -368,6 +422,28 @@ function isCurrentUserPanelistName(name: string): boolean {
                                 class="h-9 bg-background pl-9"
                                 @input="onSearchInput"
                             />
+                        </div>
+                    </div>
+                    <div>
+                        <Label class="text-muted-foreground" for="eval-date"
+                            >Schedule date</Label
+                        >
+                        <div class="mt-1.5 flex gap-2">
+                            <Input
+                                id="eval-date"
+                                v-model="scheduleDate"
+                                type="date"
+                                class="h-9 min-w-0 flex-1 bg-background"
+                                @change="onFilterChange"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                class="h-9 shrink-0 border-teal-500/50 bg-teal-50/90 px-3 text-teal-900 hover:bg-teal-100 dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-200 dark:hover:bg-teal-900/40"
+                                @click="setScheduleToday"
+                            >
+                                Today
+                            </Button>
                         </div>
                     </div>
                     <div>
@@ -470,7 +546,9 @@ function isCurrentUserPanelistName(name: string): boolean {
                             <th v-if="context === 'admin'" class="px-4 py-3">
                                 Panel
                             </th>
-                            <th v-if="isAdmin" class="px-4 py-3">Scores</th>
+                            <th v-if="isAdmin" class="px-4 py-3">
+                                Scores (avg.)
+                            </th>
                             <th v-else class="px-4 py-3">Your total</th>
                             <th class="px-4 py-3 text-right">Action</th>
                         </tr>
@@ -507,13 +585,30 @@ function isCurrentUserPanelistName(name: string): boolean {
                                 >
                                     {{ d.paper_title ?? '—' }}
                                 </div>
-                                <Badge
-                                    v-if="d.tracking_id"
-                                    variant="outline"
-                                    class="mt-1.5 w-fit max-w-full truncate font-mono text-[10px] text-muted-foreground"
+                                <div
+                                    class="mt-1.5 flex flex-wrap items-center gap-2"
                                 >
-                                    {{ d.tracking_id }}
-                                </Badge>
+                                    <Badge
+                                        v-if="d.tracking_id"
+                                        variant="outline"
+                                        class="w-fit max-w-full truncate font-mono text-[10px] text-muted-foreground"
+                                    >
+                                        {{ d.tracking_id }}
+                                    </Badge>
+                                    <a
+                                        v-if="d.research_paper_id"
+                                        :href="
+                                            researchShowUrl(d.research_paper_id)
+                                        "
+                                        target="_blank"
+                                        class="inline-flex items-center gap-1 text-xs font-medium text-teal-600 hover:text-teal-800 hover:underline dark:text-teal-400 dark:hover:text-teal-300"
+                                    >
+                                        Open
+                                        <ExternalLink
+                                            class="h-3.5 w-3.5 shrink-0 opacity-80"
+                                        />
+                                    </a>
+                                </div>
                             </td>
                             <td
                                 class="px-4 py-3 whitespace-nowrap text-muted-foreground"
@@ -569,48 +664,68 @@ function isCurrentUserPanelistName(name: string): boolean {
                                 v-if="isAdmin"
                                 class="max-w-xs px-4 py-3 text-xs"
                             >
-                                <div
-                                    v-if="d.evaluations.length"
-                                    class="flex flex-col gap-2"
-                                >
+                                <template v-if="d.evaluations.length">
+                                    <div class="flex flex-col gap-2">
+                                        <div
+                                            v-for="ev in d.evaluations"
+                                            :key="ev.id"
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <span
+                                                class="line-clamp-1 min-w-0 text-muted-foreground"
+                                                >{{ ev.evaluator_name }}</span
+                                            >
+                                            <Badge
+                                                v-if="ev.is_mine"
+                                                variant="secondary"
+                                                class="shrink-0 text-[9px] uppercase"
+                                                >You</Badge
+                                            >
+                                            <Badge
+                                                :variant="
+                                                    scoreBadgeVariant(
+                                                        ev.final_score,
+                                                    )
+                                                "
+                                                class="shrink-0 font-semibold tabular-nums"
+                                            >
+                                                {{ ev.final_score }}/100
+                                            </Badge>
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                class="h-7 text-[11px]"
+                                                as-child
+                                            >
+                                                <Link
+                                                    :href="
+                                                        adminEditEvalUrl(ev.id)
+                                                    "
+                                                    >Edit</Link
+                                                >
+                                            </Button>
+                                        </div>
+                                    </div>
                                     <div
-                                        v-for="ev in d.evaluations"
-                                        :key="ev.id"
-                                        class="flex flex-wrap items-center gap-2"
+                                        v-if="d.average_score != null"
+                                        class="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2"
                                     >
                                         <span
-                                            class="line-clamp-1 min-w-0 text-muted-foreground"
-                                            >{{ ev.evaluator_name }}</span
+                                            class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                            >Average</span
                                         >
                                         <Badge
-                                            v-if="ev.is_mine"
-                                            variant="secondary"
-                                            class="shrink-0 text-[9px] uppercase"
-                                            >You</Badge
+                                            variant="outline"
+                                            class="shrink-0 border-teal-300 bg-teal-100/95 font-semibold text-teal-950 tabular-nums dark:border-teal-600 dark:bg-teal-950/60 dark:text-teal-100"
                                         >
-                                        <Badge
-                                            :variant="
-                                                scoreBadgeVariant(
-                                                    ev.final_score,
+                                            {{
+                                                formatAverageScore(
+                                                    d.average_score,
                                                 )
-                                            "
-                                            class="shrink-0 font-semibold tabular-nums"
-                                        >
-                                            {{ ev.final_score }}/100
+                                            }}/100
                                         </Badge>
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            class="h-7 text-[11px]"
-                                            as-child
-                                        >
-                                            <Link
-                                                :href="adminEditEvalUrl(ev.id)"
-                                                >Edit</Link
-                                            >
-                                        </Button>
                                     </div>
-                                </div>
+                                </template>
                                 <Badge
                                     v-else
                                     variant="outline"
@@ -638,7 +753,11 @@ function isCurrentUserPanelistName(name: string): boolean {
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">
                                 <div class="flex flex-col items-end gap-1">
-                                    <Button v-if="d.can_evaluate" as-child>
+                                    <Button
+                                        v-if="d.can_evaluate"
+                                        as-child
+                                        class="bg-orange-500 text-white hover:bg-orange-600"
+                                    >
                                         <Link :href="evaluatePageUrl(d)">
                                             Open evaluation
                                         </Link>
@@ -647,6 +766,7 @@ function isCurrentUserPanelistName(name: string): boolean {
                                         v-else-if="d.my_evaluation"
                                         variant="outline"
                                         as-child
+                                        class="border-teal-500/50 bg-background text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:bg-background dark:text-teal-200 dark:hover:bg-teal-950/40"
                                     >
                                         <Link :href="evaluatePageUrl(d)">
                                             View your scores
@@ -683,7 +803,7 @@ function isCurrentUserPanelistName(name: string): boolean {
                         :class="[
                             'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border px-2.5 text-sm transition-colors',
                             link.active
-                                ? 'border-primary bg-primary/10 font-semibold text-foreground'
+                                ? 'border-orange-400 bg-orange-50/90 font-semibold text-orange-950 dark:border-orange-600 dark:bg-orange-950/50 dark:text-orange-100'
                                 : 'border-border bg-card hover:bg-muted/60',
                         ]"
                         preserve-scroll
@@ -701,7 +821,7 @@ function isCurrentUserPanelistName(name: string): boolean {
                         v-else
                         :class="[
                             'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border px-2.5 text-sm opacity-50',
-                            link.active ? 'border-primary' : 'border-border',
+                            link.active ? 'border-orange-400' : 'border-border',
                         ]"
                     >
                         <span v-if="index === 0">&lsaquo;</span>

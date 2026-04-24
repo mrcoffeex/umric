@@ -7,6 +7,7 @@ use App\Models\ResearchPaper;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function makePanelEvalFaculty(?string $name = null): User
 {
@@ -130,6 +131,40 @@ it('forbids evaluation when the user is not on the panel', function () {
         ->assertForbidden();
 });
 
+it('filters admin evaluation list by schedule date', function () {
+    $admin = User::factory()->create(['name' => 'Dr. Admin Filter']);
+    UserProfile::factory()->admin()->create(['user_id' => $admin->id]);
+
+    $dayA = '2030-06-10';
+    $dayB = '2030-06-11';
+
+    $student = makePanelEvalStudent();
+    $paper1 = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    $d1 = PanelDefense::factory()
+        ->forPaper($paper1)
+        ->withMembers([$admin->name])
+        ->create([
+            'schedule' => $dayA.' 14:00:00',
+        ]);
+
+    $paper2 = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    PanelDefense::factory()
+        ->forPaper($paper2)
+        ->withMembers([$admin->name])
+        ->create([
+            'schedule' => $dayB.' 10:00:00',
+        ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.evaluation.index', ['schedule_date' => $dayA]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('defenses.data', 1)
+            ->where('defenses.data.0.id', (string) $d1->id)
+            ->where('filters.schedule_date', $dayA)
+        );
+});
+
 it('lets admin list all scheduled defenses and submit when on the panel', function () {
     $admin = User::factory()->create(['name' => 'Dr. Admin Panelist']);
     UserProfile::factory()->admin()->create(['user_id' => $admin->id]);
@@ -153,6 +188,17 @@ it('lets admin list all scheduled defenses and submit when on the panel', functi
             'scores' => $scores,
         ])
         ->assertRedirect(route('admin.evaluation.index'));
+
+    $final = (int) PanelDefenseEvaluation::query()
+        ->where('panel_defense_id', (string) $defense->id)
+        ->value('final_score');
+
+    $this->actingAs($admin)
+        ->get(route('admin.evaluation.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('defenses.data.0.average_score', $final)
+        );
 });
 
 it('rejects out of range criteria scores', function () {

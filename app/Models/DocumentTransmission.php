@@ -15,9 +15,54 @@ class DocumentTransmission extends Model
 
     public const STATUS_COMPLETED = 'completed';
 
+    /**
+     * @param  list<string>  $labels
+     */
+    public static function labelSetSignature(array $labels): string
+    {
+        return collect($labels)
+            ->map(fn (string $l) => mb_strtolower(trim($l)))
+            ->filter()
+            ->sort()
+            ->values()
+            ->implode("\0");
+    }
+
+    /**
+     * A pending handoff to the same recipient with the same set of document titles (ignoring order and case).
+     *
+     * @param  list<string>  $itemLabels
+     */
+    public static function findPendingDuplicate(
+        string $senderId,
+        string $receiverId,
+        array $itemLabels,
+    ): ?self {
+        $sig = self::labelSetSignature($itemLabels);
+        if ($sig === '') {
+            return null;
+        }
+
+        $candidates = self::query()
+            ->where('sender_id', $senderId)
+            ->where('receiver_id', $receiverId)
+            ->where('status', self::STATUS_PENDING)
+            ->with(['items' => fn ($q) => $q->orderBy('sort_order')])
+            ->get();
+
+        foreach ($candidates as $t) {
+            if (self::labelSetSignature($t->items->pluck('label')->all()) === $sig) {
+                return $t;
+            }
+        }
+
+        return null;
+    }
+
     protected $fillable = [
         'sender_id',
         'receiver_id',
+        'forwarded_from_id',
         'purpose',
         'share_token',
         'status',
@@ -39,6 +84,16 @@ class DocumentTransmission extends Model
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'receiver_id');
+    }
+
+    public function forwardedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'forwarded_from_id');
+    }
+
+    public function childForwards(): HasMany
+    {
+        return $this->hasMany(self::class, 'forwarded_from_id');
     }
 
     public function items(): HasMany

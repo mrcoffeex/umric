@@ -22,4 +22,14 @@ class DocumentTransmissionPolicy
     {
         return $user->id === $transmission->receiver_id;
     }
+
+    public function forward(User $user, DocumentTransmission $transmission): bool
+    {
+        if ($transmission->status !== DocumentTransmission::STATUS_COMPLETED) {
+            return false;
+        }
+
+        return $user->id === $transmission->sender_id
+            || $user->id === $transmission->receiver_id;
+    }
 }

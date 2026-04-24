@@ -73,6 +73,7 @@ const form = useForm({
     q: (props.listFilters.q as string) ?? '',
     defense_type: (props.listFilters.defense_type as string) ?? '',
     status: (props.listFilters.status as string) ?? '',
+    schedule_date: (props.listFilters.schedule_date as string) ?? '',
     per_page: (props.listFilters.per_page as number) ?? 15,
     page: (props.listFilters.page as number) ?? 1,
 });
@@ -436,11 +437,17 @@ defineOptions({
                 />
 
                 <div class="flex flex-wrap justify-end gap-2">
-                    <Button type="button" variant="outline" as-child>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        as-child
+                        class="border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
+                    >
                         <Link :href="listUrl">Cancel</Link>
                     </Button>
                     <Button
                         type="submit"
+                        class="bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
                         :disabled="
                             form.processing ||
                             (mode === 'create' && !criteriaReady)

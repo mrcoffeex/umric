@@ -36,6 +36,7 @@ interface Row {
     created_at: string;
     checklist: { checked: number; total: number };
     other_party: Party | null;
+    is_forward: boolean;
 }
 
 interface TabCounts {
@@ -268,7 +269,9 @@ const statusPills = computed(() => [
             class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
         >
             <div class="min-w-0 flex-1">
-                <h1 class="text-xl font-bold text-foreground md:text-2xl">
+                <h1
+                    class="text-xl font-bold text-foreground capitalize md:text-2xl"
+                >
                     Document handoffs
                 </h1>
                 <p class="mt-1 text-sm text-muted-foreground">
@@ -282,7 +285,7 @@ const statusPills = computed(() => [
             >
                 <Link
                     :href="documentTransmissions.create.url()"
-                    class="inline-flex items-center gap-2"
+                    class="inline-flex items-center gap-2 capitalize"
                 >
                     <Plus class="h-4 w-4" />
                     New handoff
@@ -387,7 +390,7 @@ const statusPills = computed(() => [
                             type="button"
                             variant="outline"
                             size="sm"
-                            class="shrink-0"
+                            class="shrink-0 border-teal-500/50 text-teal-800 hover:bg-teal-50 dark:border-teal-600 dark:text-teal-200 dark:hover:bg-teal-950/40"
                             @click="resetFilters"
                         >
                             Reset filters
@@ -482,7 +485,7 @@ const statusPills = computed(() => [
                                 }}
                                 checked · {{ formatListDate(row.created_at) }}
                             </p>
-                            <p class="mt-1">
+                            <p class="mt-1 flex flex-wrap gap-1">
                                 <span
                                     v-if="row.status === 'completed'"
                                     class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-800 dark:border-green-900/50 dark:bg-green-950/40 dark:text-green-300"
@@ -494,6 +497,12 @@ const statusPills = computed(() => [
                                     class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
                                 >
                                     Open
+                                </span>
+                                <span
+                                    v-if="row.is_forward"
+                                    class="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-800 dark:border-teal-900/50 dark:bg-teal-950/40 dark:text-teal-200"
+                                >
+                                    Forward
                                 </span>
                             </p>
                         </div>
