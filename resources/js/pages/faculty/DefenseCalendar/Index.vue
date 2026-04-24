@@ -205,9 +205,11 @@ function eventClasses(
     if (type === 'outline_defense') {
         return 'bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800';
     }
+
     if (type === 'title_defense') {
         return 'bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800';
     }
+
     return 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800';
 }
 
@@ -217,9 +219,11 @@ function eventLabel(
     if (type === 'outline_defense') {
         return 'Outline';
     }
+
     if (type === 'title_defense') {
         return 'Title';
     }
+
     return 'Final';
 }
 
@@ -229,9 +233,11 @@ function defenseTypeLongLabel(
     if (type === 'outline_defense') {
         return 'Outline Defense';
     }
+
     if (type === 'title_defense') {
         return 'Title Defense';
     }
+
     return 'Final Defense';
 }
 
@@ -241,9 +247,11 @@ function defenseTypeSheetBadgeClass(
     if (type === 'outline_defense') {
         return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300';
     }
+
     if (type === 'title_defense') {
         return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300';
     }
+
     return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300';
 }
 

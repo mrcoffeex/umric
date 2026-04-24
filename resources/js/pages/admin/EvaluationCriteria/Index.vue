@@ -88,9 +88,11 @@ async function deleteRow(c: Criterion) {
         title: 'Remove criterion',
         confirmLabel: 'Remove',
     });
+
     if (!ok) {
         return;
     }
+
     useForm({}).delete(
         admin.evaluationCriteria.destroy.url({
             evaluation_criterion: c.id,

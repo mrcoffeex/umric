@@ -17,8 +17,8 @@ import {
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { dashboard } from '@/routes';
 import documentTransmissions from '@/routes/document-transmissions';
 

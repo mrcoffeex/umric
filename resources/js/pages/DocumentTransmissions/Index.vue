@@ -181,6 +181,7 @@ watch(perPage, (n) => {
 
 function onDirectionChange(dir: string | number) {
     const d = String(dir);
+
     if (d !== 'incoming' && d !== 'outgoing') {
         return;
     }

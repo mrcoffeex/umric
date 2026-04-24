@@ -32,8 +32,8 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard, home } from '@/routes';
-import documentTransmissions from '@/routes/document-transmissions';
 import admin from '@/routes/admin';
+import documentTransmissions from '@/routes/document-transmissions';
 import faculty from '@/routes/faculty';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
 import { index as facultyDefenseCalendarIndex } from '@/routes/faculty/defense-calendar';

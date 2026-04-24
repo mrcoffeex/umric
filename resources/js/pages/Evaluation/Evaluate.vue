@@ -85,6 +85,7 @@ const rowsForForm = computed(() => {
             max_points: c.max_points,
         }));
     }
+
     if (props.mode === 'admin_edit' && props.evaluation) {
         return (props.evaluation.line_items ?? []).map((l) => ({
             id: l.criterion_id,
@@ -92,6 +93,7 @@ const rowsForForm = computed(() => {
             max_points: l.max_points,
         }));
     }
+
     return [];
 });
 
@@ -99,6 +101,7 @@ const displayLines = computed(() => {
     if (props.mode === 'view' && props.evaluation) {
         return props.evaluation.line_items ?? [];
     }
+
     return [];
 });
 
@@ -106,6 +109,7 @@ const currentTotal = computed(() => {
     if (!isEdit.value) {
         return 0;
     }
+
     return rowsForForm.value.reduce(
         (sum, r) => sum + (Number(form.scores[r.id]) || 0),
         0,
@@ -122,6 +126,7 @@ function updateUrl() {
     if (!props.evaluation) {
         return '';
     }
+
     return admin.evaluation.update.url({
         panelDefenseEvaluation: props.evaluation.id,
     });
@@ -131,10 +136,13 @@ function formatWhen(iso: string | null): string {
     if (!iso) {
         return '—';
     }
+
     const d = new Date(iso);
+
     if (Number.isNaN(d.getTime())) {
         return '—';
     }
+
     return d.toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -143,12 +151,15 @@ function formatWhen(iso: string | null): string {
 
 function fieldError(criterionId: string): string | undefined {
     const e = form.errors;
+
     if (e[`scores.${criterionId}`]) {
         return e[`scores.${criterionId}`] as string;
     }
+
     if (e.scores) {
         return e.scores as string;
     }
+
     return undefined;
 }
 
@@ -156,6 +167,7 @@ async function submit() {
     if (isReadonly.value) {
         return;
     }
+
     const n = currentTotal.value;
     const message =
         props.mode === 'admin_edit' && props.evaluation?.evaluator_name
@@ -172,9 +184,11 @@ async function submit() {
         cancelLabel: 'Back',
         destructive: props.mode === 'create',
     });
+
     if (!ok) {
         return;
     }
+
     if (props.mode === 'admin_edit' && props.evaluation) {
         form.patch(updateUrl(), {
             preserveScroll: true,
@@ -188,9 +202,11 @@ const pageTitle = computed(() => {
     if (props.mode === 'view') {
         return 'Your evaluation';
     }
+
     if (props.mode === 'admin_edit') {
         return 'Edit panel evaluation';
     }
+
     return 'Score this defense';
 });
 

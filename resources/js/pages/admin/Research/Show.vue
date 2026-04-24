@@ -25,9 +25,9 @@ import {
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FormSelect from '@/components/FormSelect.vue';
 import MultiSelect from '@/components/MultiSelect.vue';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/composables/useConfirm';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import {
@@ -492,6 +492,7 @@ function submitPanelDefense(): void {
                 >;
                 const raw =
                     fromVisit.schedule_conflict ?? fromPage.schedule_conflict;
+
                 if (raw === undefined || raw === null || raw === '') {
                     return;
                 }

@@ -94,6 +94,7 @@ const page = usePage();
 const authUserNameNorm = computed((): string => {
     const u = page.props.auth as { user?: { name?: string } } | undefined;
     const n = u?.user?.name;
+
     return typeof n === 'string' && n.trim() !== ''
         ? n.trim().toLowerCase()
         : '';
@@ -117,12 +118,15 @@ function buildQuery(
         per_page: Number(perPage.value) || 15,
         status: statusFilter.value,
     };
+
     if (defenseType.value) {
         q.defense_type = defenseType.value;
     }
+
     if (searchInput.value.trim()) {
         q.q = searchInput.value.trim();
     }
+
     return { ...q, ...overrides };
 }
 
@@ -141,10 +145,12 @@ function runListFetch(
             only: ['defenses', 'filters'],
         });
     };
+
     if (options.debounceSearch) {
         if (searchDebounce) {
             clearTimeout(searchDebounce);
         }
+
         searchDebounce = setTimeout(go, 350);
     } else {
         go();
@@ -169,6 +175,7 @@ function clearFilters() {
 
 function evaluatePageUrl(d: DefenseRow) {
     const q = listQuery();
+
     return isAdmin.value
         ? admin.evaluation.evaluate.url(
               { panelDefense: d.id },
@@ -197,10 +204,13 @@ function formatWhen(iso: string | null): string {
     if (!iso) {
         return '—';
     }
+
     const d = new Date(iso);
+
     if (Number.isNaN(d.getTime())) {
         return '—';
     }
+
     return d.toLocaleString(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
@@ -227,15 +237,19 @@ function scoreBadgeVariant(score: number): ScoreVariant {
     if (score >= 85) {
         return 'success';
     }
+
     if (score >= 70) {
         return 'info';
     }
+
     if (score >= 50) {
         return 'secondary';
     }
+
     if (score >= 30) {
         return 'warning';
     }
+
     return 'outline';
 }
 
@@ -259,9 +273,11 @@ function panelistBadgeClass(index: number): string {
 
 function isCurrentUserPanelistName(name: string): boolean {
     const a = authUserNameNorm.value;
+
     if (a === '') {
         return false;
     }
+
     return a === name.trim().toLowerCase();
 }
 </script>

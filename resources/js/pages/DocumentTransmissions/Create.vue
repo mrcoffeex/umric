@@ -177,6 +177,7 @@ function removeItemRow(index: number) {
             const el = document.getElementById(
                 'item-file-0',
             ) as HTMLInputElement | null;
+
             if (el) {
                 el.value = '';
             }
@@ -208,6 +209,7 @@ function clearItemFile(index: number) {
         const el = document.getElementById(
             `item-file-${index}`,
         ) as HTMLInputElement | null;
+
         if (el) {
             el.value = '';
         }
