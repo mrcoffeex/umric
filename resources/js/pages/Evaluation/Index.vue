@@ -1,0 +1,701 @@
+<script setup lang="ts">
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { AlertTriangle, ClipboardList, Filter, Search } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
+import FormSelect from '@/components/FormSelect.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import admin from '@/routes/admin';
+import faculty from '@/routes/faculty';
+
+type LineItem = {
+    criterion_id: string;
+    name: string;
+    max_points: number;
+    score: number;
+};
+
+type MyEvaluation = {
+    id: string;
+    line_items: LineItem[];
+    final_score: number;
+};
+
+type AdminEvalRow = {
+    id: string;
+    evaluator_id: string;
+    evaluator_name: string;
+    line_items: LineItem[];
+    final_score: number;
+    is_mine: boolean;
+};
+
+type DefenseRow = {
+    id: string;
+    schedule: string | null;
+    defense_type: string;
+    defense_type_label: string;
+    paper_title: string | null;
+    tracking_id: string | null;
+    student_name: string | null;
+    /** Names from the panel defense (ordered as stored) */
+    panel_members: string[];
+    is_on_panel: boolean;
+    can_evaluate: boolean;
+    my_evaluation: MyEvaluation | null;
+    evaluations: AdminEvalRow[];
+};
+
+type FilterProps = {
+    q: string;
+    defense_type: string;
+    status: string;
+    per_page: number;
+    status_options: Record<string, string>;
+};
+
+type DefenseTypeOption = { value: string; label: string };
+
+type Paginator<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    links: { url: string | null; label: string; active: boolean }[];
+};
+
+const props = defineProps<{
+    defenses: Paginator<DefenseRow>;
+    criteriaReady: boolean;
+    criteriaTotalMax: number;
+    context: 'admin' | 'faculty';
+    defenseTypeOptions: DefenseTypeOption[];
+    filters: FilterProps;
+}>();
+
+const searchInput = ref(props.filters.q ?? '');
+const defenseType = ref(props.filters.defense_type ?? '');
+const statusFilter = ref(props.filters.status ?? 'all');
+const perPage = ref(String(props.filters.per_page ?? 15));
+
+watch(
+    () => props.filters.q,
+    (v) => {
+        searchInput.value = v ?? '';
+    },
+);
+
+const page = usePage();
+const authUserNameNorm = computed((): string => {
+    const u = page.props.auth as { user?: { name?: string } } | undefined;
+    const n = u?.user?.name;
+    return typeof n === 'string' && n.trim() !== ''
+        ? n.trim().toLowerCase()
+        : '';
+});
+
+const rows = computed(() => props.defenses.data ?? []);
+const isAdmin = computed(() => props.context === 'admin');
+const listQuery = (): Record<string, string | number> =>
+    buildQuery() as Record<string, string | number>;
+
+function listUrl(): string {
+    return props.context === 'admin'
+        ? admin.evaluation.index.url()
+        : faculty.evaluation.index.url();
+}
+
+function buildQuery(
+    overrides: Record<string, string | number> = {},
+): Record<string, string | number> {
+    const q: Record<string, string | number> = {
+        per_page: Number(perPage.value) || 15,
+        status: statusFilter.value,
+    };
+    if (defenseType.value) {
+        q.defense_type = defenseType.value;
+    }
+    if (searchInput.value.trim()) {
+        q.q = searchInput.value.trim();
+    }
+    return { ...q, ...overrides };
+}
+
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+function runListFetch(
+    options: { resetPage: boolean; debounceSearch: boolean } = {
+        resetPage: true,
+        debounceSearch: false,
+    },
+) {
+    const go = () => {
+        const query = buildQuery(options.resetPage ? { page: 1 } : {});
+        router.get(listUrl(), query, {
+            preserveState: true,
+            replace: true,
+            only: ['defenses', 'filters'],
+        });
+    };
+    if (options.debounceSearch) {
+        if (searchDebounce) {
+            clearTimeout(searchDebounce);
+        }
+        searchDebounce = setTimeout(go, 350);
+    } else {
+        go();
+    }
+}
+
+function onSearchInput() {
+    runListFetch({ resetPage: true, debounceSearch: true });
+}
+
+function onFilterChange() {
+    runListFetch({ resetPage: true, debounceSearch: false });
+}
+
+function clearFilters() {
+    searchInput.value = '';
+    defenseType.value = '';
+    statusFilter.value = 'all';
+    perPage.value = '15';
+    runListFetch({ resetPage: true, debounceSearch: false });
+}
+
+function evaluatePageUrl(d: DefenseRow) {
+    const q = listQuery();
+    return isAdmin.value
+        ? admin.evaluation.evaluate.url(
+              { panelDefense: d.id },
+              { query: q as never },
+          )
+        : faculty.evaluation.evaluate.url(
+              { panelDefense: d.id },
+              { query: q as never },
+          );
+}
+
+function adminEditEvalUrl(evaluationId: string) {
+    return admin.evaluation.edit.url(
+        { panelDefenseEvaluation: evaluationId },
+        { query: listQuery() as never },
+    );
+}
+
+defineOptions({
+    layout: {
+        breadcrumbs: [{ title: 'Defense evaluation' }],
+    },
+});
+
+function formatWhen(iso: string | null): string {
+    if (!iso) {
+        return '—';
+    }
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+        return '—';
+    }
+    return d.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
+
+/** Tailwind classes applied on top of `Badge variant="outline"` for defense type */
+function defenseTypeBadgeClass(defenseType: string): string {
+    switch (defenseType) {
+        case 'title':
+            return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/35 dark:text-violet-300';
+        case 'outline':
+            return 'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/35 dark:text-indigo-300';
+        case 'final':
+            return 'border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-800 dark:bg-orange-950/35 dark:text-orange-300';
+        default:
+            return 'bg-muted/80 text-foreground';
+    }
+}
+
+type ScoreVariant = 'secondary' | 'outline' | 'success' | 'warning' | 'info';
+
+function scoreBadgeVariant(score: number): ScoreVariant {
+    if (score >= 85) {
+        return 'success';
+    }
+    if (score >= 70) {
+        return 'info';
+    }
+    if (score >= 50) {
+        return 'secondary';
+    }
+    if (score >= 30) {
+        return 'warning';
+    }
+    return 'outline';
+}
+
+/** Rotating palette so each panelist is visually distinct (outline + fill). */
+const PANELIST_BADGE_CLASSES: readonly string[] = [
+    'border-indigo-200 bg-indigo-50/90 text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200',
+    'border-violet-200 bg-violet-50/90 text-violet-900 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-200',
+    'border-orange-200 bg-orange-50/90 text-orange-900 dark:border-orange-800 dark:bg-orange-950/40 dark:text-orange-200',
+    'border-emerald-200 bg-emerald-50/90 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200',
+    'border-rose-200 bg-rose-50/90 text-rose-900 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200',
+    'border-cyan-200 bg-cyan-50/90 text-cyan-900 dark:border-cyan-800 dark:bg-cyan-950/40 dark:text-cyan-200',
+    'border-amber-200 bg-amber-50/90 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200',
+];
+
+function panelistBadgeClass(index: number): string {
+    return (
+        PANELIST_BADGE_CLASSES[index % PANELIST_BADGE_CLASSES.length] ??
+        PANELIST_BADGE_CLASSES[0]
+    );
+}
+
+function isCurrentUserPanelistName(name: string): boolean {
+    const a = authUserNameNorm.value;
+    if (a === '') {
+        return false;
+    }
+    return a === name.trim().toLowerCase();
+}
+</script>
+
+<template>
+    <div>
+        <Head title="Defense evaluation" />
+
+        <div class="mx-auto space-y-6 p-4 md:p-6">
+            <div
+                v-if="isAdmin && !criteriaReady"
+                class="flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-500/20 dark:bg-amber-950/30 dark:text-amber-100"
+            >
+                <AlertTriangle
+                    class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
+                />
+                <div>
+                    <p class="font-semibold">
+                        Evaluation criteria must total 100 (currently
+                        {{ criteriaTotalMax }}).
+                    </p>
+                    <p class="mt-1 text-amber-900/80 dark:text-amber-200/80">
+                        Panelists can only submit when weights add up to 100.
+                    </p>
+                    <Button as-child class="mt-3" size="sm">
+                        <Link :href="admin.evaluationCriteria.index.url()">
+                            Open criteria settings
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+
+            <div
+                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+                <div class="flex items-center gap-3">
+                    <div
+                        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/50 text-primary"
+                    >
+                        <ClipboardList class="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h1
+                            class="text-xl font-bold tracking-tight text-foreground md:text-2xl"
+                        >
+                            Defense evaluation
+                        </h1>
+                        <p class="text-sm text-muted-foreground">
+                            <template v-if="context === 'admin'">
+                                Search scheduled defenses. Use criteria settings
+                                to set weights to 100. You can open a full-page
+                                form to score or edit a panelist file.
+                            </template>
+                            <template v-else>
+                                Your panel. Submissions are final and are kept
+                                as a snapshot of the criteria in effect at that
+                                time.
+                            </template>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div
+                class="space-y-4 rounded-2xl border border-border bg-card p-4 shadow-sm"
+            >
+                <div
+                    class="flex flex-wrap items-center gap-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                >
+                    <Filter class="h-3.5 w-3.5" />
+                    Filters
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="sm:col-span-4">
+                        <Label class="text-muted-foreground" for="eval-q"
+                            >Search</Label
+                        >
+                        <div class="relative mt-1.5">
+                            <Search
+                                class="absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                            />
+                            <Input
+                                id="eval-q"
+                                v-model="searchInput"
+                                type="search"
+                                placeholder="Title, tracking ID, or student name…"
+                                class="h-9 bg-background pl-9"
+                                @input="onSearchInput"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <Label class="text-muted-foreground" for="eval-type"
+                            >Defense type</Label
+                        >
+                        <FormSelect
+                            id="eval-type"
+                            v-model="defenseType"
+                            class="mt-1.5 h-9 py-0"
+                            @update:model-value="onFilterChange"
+                        >
+                            <option value="">All types</option>
+                            <option
+                                v-for="opt in defenseTypeOptions"
+                                :key="opt.value"
+                                :value="opt.value"
+                            >
+                                {{ opt.label }}
+                            </option>
+                        </FormSelect>
+                    </div>
+                    <div>
+                        <Label class="text-muted-foreground" for="eval-st"
+                            >Status</Label
+                        >
+                        <FormSelect
+                            id="eval-st"
+                            v-model="statusFilter"
+                            class="mt-1.5 h-9 py-0"
+                            @update:model-value="onFilterChange"
+                        >
+                            <option
+                                v-for="(label, val) in filters.status_options"
+                                :key="val"
+                                :value="val"
+                            >
+                                {{ label }}
+                            </option>
+                        </FormSelect>
+                    </div>
+                    <div>
+                        <Label class="text-muted-foreground" for="eval-pp"
+                            >Per page</Label
+                        >
+                        <FormSelect
+                            id="eval-pp"
+                            v-model="perPage"
+                            class="mt-1.5 h-9 py-0"
+                            @update:model-value="onFilterChange"
+                        >
+                            <option value="10">10</option>
+                            <option value="15">15</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </FormSelect>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <p class="text-xs text-muted-foreground">
+                        <template v-if="defenses.total !== undefined">
+                            {{ defenses.from ?? 0 }}–{{ defenses.to ?? 0 }} of
+                            {{ defenses.total }} defense(s)
+                        </template>
+                    </p>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        @click="clearFilters"
+                    >
+                        Clear filters
+                    </Button>
+                </div>
+            </div>
+
+            <div
+                v-if="rows.length === 0"
+                class="rounded-2xl border border-dashed border-border bg-muted/20 p-10 text-center text-sm text-muted-foreground"
+            >
+                <template v-if="context === 'faculty'">
+                    No matching defenses. Try adjusting search or filters.
+                </template>
+                <template v-else> No matching defenses. </template>
+            </div>
+
+            <div
+                v-else
+                class="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm"
+            >
+                <table class="w-full min-w-[860px] text-left text-sm">
+                    <thead
+                        class="border-b border-border bg-muted/40 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
+                        <tr>
+                            <th class="px-4 py-3">Schedule</th>
+                            <th class="px-4 py-3">Type</th>
+                            <th class="px-4 py-3">Research</th>
+                            <th class="px-4 py-3">Student</th>
+                            <th v-if="context === 'admin'" class="px-4 py-3">
+                                Panel
+                            </th>
+                            <th v-if="isAdmin" class="px-4 py-3">Scores</th>
+                            <th v-else class="px-4 py-3">Your total</th>
+                            <th class="px-4 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">
+                        <tr
+                            v-for="d in rows"
+                            :key="d.id"
+                            class="align-top transition-colors hover:bg-muted/30"
+                        >
+                            <td
+                                class="px-4 py-3 font-medium whitespace-nowrap text-foreground"
+                            >
+                                <Badge
+                                    variant="secondary"
+                                    class="font-medium tabular-nums"
+                                >
+                                    {{ formatWhen(d.schedule) }}
+                                </Badge>
+                            </td>
+                            <td class="px-4 py-3">
+                                <Badge
+                                    variant="outline"
+                                    :class="
+                                        defenseTypeBadgeClass(d.defense_type)
+                                    "
+                                >
+                                    {{ d.defense_type_label }}
+                                </Badge>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div
+                                    class="max-w-xs font-medium text-foreground"
+                                >
+                                    {{ d.paper_title ?? '—' }}
+                                </div>
+                                <Badge
+                                    v-if="d.tracking_id"
+                                    variant="outline"
+                                    class="mt-1.5 w-fit max-w-full truncate font-mono text-[10px] text-muted-foreground"
+                                >
+                                    {{ d.tracking_id }}
+                                </Badge>
+                            </td>
+                            <td
+                                class="px-4 py-3 whitespace-nowrap text-muted-foreground"
+                            >
+                                <Badge
+                                    v-if="d.student_name"
+                                    variant="secondary"
+                                    class="max-w-[200px] truncate text-xs font-medium text-foreground"
+                                >
+                                    {{ d.student_name }}
+                                </Badge>
+                                <span v-else class="text-muted-foreground/80"
+                                    >—</span
+                                >
+                            </td>
+                            <td
+                                v-if="context === 'admin'"
+                                class="max-w-[260px] px-4 py-3 align-top"
+                            >
+                                <div
+                                    v-if="
+                                        d.panel_members &&
+                                        d.panel_members.length
+                                    "
+                                    class="flex flex-wrap content-start gap-1.5"
+                                >
+                                    <Badge
+                                        v-for="(name, idx) in d.panel_members"
+                                        :key="idx"
+                                        :variant="
+                                            isCurrentUserPanelistName(name)
+                                                ? 'success'
+                                                : 'outline'
+                                        "
+                                        :class="[
+                                            'max-w-full justify-start text-left text-xs font-medium',
+                                            isCurrentUserPanelistName(name)
+                                                ? 'shadow-xs'
+                                                : panelistBadgeClass(idx),
+                                        ]"
+                                    >
+                                        <span
+                                            class="line-clamp-2 break-words"
+                                            >{{ name }}</span
+                                        >
+                                    </Badge>
+                                </div>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    No panelists listed
+                                </p>
+                            </td>
+                            <td
+                                v-if="isAdmin"
+                                class="max-w-xs px-4 py-3 text-xs"
+                            >
+                                <div
+                                    v-if="d.evaluations.length"
+                                    class="flex flex-col gap-2"
+                                >
+                                    <div
+                                        v-for="ev in d.evaluations"
+                                        :key="ev.id"
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <span
+                                            class="line-clamp-1 min-w-0 text-muted-foreground"
+                                            >{{ ev.evaluator_name }}</span
+                                        >
+                                        <Badge
+                                            v-if="ev.is_mine"
+                                            variant="secondary"
+                                            class="shrink-0 text-[9px] uppercase"
+                                            >You</Badge
+                                        >
+                                        <Badge
+                                            :variant="
+                                                scoreBadgeVariant(
+                                                    ev.final_score,
+                                                )
+                                            "
+                                            class="shrink-0 font-semibold tabular-nums"
+                                        >
+                                            {{ ev.final_score }}/100
+                                        </Badge>
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            class="h-7 text-[11px]"
+                                            as-child
+                                        >
+                                            <Link
+                                                :href="adminEditEvalUrl(ev.id)"
+                                                >Edit</Link
+                                            >
+                                        </Button>
+                                    </div>
+                                </div>
+                                <Badge
+                                    v-else
+                                    variant="outline"
+                                    class="text-[11px] text-muted-foreground"
+                                    >No scores yet</Badge
+                                >
+                            </td>
+                            <td v-else class="px-4 py-3 text-muted-foreground">
+                                <Badge
+                                    v-if="d.my_evaluation"
+                                    :variant="
+                                        scoreBadgeVariant(
+                                            d.my_evaluation.final_score,
+                                        )
+                                    "
+                                    class="font-semibold tabular-nums"
+                                >
+                                    {{ d.my_evaluation.final_score }}/100
+                                </Badge>
+                                <span
+                                    v-else
+                                    class="text-sm text-muted-foreground/80"
+                                    >—</span
+                                >
+                            </td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap">
+                                <div class="flex flex-col items-end gap-1">
+                                    <Button v-if="d.can_evaluate" as-child>
+                                        <Link :href="evaluatePageUrl(d)">
+                                            Open evaluation
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        v-else-if="d.my_evaluation"
+                                        variant="outline"
+                                        as-child
+                                    >
+                                        <Link :href="evaluatePageUrl(d)">
+                                            View your scores
+                                        </Link>
+                                    </Button>
+                                    <Badge
+                                        v-else-if="
+                                            !d.can_evaluate && !d.my_evaluation
+                                        "
+                                        variant="outline"
+                                        class="text-[10px] text-muted-foreground"
+                                    >
+                                        Not on panel
+                                    </Badge>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div
+                v-if="defenses.links && defenses.links.length > 3"
+                class="flex flex-wrap items-center justify-center gap-1"
+            >
+                <template
+                    v-for="(link, index) in defenses.links"
+                    :key="`${link.label}-${index}`"
+                >
+                    <Link
+                        v-if="link.url"
+                        :href="link.url"
+                        :class="[
+                            'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border px-2.5 text-sm transition-colors',
+                            link.active
+                                ? 'border-primary bg-primary/10 font-semibold text-foreground'
+                                : 'border-border bg-card hover:bg-muted/60',
+                        ]"
+                        preserve-scroll
+                        preserve-state
+                    >
+                        <span v-if="index === 0" class="px-0.5">&lsaquo;</span>
+                        <span
+                            v-else-if="index === defenses.links.length - 1"
+                            class="px-0.5"
+                            >&rsaquo;</span
+                        >
+                        <span v-else v-html="link.label" />
+                    </Link>
+                    <span
+                        v-else
+                        :class="[
+                            'inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border px-2.5 text-sm opacity-50',
+                            link.active ? 'border-primary' : 'border-border',
+                        ]"
+                    >
+                        <span v-if="index === 0">&lsaquo;</span>
+                        <span v-else-if="index === defenses.links.length - 1"
+                            >&rsaquo;</span
+                        >
+                        <span v-else v-html="link.label" />
+                    </span>
+                </template>
+            </div>
+        </div>
+    </div>
+</template>

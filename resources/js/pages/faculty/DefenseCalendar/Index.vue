@@ -33,7 +33,7 @@ interface DefenseEvent {
     paper_id: number;
     tracking_id: string;
     title: string;
-    type: 'outline_defense' | 'final_defense';
+    type: 'outline_defense' | 'final_defense' | 'title_defense';
     schedule: string;
     step_status: string | null;
     student: { name: string; email: string } | null;
@@ -73,6 +73,9 @@ const MONTH_NAMES = [
     'December',
 ];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Max defense chips per day before "+N more" (2 shown before + 4 more = 6). */
+const maxVisibleDayEvents = 6;
 
 const today = new Date();
 const todayDay = today.getDate();
@@ -152,6 +155,21 @@ function openEvent(event: DefenseEvent) {
     sheetOpen.value = true;
 }
 
+const overflowDayLabel = ref<number | null>(null);
+const overflowEvents = ref<DefenseEvent[]>([]);
+const overflowSheetOpen = ref(false);
+
+function openDayOverflow(day: number, events: DefenseEvent[]) {
+    overflowDayLabel.value = day;
+    overflowEvents.value = events;
+    overflowSheetOpen.value = true;
+}
+
+function pickOverflowEvent(event: DefenseEvent) {
+    overflowSheetOpen.value = false;
+    openEvent(event);
+}
+
 // --- Helpers ---
 function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-US', {
@@ -181,14 +199,52 @@ function isToday(day: number) {
     );
 }
 
-function eventClasses(type: 'outline_defense' | 'final_defense') {
-    return type === 'outline_defense'
-        ? 'bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800'
-        : 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800';
+function eventClasses(
+    type: 'outline_defense' | 'final_defense' | 'title_defense',
+) {
+    if (type === 'outline_defense') {
+        return 'bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800';
+    }
+    if (type === 'title_defense') {
+        return 'bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800';
+    }
+    return 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800';
 }
 
-function eventLabel(type: 'outline_defense' | 'final_defense') {
-    return type === 'outline_defense' ? 'Outline' : 'Final';
+function eventLabel(
+    type: 'outline_defense' | 'final_defense' | 'title_defense',
+) {
+    if (type === 'outline_defense') {
+        return 'Outline';
+    }
+    if (type === 'title_defense') {
+        return 'Title';
+    }
+    return 'Final';
+}
+
+function defenseTypeLongLabel(
+    type: 'outline_defense' | 'final_defense' | 'title_defense' | undefined,
+) {
+    if (type === 'outline_defense') {
+        return 'Outline Defense';
+    }
+    if (type === 'title_defense') {
+        return 'Title Defense';
+    }
+    return 'Final Defense';
+}
+
+function defenseTypeSheetBadgeClass(
+    type: 'outline_defense' | 'final_defense' | 'title_defense' | undefined,
+) {
+    if (type === 'outline_defense') {
+        return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300';
+    }
+    if (type === 'title_defense') {
+        return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300';
+    }
+    return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300';
 }
 
 function statusBadgeClass(status: string | null) {
@@ -235,6 +291,12 @@ function statusBadgeClass(status: string | null) {
                 >
                     <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
                     Outline Defense
+                </span>
+                <span
+                    class="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300"
+                >
+                    <span class="h-2 w-2 rounded-full bg-violet-500"></span>
+                    Title Defense
                 </span>
                 <span
                     class="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300"
@@ -317,7 +379,7 @@ function statusBadgeClass(status: string | null) {
             </div>
 
             <!-- Calendar grid -->
-            <div class="grid auto-rows-[minmax(90px,1fr)] grid-cols-7">
+            <div class="grid auto-rows-[minmax(100px,auto)] grid-cols-7">
                 <div
                     v-for="(cell, idx) in calendarCells"
                     :key="idx"
@@ -344,7 +406,10 @@ function statusBadgeClass(status: string | null) {
                     <!-- Events -->
                     <template v-if="cell !== null && eventsByDay[cell]">
                         <button
-                            v-for="event in eventsByDay[cell].slice(0, 2)"
+                            v-for="event in eventsByDay[cell].slice(
+                                0,
+                                maxVisibleDayEvents,
+                            )"
                             :key="event.id"
                             class="mb-0.5 w-full cursor-pointer truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-medium transition-colors"
                             :class="eventClasses(event.type)"
@@ -358,11 +423,23 @@ function statusBadgeClass(status: string | null) {
                             }}</span>
                         </button>
                         <button
-                            v-if="eventsByDay[cell].length > 2"
+                            v-if="
+                                eventsByDay[cell].length > maxVisibleDayEvents
+                            "
                             class="w-full rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                            @click="openEvent(eventsByDay[cell][2])"
+                            @click="
+                                openDayOverflow(
+                                    cell,
+                                    eventsByDay[cell].slice(
+                                        maxVisibleDayEvents,
+                                    ),
+                                )
+                            "
                         >
-                            +{{ eventsByDay[cell].length - 2 }} more
+                            +{{
+                                eventsByDay[cell].length - maxVisibleDayEvents
+                            }}
+                            more
                         </button>
                     </template>
                 </div>
@@ -388,6 +465,50 @@ function statusBadgeClass(status: string | null) {
             </p>
         </div>
 
+        <Sheet v-model:open="overflowSheetOpen">
+            <SheetContent class="w-full sm:max-w-md">
+                <SheetHeader class="pb-2">
+                    <SheetTitle class="text-base">
+                        More schedules
+                        <span
+                            v-if="overflowDayLabel !== null"
+                            class="text-muted-foreground"
+                        >
+                            · {{ MONTH_NAMES[props.month - 1] }}
+                            {{ overflowDayLabel }}, {{ props.year }}
+                        </span>
+                    </SheetTitle>
+                    <SheetDescription class="sr-only">
+                        Additional defense events on this day
+                    </SheetDescription>
+                </SheetHeader>
+                <div
+                    class="flex max-h-[70vh] flex-col gap-1.5 overflow-y-auto p-3"
+                >
+                    <button
+                        v-for="event in overflowEvents"
+                        :key="event.id"
+                        type="button"
+                        class="w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors"
+                        :class="eventClasses(event.type)"
+                        @click="pickOverflowEvent(event)"
+                    >
+                        <span class="font-bold">{{
+                            eventLabel(event.type)
+                        }}</span>
+                        <span class="ml-2 opacity-80">{{
+                            formatTime(event.schedule)
+                        }}</span>
+                        <span
+                            class="mt-0.5 block truncate text-xs font-normal opacity-90"
+                        >
+                            {{ event.title }}
+                        </span>
+                    </button>
+                </div>
+            </SheetContent>
+        </Sheet>
+
         <!-- Event Detail Sheet -->
         <Sheet v-model:open="sheetOpen">
             <SheetContent class="w-full sm:max-w-md">
@@ -396,16 +517,10 @@ function statusBadgeClass(status: string | null) {
                         <span
                             class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
                             :class="
-                                selectedEvent?.type === 'outline_defense'
-                                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300'
-                                    : 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300'
+                                defenseTypeSheetBadgeClass(selectedEvent?.type)
                             "
                         >
-                            {{
-                                selectedEvent?.type === 'outline_defense'
-                                    ? 'Outline Defense'
-                                    : 'Final Defense'
-                            }}
+                            {{ defenseTypeLongLabel(selectedEvent?.type) }}
                         </span>
                         <Badge
                             v-if="selectedEvent?.step_status"

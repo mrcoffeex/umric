@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\User;
+use App\Support\PanelDefenseSchedule;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -33,7 +34,12 @@ class PanelDefenseFactory extends Factory
                 ],
                 fake()->numberBetween(2, 3),
             ),
-            'schedule' => fake()->optional()->dateTimeBetween('-1 month', '+2 months'),
+            'schedule' => fn () => fake()->boolean(75)
+                ? PanelDefenseSchedule::combineToCarbon(
+                    fake()->dateTimeBetween('-1 month', '+2 months')->format('Y-m-d'),
+                    fake()->randomElement(PanelDefenseSchedule::allowedTimeValues()),
+                )
+                : null,
             'notes' => fake()->optional()->sentence(),
             'created_by' => User::factory(),
         ];

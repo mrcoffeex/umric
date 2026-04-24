@@ -245,8 +245,8 @@ function submit() {
                                 Upload Document
                             </h2>
                             <p class="text-xs text-muted-foreground">
-                                Title, abstract, and keywords will be
-                                auto-filled.
+                                Title, rationale, and keywords will be
+                                auto-filled when possible.
                             </p>
                         </div>
                         <span class="ml-auto text-xs text-muted-foreground"
@@ -270,7 +270,8 @@ function submit() {
                             />
                             <span
                                 class="text-xs font-medium text-orange-700 dark:text-orange-400"
-                                >Analysing document — filling in fields…</span
+                                >Reading your document — extracting title,
+                                rationale, and keywords…</span
                             >
                         </div>
 
@@ -283,7 +284,7 @@ function submit() {
                             />
                             <span
                                 class="text-xs font-medium text-green-700 dark:text-green-400"
-                                >Title, abstract, and keywords extracted
+                                >Title, rationale, and keywords extracted
                                 automatically. Please review and adjust.</span
                             >
                         </div>
@@ -298,7 +299,8 @@ function submit() {
                             <span
                                 class="text-xs font-medium text-green-700 dark:text-green-400"
                                 >Some information was extracted. Please review
-                                and fill in any missing fields.</span
+                                and fill in any missing title, rationale, or
+                                keywords.</span
                             >
                         </div>
 
@@ -310,9 +312,9 @@ function submit() {
                                 class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                             />
                             <span class="text-xs text-muted-foreground"
-                                >Could not extract information from this
-                                document. Please fill in the fields below
-                                manually.</span
+                                >Could not read title, rationale, or keywords
+                                from this file. Please complete the form
+                                below.</span
                             >
                         </div>
 
@@ -389,16 +391,16 @@ function submit() {
                             </p>
                         </div>
 
-                        <!-- Abstract -->
+                        <!-- Rationale (stored as abstract) -->
                         <div>
                             <Label
                                 class="mb-1.5 block text-sm font-medium text-foreground"
-                                >Abstract</Label
+                                >Rationale</Label
                             >
                             <textarea
                                 v-model="form.abstract"
                                 rows="6"
-                                placeholder="Write a concise abstract summarising your research proposal, methodology, and expected outcomes..."
+                                placeholder="Explain the rationale for your study: the problem, significance, scope, and expected contribution…"
                                 :class="[
                                     'w-full resize-y rounded-lg border bg-background px-3 py-2.5 text-sm text-foreground transition outline-none',
                                     form.errors.abstract

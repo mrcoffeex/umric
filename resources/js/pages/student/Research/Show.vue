@@ -11,9 +11,7 @@ import {
     FileBarChart2,
     FileSearch,
     GraduationCap,
-    Link2,
     Maximize2,
-    PackageCheck,
     Pencil,
     ScrollText,
     Send,
@@ -24,8 +22,8 @@ import {
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getStepBadgeClass } from '@/lib/step-colors';
-import { receive as receiveRoute } from '@/routes/admin/research';
 import student from '@/routes/student';
 
 interface StepRecord {
@@ -144,15 +142,10 @@ const agendaMap = computed(() =>
 );
 
 const copied = ref(false);
-const qrMode = ref<'tracking' | 'receiving'>('tracking');
 const qrModalOpen = ref(false);
 
 const trackingUrl = computed(() => {
     return `${window.location.origin}/track/${props.paper.tracking_id}`;
-});
-
-const receivingUrl = computed(() => {
-    return `${window.location.origin}${receiveRoute.url({ paper: props.paper.id })}`;
 });
 
 const currentStepIndex = computed(() => {
@@ -487,28 +480,17 @@ setLayoutProps({
             </div>
         </section>
 
-        <!-- QR Code Panel -->
+        <!-- QR Code Panel (public tracking only) -->
         <section
             class="overflow-hidden rounded-2xl border border-border bg-card"
         >
             <div class="flex items-start gap-3 p-4">
                 <div
-                    :class="[
-                        'relative shrink-0 cursor-pointer rounded-xl border-2 bg-white p-2 transition hover:border-orange-400',
-                        qrMode === 'receiving'
-                            ? 'border-teal-400'
-                            : 'border-border',
-                    ]"
+                    class="relative shrink-0 cursor-pointer rounded-xl border-2 border-border bg-white p-2 transition hover:border-orange-400"
                     @click="qrModalOpen = true"
                     title="Click to enlarge"
                 >
-                    <QrcodeVue
-                        :value="
-                            qrMode === 'tracking' ? trackingUrl : receivingUrl
-                        "
-                        :size="72"
-                        level="M"
-                    />
+                    <QrcodeVue :value="trackingUrl" :size="72" level="M" />
                     <span
                         class="absolute right-1 bottom-1 rounded bg-black/30 p-0.5"
                     >
@@ -519,68 +501,19 @@ setLayoutProps({
                     <div
                         class="flex flex-wrap items-center justify-between gap-2"
                     >
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm font-semibold text-foreground">
-                                {{
-                                    qrMode === 'tracking'
-                                        ? 'Tracking QR'
-                                        : 'Receiving QR'
-                                }}
-                            </span>
-                            <span
-                                v-if="qrMode === 'receiving'"
-                                class="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400"
-                                >Admin-only</span
-                            >
-                        </div>
-                        <div
-                            class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5"
-                        >
-                            <button
-                                type="button"
-                                @click="qrMode = 'tracking'"
-                                :class="[
-                                    'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition',
-                                    qrMode === 'tracking'
-                                        ? 'bg-background text-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground',
-                                ]"
-                            >
-                                <Link2 class="h-3 w-3" /> Track
-                            </button>
-                            <button
-                                type="button"
-                                @click="qrMode = 'receiving'"
-                                :class="[
-                                    'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition',
-                                    qrMode === 'receiving'
-                                        ? 'bg-background text-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground',
-                                ]"
-                            >
-                                <PackageCheck class="h-3 w-3" /> Receive
-                            </button>
-                        </div>
+                        <span class="text-sm font-semibold text-foreground">
+                            Tracking QR
+                        </span>
                     </div>
                     <div class="flex items-center gap-2">
                         <code
                             class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-1.5 font-mono text-xs text-muted-foreground"
                         >
-                            {{
-                                qrMode === 'tracking'
-                                    ? trackingUrl
-                                    : receivingUrl
-                            }}
+                            {{ trackingUrl }}
                         </code>
                         <button
                             type="button"
-                            @click="
-                                copyToClipboard(
-                                    qrMode === 'tracking'
-                                        ? trackingUrl
-                                        : receivingUrl,
-                                )
-                            "
+                            @click="copyToClipboard(trackingUrl)"
                             class="shrink-0 rounded-lg border border-border bg-background p-1.5 text-foreground transition hover:bg-muted"
                         >
                             <ClipboardCopy class="h-3.5 w-3.5" />
@@ -593,607 +526,745 @@ setLayoutProps({
 
         <!-- Body Grid -->
         <div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
-            <!-- Left: Step Details + History -->
-            <div class="space-y-6">
-                <!-- Step-by-Step Status -->
-                <section class="rounded-2xl border border-border bg-card p-5">
-                    <h2 class="mb-4 text-base font-bold text-foreground">
-                        Step Details
-                    </h2>
-
-                    <div class="space-y-3">
-                        <div
-                            v-for="(detail, idx) in stepDetails"
-                            :key="detail.key"
-                            :class="[
-                                'relative overflow-hidden rounded-xl border p-4 transition-all',
-                                isCurrentStep(idx)
-                                    ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
-                                    : isCompletedStep(idx)
-                                      ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
-                                      : 'border-border bg-card',
-                            ]"
-                        >
-                            <!-- Current step indicator -->
-                            <div
-                                v-if="isCurrentStep(idx)"
-                                class="absolute top-0 right-0 rounded-bl-lg bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white uppercase"
+            <div>
+                <Tabs default-value="steps" class="w-full">
+                    <TabsList class="mb-3" aria-label="Research content">
+                        <TabsTrigger value="steps">Step details</TabsTrigger>
+                        <TabsTrigger value="history">
+                            History
+                            <span
+                                v-if="timeline.length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
                             >
-                                Current
-                            </div>
+                                {{ timeline.length }}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="comments">
+                            Comments
+                            <span
+                                v-if="(comments ?? []).length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ (comments ?? []).length }}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger
+                            v-if="paper.files && paper.files.length"
+                            value="files"
+                        >
+                            Files
+                            <span
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ paper.files.length }}
+                            </span>
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="steps" class="mt-0">
+                        <section
+                            class="rounded-2xl border border-border bg-card p-5"
+                        >
+                            <h2
+                                class="mb-4 text-base font-bold text-foreground"
+                            >
+                                Step Details
+                            </h2>
 
-                            <div class="flex items-start gap-3">
-                                <!-- Step icon -->
+                            <div class="space-y-3">
                                 <div
+                                    v-for="(detail, idx) in stepDetails"
+                                    :key="detail.key"
                                     :class="[
-                                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                                        isCompletedStep(idx)
-                                            ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
-                                            : isCurrentStep(idx)
-                                              ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
-                                              : 'bg-muted text-muted-foreground',
+                                        'relative overflow-hidden rounded-xl border p-4 transition-all',
+                                        isCurrentStep(idx)
+                                            ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
+                                            : isCompletedStep(idx)
+                                              ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
+                                              : 'border-border bg-card',
                                     ]"
                                 >
-                                    <Check
-                                        v-if="isCompletedStep(idx)"
-                                        class="h-4 w-4"
-                                    />
-                                    <component
-                                        :is="detail.icon"
-                                        v-else
-                                        class="h-4 w-4"
-                                    />
-                                </div>
-
-                                <div class="min-w-0 flex-1">
+                                    <!-- Current step indicator -->
                                     <div
-                                        class="flex flex-wrap items-center gap-2"
+                                        v-if="isCurrentStep(idx)"
+                                        class="absolute top-0 right-0 rounded-bl-lg bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white uppercase"
                                     >
-                                        <span
-                                            class="text-sm font-bold text-foreground"
-                                            >{{ stepLabel(detail.key) }}</span
-                                        >
-                                        <span
-                                            v-if="!isFutureStep(idx)"
+                                        Current
+                                    </div>
+
+                                    <div class="flex items-start gap-3">
+                                        <!-- Step icon -->
+                                        <div
                                             :class="[
-                                                'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                statusTypeClasses[
-                                                    detail.statusType
-                                                ],
+                                                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                                                isCompletedStep(idx)
+                                                    ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
+                                                    : isCurrentStep(idx)
+                                                      ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
+                                                      : 'bg-muted text-muted-foreground',
                                             ]"
                                         >
-                                            {{ detail.status }}
-                                        </span>
+                                            <Check
+                                                v-if="isCompletedStep(idx)"
+                                                class="h-4 w-4"
+                                            />
+                                            <component
+                                                :is="detail.icon"
+                                                v-else
+                                                class="h-4 w-4"
+                                            />
+                                        </div>
+
+                                        <div class="min-w-0 flex-1">
+                                            <div
+                                                class="flex flex-wrap items-center gap-2"
+                                            >
+                                                <span
+                                                    class="text-sm font-bold text-foreground"
+                                                    >{{
+                                                        stepLabel(detail.key)
+                                                    }}</span
+                                                >
+                                                <span
+                                                    v-if="!isFutureStep(idx)"
+                                                    :class="[
+                                                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                        statusTypeClasses[
+                                                            detail.statusType
+                                                        ],
+                                                    ]"
+                                                >
+                                                    {{ detail.status }}
+                                                </span>
+                                            </div>
+
+                                            <p
+                                                v-if="
+                                                    detail.info &&
+                                                    !isFutureStep(idx)
+                                                "
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                {{ detail.info }}
+                                            </p>
+
+                                            <p
+                                                v-if="isFutureStep(idx)"
+                                                class="mt-1 text-xs text-muted-foreground"
+                                            >
+                                                Waiting for previous steps to
+                                                complete.
+                                            </p>
+                                        </div>
                                     </div>
-
-                                    <p
-                                        v-if="detail.info && !isFutureStep(idx)"
-                                        class="mt-1 text-xs text-muted-foreground"
-                                    >
-                                        {{ detail.info }}
-                                    </p>
-
-                                    <p
-                                        v-if="isFutureStep(idx)"
-                                        class="mt-1 text-xs text-muted-foreground"
-                                    >
-                                        Waiting for previous steps to complete.
-                                    </p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </section>
+                        </section>
+                    </TabsContent>
 
-                <!-- Tracking History -->
-                <section
-                    class="rounded-2xl border border-border bg-card p-5"
-                    id="tracking-history"
-                >
-                    <div class="mb-4 flex items-center gap-2">
-                        <Clock3 class="h-4 w-4 text-orange-500" />
-                        <h2 class="text-base font-bold text-foreground">
-                            Tracking History
-                        </h2>
-                        <span
-                            v-if="timeline.length"
-                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                    <TabsContent value="history" class="mt-0">
+                        <section
+                            class="rounded-2xl border border-border bg-card p-5"
+                            id="tracking-history"
                         >
-                            {{ timeline.length }}
-                        </span>
-                    </div>
-
-                    <div
-                        v-if="timeline.length === 0"
-                        class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
-                    >
-                        No tracking records yet.
-                    </div>
-
-                    <!-- Timeline -->
-                    <div
-                        v-else
-                        class="relative ml-3 space-y-0 border-l-2 border-border pl-6"
-                    >
-                        <div
-                            v-for="(record, idx) in timeline"
-                            :key="record.id"
-                            class="relative pb-6 last:pb-0"
-                        >
-                            <!-- Timeline dot -->
-                            <div
-                                :class="[
-                                    'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
-                                    idx === 0
-                                        ? 'bg-orange-500'
-                                        : 'bg-green-500',
-                                ]"
-                            >
-                                <div
-                                    class="h-1.5 w-1.5 rounded-full bg-white"
-                                />
+                            <div class="mb-4 flex items-center gap-2">
+                                <Clock3 class="h-4 w-4 text-orange-500" />
+                                <h2 class="text-base font-bold text-foreground">
+                                    Tracking History
+                                </h2>
+                                <span
+                                    v-if="timeline.length"
+                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                >
+                                    {{ timeline.length }}
+                                </span>
                             </div>
 
-                            <!-- Content card -->
                             <div
-                                class="rounded-xl border border-border bg-card p-3.5 shadow-xs"
+                                v-if="timeline.length === 0"
+                                class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
                             >
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <p
-                                        class="text-sm font-semibold text-foreground"
-                                    >
-                                        {{ record.action }}
-                                    </p>
-                                    <span
-                                        v-if="record.step"
+                                No tracking records yet.
+                            </div>
+
+                            <!-- Timeline -->
+                            <div
+                                v-else
+                                class="relative ml-3 space-y-0 border-l-2 border-border pl-6"
+                            >
+                                <div
+                                    v-for="(record, idx) in timeline"
+                                    :key="record.id"
+                                    class="relative pb-6 last:pb-0"
+                                >
+                                    <!-- Timeline dot -->
+                                    <div
                                         :class="[
-                                            'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                            getStepBadgeClass(record.step),
+                                            'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
+                                            idx === 0
+                                                ? 'bg-orange-500'
+                                                : 'bg-green-500',
                                         ]"
                                     >
-                                        {{
-                                            record.step
-                                                ? stepLabel(record.step)
-                                                : ''
-                                        }}
-                                    </span>
-                                </div>
+                                        <div
+                                            class="h-1.5 w-1.5 rounded-full bg-white"
+                                        />
+                                    </div>
 
-                                <div
-                                    class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
-                                >
-                                    <span
-                                        v-if="record.status"
-                                        class="inline-flex items-center gap-1"
-                                    >
-                                        <span
-                                            class="font-medium text-foreground"
-                                            >Status:</span
-                                        >
-                                        {{ record.status }}
-                                    </span>
-                                    <span
-                                        class="inline-flex items-center gap-1"
-                                    >
-                                        <span
-                                            class="font-medium text-foreground"
-                                            >By:</span
-                                        >
-                                        {{
-                                            record.updated_by?.name ?? 'System'
-                                        }}
-                                    </span>
-                                    <span>{{
-                                        formatDateTime(record.created_at)
-                                    }}</span>
-                                </div>
-
-                                <p
-                                    v-if="record.notes"
-                                    class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
-                                >
-                                    {{ record.notes }}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-                <!-- Comments (read-only) -->
-                <section class="rounded-2xl border border-border bg-card p-5">
-                    <div class="mb-4 flex items-center gap-2">
-                        <MessageSquare class="h-4 w-4 text-violet-500" />
-                        <h2 class="text-base font-bold text-foreground">
-                            Comments
-                        </h2>
-                        <span
-                            v-if="(comments ?? []).length"
-                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
-                        >
-                            {{ (comments ?? []).length }}
-                        </span>
-                    </div>
-
-                    <div
-                        v-if="(comments ?? []).length === 0"
-                        class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
-                    >
-                        No comments yet.
-                    </div>
-
-                    <div v-else class="space-y-3">
-                        <div
-                            v-for="comment in comments"
-                            :key="comment.id"
-                            class="rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
-                        >
-                            <div
-                                class="flex items-center justify-between gap-2"
-                            >
-                                <div class="flex items-center gap-2">
+                                    <!-- Content card -->
                                     <div
-                                        class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-300"
+                                        class="rounded-xl border border-border bg-card p-3.5 shadow-xs"
                                     >
-                                        {{
-                                            comment.user?.name
-                                                .charAt(0)
-                                                .toUpperCase() ?? '?'
-                                        }}
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <p
+                                                class="text-sm font-semibold text-foreground"
+                                            >
+                                                {{ record.action }}
+                                            </p>
+                                            <span
+                                                v-if="record.step"
+                                                :class="[
+                                                    'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                    getStepBadgeClass(
+                                                        record.step,
+                                                    ),
+                                                ]"
+                                            >
+                                                {{
+                                                    record.step
+                                                        ? stepLabel(record.step)
+                                                        : ''
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+                                        >
+                                            <span
+                                                v-if="record.status"
+                                                class="inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >Status:</span
+                                                >
+                                                {{ record.status }}
+                                            </span>
+                                            <span
+                                                class="inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >By:</span
+                                                >
+                                                {{
+                                                    record.updated_by?.name ??
+                                                    'System'
+                                                }}
+                                            </span>
+                                            <span>{{
+                                                formatDateTime(
+                                                    record.created_at,
+                                                )
+                                            }}</span>
+                                        </div>
+
+                                        <p
+                                            v-if="record.notes"
+                                            class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                                        >
+                                            {{ record.notes }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent value="comments" class="mt-0">
+                        <section
+                            class="rounded-2xl border border-border bg-card p-5"
+                        >
+                            <div class="mb-4 flex items-center gap-2">
+                                <MessageSquare
+                                    class="h-4 w-4 text-violet-500"
+                                />
+                                <h2 class="text-base font-bold text-foreground">
+                                    Comments
+                                </h2>
+                                <span
+                                    v-if="(comments ?? []).length"
+                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                >
+                                    {{ (comments ?? []).length }}
+                                </span>
+                            </div>
+
+                            <div
+                                v-if="(comments ?? []).length === 0"
+                                class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+                            >
+                                No comments yet.
+                            </div>
+
+                            <div v-else class="space-y-3">
+                                <div
+                                    v-for="comment in comments"
+                                    :key="comment.id"
+                                    class="rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
+                                >
+                                    <div
+                                        class="flex items-center justify-between gap-2"
+                                    >
+                                        <div class="flex items-center gap-2">
+                                            <div
+                                                class="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-300"
+                                            >
+                                                {{
+                                                    comment.user?.name
+                                                        .charAt(0)
+                                                        .toUpperCase() ?? '?'
+                                                }}
+                                            </div>
+                                            <p
+                                                class="text-sm font-semibold text-foreground"
+                                            >
+                                                {{
+                                                    comment.user?.name ??
+                                                    'Unknown'
+                                                }}
+                                            </p>
+                                        </div>
+                                        <span
+                                            class="text-[11px] text-muted-foreground"
+                                            >{{
+                                                timeAgo(comment.created_at)
+                                            }}</span
+                                        >
                                     </div>
                                     <p
-                                        class="text-sm font-semibold text-foreground"
+                                        class="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-foreground"
                                     >
-                                        {{ comment.user?.name ?? 'Unknown' }}
+                                        {{ comment.body }}
                                     </p>
                                 </div>
-                                <span
-                                    class="text-[11px] text-muted-foreground"
-                                    >{{ timeAgo(comment.created_at) }}</span
-                                >
                             </div>
-                            <p
-                                class="mt-1.5 text-sm leading-relaxed whitespace-pre-line text-foreground"
-                            >
-                                {{ comment.body }}
-                            </p>
-                        </div>
-                    </div>
-                </section>
+                        </section>
+                    </TabsContent>
 
-                <!-- Documents -->
-                <section
-                    v-if="paper.files && paper.files.length > 0"
-                    class="rounded-2xl border border-border bg-card p-5"
-                >
-                    <div class="mb-4 flex items-center gap-2">
-                        <svg
-                            class="h-4 w-4 shrink-0 text-orange-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            stroke-width="1.5"
+                    <TabsContent
+                        v-if="paper.files && paper.files.length > 0"
+                        value="files"
+                        class="mt-0"
+                    >
+                        <section
+                            class="rounded-2xl border border-border bg-card p-5"
                         >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                            />
-                        </svg>
-                        <h2 class="text-base font-bold text-foreground">
-                            Documents
-                        </h2>
-                        <span
-                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
-                            >{{ paper.files.length }}</span
-                        >
-                    </div>
-                    <div class="space-y-2">
-                        <div
-                            v-for="file in paper.files"
-                            :key="file.id"
-                            class="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3 transition hover:bg-muted"
-                        >
-                            <svg
-                                class="h-8 w-8 shrink-0 text-red-500"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                stroke-width="1.5"
-                            >
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                                />
-                            </svg>
-                            <div class="min-w-0 flex-1">
-                                <p
-                                    class="truncate text-sm font-medium text-foreground"
+                            <div class="mb-4 flex items-center gap-2">
+                                <svg
+                                    class="h-4 w-4 shrink-0 text-orange-500"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
                                 >
-                                    {{ file.file_name }}
-                                </p>
-                                <p class="text-xs text-muted-foreground">
-                                    {{ formatFileSize(file.file_size) }}
-                                </p>
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                    />
+                                </svg>
+                                <h2 class="text-base font-bold text-foreground">
+                                    Documents
+                                </h2>
+                                <span
+                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                    >{{ paper.files.length }}</span
+                                >
                             </div>
-                            <div class="flex shrink-0 items-center gap-2">
-                                <a
-                                    v-if="file.file_type === 'application/pdf'"
-                                    :href="fileUrl(file)"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                            <div class="space-y-2">
+                                <div
+                                    v-for="file in paper.files"
+                                    :key="file.id"
+                                    class="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3 transition hover:bg-muted"
                                 >
-                                    Preview
-                                </a>
-                                <a
-                                    :href="fileUrl(file)"
-                                    download
-                                    class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                >
-                                    Download
-                                </a>
+                                    <svg
+                                        class="h-8 w-8 shrink-0 text-red-500"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="1.5"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                        />
+                                    </svg>
+                                    <div class="min-w-0 flex-1">
+                                        <p
+                                            class="truncate text-sm font-medium text-foreground"
+                                        >
+                                            {{ file.file_name }}
+                                        </p>
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            {{ formatFileSize(file.file_size) }}
+                                        </p>
+                                    </div>
+                                    <div
+                                        class="flex shrink-0 items-center gap-2"
+                                    >
+                                        <a
+                                            v-if="
+                                                file.file_type ===
+                                                'application/pdf'
+                                            "
+                                            :href="fileUrl(file)"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                        >
+                                            Preview
+                                        </a>
+                                        <a
+                                            :href="fileUrl(file)"
+                                            download
+                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                        >
+                                            Download
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                </section>
+                        </section>
+                    </TabsContent>
+                </Tabs>
             </div>
 
             <!-- Right Sidebar -->
-            <div class="space-y-6">
-                <!-- Panel History (read-only) -->
-                <section
-                    v-if="(panelDefenses ?? []).length"
-                    class="rounded-2xl border border-border bg-card p-5"
-                >
-                    <div class="mb-4 flex items-center gap-2">
-                        <Users class="h-4 w-4 text-indigo-500" />
-                        <h2 class="text-base font-bold text-foreground">
-                            Panels
-                        </h2>
-                        <span
-                            class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
-                        >
-                            {{ (panelDefenses ?? []).length }}
-                        </span>
-                    </div>
-                    <div class="space-y-3">
-                        <div
-                            v-for="pd in panelDefenses"
-                            :key="pd.id"
-                            class="rounded-xl border border-border/60 bg-muted/20 p-4"
-                        >
-                            <div class="flex items-center gap-2">
-                                <span
-                                    :class="[
-                                        'rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                                        pd.defense_type === 'title'
-                                            ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
-                                            : pd.defense_type === 'outline'
-                                              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
-                                              : 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300',
-                                    ]"
-                                >
-                                    {{ pd.defense_type_label }}
-                                </span>
-                                <span
-                                    v-if="pd.schedule"
-                                    class="text-xs text-muted-foreground"
-                                    >{{ formatDateTime(pd.schedule) }}</span
-                                >
-                            </div>
-                            <div class="mt-2 flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="member in pd.panel_members"
-                                    :key="member"
-                                    class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
-                                >
-                                    {{ member }}
-                                </span>
-                            </div>
-                            <p
-                                v-if="pd.notes"
-                                class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
-                            >
-                                {{ pd.notes }}
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Paper Info -->
-                <section class="rounded-2xl border border-border bg-card p-5">
-                    <h3
-                        class="mb-4 flex items-center gap-2 text-base font-bold text-foreground"
-                    >
-                        <FileSearch class="h-5 w-5 text-orange-500" />
-                        Paper Info
-                    </h3>
-
-                    <!-- Abstract — separate visual block -->
-                    <div
-                        v-if="paper.abstract"
-                        class="mb-4 rounded-xl border border-border bg-muted/30 p-4"
-                    >
-                        <p
-                            class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                        >
-                            Abstract
-                        </p>
-                        <p class="text-sm leading-relaxed text-foreground">
-                            {{ paper.abstract }}
-                        </p>
-                    </div>
-
-                    <!-- Key details in a definition-list style grid -->
-                    <div class="divide-y divide-border">
-                        <div
-                            v-if="proponents.length"
-                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Proponents
-                            </p>
-                            <div class="flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="name in proponents"
-                                    :key="name"
-                                    class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground"
-                                    >{{ name }}</span
-                                >
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="paper.adviser"
-                            class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Adviser
-                            </p>
-                            <p class="text-sm text-foreground">
-                                {{ paper.adviser.name }}
-                            </p>
-                        </div>
-
-                        <div
-                            v-if="paper.statistician"
-                            class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Statistician
-                            </p>
-                            <p class="text-sm text-foreground">
-                                {{ paper.statistician.name }}
-                            </p>
-                        </div>
-
-                        <div
-                            v-if="paper.school_class"
-                            class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Class
-                            </p>
-                            <p class="text-sm text-foreground">
-                                {{ paper.school_class.name }}
-                                <span
-                                    v-if="paper.school_class.section"
-                                    class="text-muted-foreground"
-                                >
-                                    · Section
-                                    {{ paper.school_class.section }}</span
-                                >
-                            </p>
-                        </div>
-
-                        <div
-                            v-if="paper.keywords"
-                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Keywords
-                            </p>
-                            <div class="flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="keyword in paper.keywords.split(',')"
-                                    :key="keyword.trim()"
-                                    class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300"
-                                >
-                                    {{ keyword.trim() }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="paper.sdg_ids?.length"
-                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                SDGs
-                            </p>
-                            <div class="flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="id in paper.sdg_ids"
-                                    :key="id"
-                                    class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
-                                >
-                                    {{
-                                        sdgMap[id]
-                                            ? sdgMap[id].number
-                                                ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}`
-                                                : sdgMap[id].name
-                                            : `SDG ${id}`
-                                    }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div
-                            v-if="paper.agenda_ids?.length"
-                            class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                        >
-                            <p
-                                class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Research Agendas
-                            </p>
-                            <div class="flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="id in paper.agenda_ids"
-                                    :key="id"
-                                    class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400"
-                                >
-                                    {{ agendaMap[id]?.name ?? `Agenda ${id}` }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Alerts -->
-                <section
-                    v-if="
-                        paper.current_step === 'plagiarism_check' &&
-                        (paper.plagiarism_attempts ?? 0) >= 2
+            <div>
+                <Tabs
+                    class="w-full"
+                    :default-value="
+                        (panelDefenses ?? []).length ? 'panels' : 'paper'
                     "
-                    class="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/20"
                 >
-                    <div class="flex items-start gap-3">
-                        <AlertTriangle
-                            class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
-                        />
-                        <div>
-                            <p
-                                class="text-sm font-bold text-amber-700 dark:text-amber-300"
+                    <TabsList
+                        class="mb-3"
+                        aria-label="Paper details and panels"
+                    >
+                        <TabsTrigger
+                            v-if="(panelDefenses ?? []).length"
+                            value="panels"
+                        >
+                            Panels
+                            <span
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
                             >
-                                Plagiarism Check Warning
-                            </p>
-                            <p
-                                class="mt-1 text-xs text-amber-600 dark:text-amber-400"
-                            >
-                                You have used {{ paper.plagiarism_attempts }} of
-                                3 attempts.
-                                <template
-                                    v-if="(paper.plagiarism_attempts ?? 0) >= 3"
-                                    >No more attempts remaining.</template
+                                {{ (panelDefenses ?? []).length }}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="paper"> Paper </TabsTrigger>
+                        <TabsTrigger
+                            v-if="
+                                paper.current_step === 'plagiarism_check' &&
+                                (paper.plagiarism_attempts ?? 0) >= 2
+                            "
+                            value="alert"
+                        >
+                            Alert
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent
+                        v-if="(panelDefenses ?? []).length"
+                        value="panels"
+                        class="mt-0"
+                    >
+                        <section
+                            class="rounded-2xl border border-border bg-card p-5"
+                        >
+                            <div class="mb-4 flex items-center gap-2">
+                                <Users class="h-4 w-4 text-indigo-500" />
+                                <h2 class="text-base font-bold text-foreground">
+                                    Panels
+                                </h2>
+                                <span
+                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
                                 >
-                                <template v-else>1 attempt remaining.</template>
-                            </p>
-                        </div>
-                    </div>
-                </section>
+                                    {{ (panelDefenses ?? []).length }}
+                                </span>
+                            </div>
+                            <div class="space-y-3">
+                                <div
+                                    v-for="pd in panelDefenses"
+                                    :key="pd.id"
+                                    class="rounded-xl border border-border/60 bg-muted/20 p-4"
+                                >
+                                    <div class="flex items-center gap-2">
+                                        <span
+                                            :class="[
+                                                'rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                                                pd.defense_type === 'title'
+                                                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300'
+                                                    : pd.defense_type ===
+                                                        'outline'
+                                                      ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300'
+                                                      : 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300',
+                                            ]"
+                                        >
+                                            {{ pd.defense_type_label }}
+                                        </span>
+                                        <span
+                                            v-if="pd.schedule"
+                                            class="text-xs text-muted-foreground"
+                                            >{{
+                                                formatDateTime(pd.schedule)
+                                            }}</span
+                                        >
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="member in pd.panel_members"
+                                            :key="member"
+                                            class="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                        >
+                                            {{ member }}
+                                        </span>
+                                    </div>
+                                    <p
+                                        v-if="pd.notes"
+                                        class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                                    >
+                                        {{ pd.notes }}
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent value="paper" class="mt-0">
+                        <section
+                            class="rounded-2xl border border-border bg-card p-5"
+                        >
+                            <h3
+                                class="mb-4 flex items-center gap-2 text-base font-bold text-foreground"
+                            >
+                                <FileSearch class="h-5 w-5 text-orange-500" />
+                                Paper Info
+                            </h3>
+
+                            <!-- Rationale (title proposal) — separate visual block -->
+                            <div
+                                v-if="paper.abstract"
+                                class="mb-4 rounded-xl border border-border bg-muted/30 p-4"
+                            >
+                                <p
+                                    class="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                                >
+                                    Rationale
+                                </p>
+                                <p
+                                    class="text-justify text-sm leading-relaxed text-foreground"
+                                >
+                                    {{ paper.abstract }}
+                                </p>
+                            </div>
+
+                            <!-- Key details in a definition-list style grid -->
+                            <div class="divide-y divide-border">
+                                <div
+                                    v-if="proponents.length"
+                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Proponents
+                                    </p>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="name in proponents"
+                                            :key="name"
+                                            class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground"
+                                            >{{ name }}</span
+                                        >
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="paper.adviser"
+                                    class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Adviser
+                                    </p>
+                                    <p class="text-sm text-foreground">
+                                        {{ paper.adviser.name }}
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="paper.statistician"
+                                    class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Statistician
+                                    </p>
+                                    <p class="text-sm text-foreground">
+                                        {{ paper.statistician.name }}
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="paper.school_class"
+                                    class="flex items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Class
+                                    </p>
+                                    <p class="text-sm text-foreground">
+                                        {{ paper.school_class.name }}
+                                        <span
+                                            v-if="paper.school_class.section"
+                                            class="text-muted-foreground"
+                                        >
+                                            · Section
+                                            {{
+                                                paper.school_class.section
+                                            }}</span
+                                        >
+                                    </p>
+                                </div>
+
+                                <div
+                                    v-if="paper.keywords"
+                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Keywords
+                                    </p>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="keyword in paper.keywords.split(
+                                                ',',
+                                            )"
+                                            :key="keyword.trim()"
+                                            class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800 dark:bg-orange-950/40 dark:text-orange-300"
+                                        >
+                                            {{ keyword.trim() }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="paper.sdg_ids?.length"
+                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        SDGs
+                                    </p>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="id in paper.sdg_ids"
+                                            :key="id"
+                                            class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+                                        >
+                                            {{
+                                                sdgMap[id]
+                                                    ? sdgMap[id].number
+                                                        ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}`
+                                                        : sdgMap[id].name
+                                                    : `SDG ${id}`
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="paper.agenda_ids?.length"
+                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                                >
+                                    <p
+                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    >
+                                        Research Agendas
+                                    </p>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        <span
+                                            v-for="id in paper.agenda_ids"
+                                            :key="id"
+                                            class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400"
+                                        >
+                                            {{
+                                                agendaMap[id]?.name ??
+                                                `Agenda ${id}`
+                                            }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent
+                        v-if="
+                            paper.current_step === 'plagiarism_check' &&
+                            (paper.plagiarism_attempts ?? 0) >= 2
+                        "
+                        value="alert"
+                        class="mt-0"
+                    >
+                        <section
+                            class="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/20"
+                        >
+                            <div class="flex items-start gap-3">
+                                <AlertTriangle
+                                    class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
+                                />
+                                <div>
+                                    <p
+                                        class="text-sm font-bold text-amber-700 dark:text-amber-300"
+                                    >
+                                        Plagiarism Check Warning
+                                    </p>
+                                    <p
+                                        class="mt-1 text-xs text-amber-600 dark:text-amber-400"
+                                    >
+                                        You have used
+                                        {{ paper.plagiarism_attempts }} of 3
+                                        attempts.
+                                        <template
+                                            v-if="
+                                                (paper.plagiarism_attempts ??
+                                                    0) >= 3
+                                            "
+                                            >No more attempts
+                                            remaining.</template
+                                        >
+                                        <template v-else
+                                            >1 attempt remaining.</template
+                                        >
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
     </div>
@@ -1228,11 +1299,7 @@ setLayoutProps({
                     <!-- Title -->
                     <div class="text-center">
                         <h2 class="text-base font-bold text-foreground">
-                            {{
-                                qrMode === 'tracking'
-                                    ? 'Tracking QR Code'
-                                    : 'Receiving QR Code'
-                            }}
+                            Tracking QR Code
                         </h2>
                         <p
                             class="mt-0.5 font-mono text-xs text-muted-foreground"
@@ -1243,52 +1310,9 @@ setLayoutProps({
 
                     <!-- QR -->
                     <div
-                        :class="[
-                            'rounded-2xl border-4 bg-white p-4',
-                            qrMode === 'receiving'
-                                ? 'border-teal-400'
-                                : 'border-orange-400',
-                        ]"
+                        class="rounded-2xl border-4 border-orange-400 bg-white p-4"
                     >
-                        <QrcodeVue
-                            :value="
-                                qrMode === 'tracking'
-                                    ? trackingUrl
-                                    : receivingUrl
-                            "
-                            :size="220"
-                            level="H"
-                        />
-                    </div>
-
-                    <!-- Toggle -->
-                    <div
-                        class="flex shrink-0 rounded-lg border border-border bg-muted p-0.5"
-                    >
-                        <button
-                            type="button"
-                            @click="qrMode = 'tracking'"
-                            :class="[
-                                'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-semibold transition',
-                                qrMode === 'tracking'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground',
-                            ]"
-                        >
-                            <Link2 class="h-3.5 w-3.5" /> Tracking
-                        </button>
-                        <button
-                            type="button"
-                            @click="qrMode = 'receiving'"
-                            :class="[
-                                'flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-semibold transition',
-                                qrMode === 'receiving'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground',
-                            ]"
-                        >
-                            <PackageCheck class="h-3.5 w-3.5" /> Receive
-                        </button>
+                        <QrcodeVue :value="trackingUrl" :size="220" level="H" />
                     </div>
 
                     <!-- URL + copy -->
@@ -1296,34 +1320,17 @@ setLayoutProps({
                         <code
                             class="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
                         >
-                            {{
-                                qrMode === 'tracking'
-                                    ? trackingUrl
-                                    : receivingUrl
-                            }}
+                            {{ trackingUrl }}
                         </code>
                         <button
                             type="button"
-                            @click="
-                                copyToClipboard(
-                                    qrMode === 'tracking'
-                                        ? trackingUrl
-                                        : receivingUrl,
-                                )
-                            "
+                            @click="copyToClipboard(trackingUrl)"
                             class="shrink-0 rounded-lg border border-border bg-background p-2 text-foreground transition hover:bg-muted"
                         >
                             <ClipboardCopy class="h-4 w-4" />
                         </button>
                     </div>
                     <p v-if="copied" class="text-xs text-green-600">Copied!</p>
-
-                    <span
-                        v-if="qrMode === 'receiving'"
-                        class="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-400"
-                    >
-                        Admin-only · Receiving QR
-                    </span>
                 </div>
             </div>
         </Transition>

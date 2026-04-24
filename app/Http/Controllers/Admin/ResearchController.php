@@ -12,9 +12,13 @@ use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use App\Models\User;
+use App\Support\PanelDefenseSchedule;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -243,6 +247,7 @@ class ResearchController extends Controller
                 'created_by' => $pd->createdBy ? ['id' => $pd->createdBy->id, 'name' => $pd->createdBy->name] : null,
                 'created_at' => $pd->created_at->toISOString(),
             ]),
+            'panelScheduleTimeOptions' => PanelDefenseSchedule::timeOptionsForInertia(),
         ]);
     }
 
@@ -492,32 +497,50 @@ class ResearchController extends Controller
 
     public function storePanelDefense(Request $request, ResearchPaper $paper): RedirectResponse
     {
+        $allowedTimes = PanelDefenseSchedule::allowedTimeValues();
+
         $validated = $request->validate([
             'defense_type' => ['required', 'string', 'in:title,outline,final'],
             'panel_members' => ['required', 'array', 'min:1'],
             'panel_members.*' => ['required', 'string', 'max:255'],
-            'schedule' => ['nullable', 'date'],
+            'schedule_date' => ['required', 'date_format:Y-m-d'],
+            'schedule_time' => ['required', 'string', Rule::in($allowedTimes)],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'acknowledge_schedule_conflict' => ['nullable', 'boolean'],
         ]);
+
+        $schedule = PanelDefenseSchedule::combineToCarbon(
+            $validated['schedule_date'],
+            $validated['schedule_time'],
+        );
+
+        if (
+            $this->panelScheduleSlotTaken($schedule)
+            && ! $request->boolean('acknowledge_schedule_conflict')
+        ) {
+            throw ValidationException::withMessages([
+                'schedule_conflict' => 'This date and time is already used by another defense. Add this record anyway?',
+            ]);
+        }
 
         $paper->panelDefenses()->create([
             'defense_type' => $validated['defense_type'],
             'panel_members' => $validated['panel_members'],
-            'schedule' => $validated['schedule'] ?? null,
+            'schedule' => $schedule,
             'notes' => $validated['notes'] ?? null,
             'created_by' => $request->user()->id,
         ]);
 
         // Sync schedule + panel info to the corresponding step
         $defenseType = $validated['defense_type'];
-        if (in_array($defenseType, ['outline', 'final']) && ! empty($validated['schedule'])) {
+        if (in_array($defenseType, ['outline', 'final'], true)) {
             $stepKey = $defenseType === 'outline' ? 'outline_defense' : 'final_defense';
             $scheduleField = $defenseType === 'outline' ? 'outline_defense_schedule' : 'final_defense_schedule';
             $currentStatus = $defenseType === 'outline'
                 ? ($paper->step_outline_defense ?? 'pending')
                 : ($paper->step_final_defense ?? 'pending');
 
-            $paper->update([$scheduleField => $validated['schedule']]);
+            $paper->update([$scheduleField => $schedule]);
 
             $panelNotes = 'Panel: '.implode(', ', $validated['panel_members']);
             if (! empty($validated['notes'])) {
@@ -532,13 +555,36 @@ class ResearchController extends Controller
                 null,
                 $request->user()->id,
                 $panelNotes,
-                ['schedule' => $validated['schedule']],
+                ['schedule' => $schedule->toIso8601String()],
             );
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Panel defense record added.']);
 
         return back();
+    }
+
+    /**
+     * Compare by Unix instant so DB-stored CarbonImmutable / timezone round-trips still match panel management input.
+     */
+    private function panelScheduleSlotTaken(Carbon $schedule): bool
+    {
+        $target = (int) $schedule->getTimestamp();
+
+        return PanelDefense::query()
+            ->whereNotNull('schedule')
+            ->whereBetween('schedule', [
+                $schedule->copy()->subMinutes(5),
+                $schedule->copy()->addMinutes(5),
+            ])
+            ->get()
+            ->contains(function (PanelDefense $p) use ($target) {
+                if (! $p->schedule) {
+                    return false;
+                }
+
+                return (int) $p->schedule->getTimestamp() === $target;
+            });
     }
 
     public function destroyPanelDefense(Request $request, ResearchPaper $paper, PanelDefense $panelDefense): RedirectResponse

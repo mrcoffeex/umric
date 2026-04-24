@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\File;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -91,7 +92,11 @@ class ResearchController extends Controller
         }
 
         $request->validate([
-            'file' => ['required', 'file', 'mimes:pdf,docx', 'max:'.config('uploads.max_size_kb')],
+            'file' => [
+                'required',
+                'max:'.config('uploads.max_size_kb'),
+                File::types(['pdf', 'docx']),
+            ],
         ]);
 
         $result = (new DocumentExtractorService)->extract($request->file('file'));
@@ -131,17 +136,21 @@ class ResearchController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'abstract' => ['nullable', 'string'],
-            'proponents' => ['nullable', 'array'],
-            'sdg_ids' => ['nullable', 'array'],
-            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
-            'agenda_ids' => ['nullable', 'array'],
-            'agenda_ids.*' => ['string', 'exists:agendas,id'],
-            'keywords' => ['nullable', 'string', 'max:500'],
-            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
-        ]);
+        $validated = $request->validate(
+            [
+                'title' => ['required', 'string', 'max:255'],
+                'abstract' => ['nullable', 'string'],
+                'proponents' => ['nullable', 'array'],
+                'sdg_ids' => ['nullable', 'array'],
+                'sdg_ids.*' => ['string', 'exists:sdgs,id'],
+                'agenda_ids' => ['nullable', 'array'],
+                'agenda_ids.*' => ['string', 'exists:agendas,id'],
+                'keywords' => ['nullable', 'string', 'max:500'],
+                'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
+            ],
+            [],
+            ['abstract' => 'rationale'],
+        );
 
         $schoolClass = SchoolClass::query()
             ->whereHas('members', fn ($query) => $query->where('student_id', $request->user()->id))
@@ -228,17 +237,21 @@ class ResearchController extends Controller
             return back()->withErrors(['step' => 'Only title proposals can be edited.']);
         }
 
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'abstract' => ['nullable', 'string'],
-            'proponents' => ['nullable', 'array'],
-            'sdg_ids' => ['nullable', 'array'],
-            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
-            'agenda_ids' => ['nullable', 'array'],
-            'agenda_ids.*' => ['string', 'exists:agendas,id'],
-            'keywords' => ['nullable', 'string', 'max:500'],
-            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
-        ]);
+        $validated = $request->validate(
+            [
+                'title' => ['required', 'string', 'max:255'],
+                'abstract' => ['nullable', 'string'],
+                'proponents' => ['nullable', 'array'],
+                'sdg_ids' => ['nullable', 'array'],
+                'sdg_ids.*' => ['string', 'exists:sdgs,id'],
+                'agenda_ids' => ['nullable', 'array'],
+                'agenda_ids.*' => ['string', 'exists:agendas,id'],
+                'keywords' => ['nullable', 'string', 'max:500'],
+                'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
+            ],
+            [],
+            ['abstract' => 'rationale'],
+        );
 
         $paper->update([
             'title' => $validated['title'],

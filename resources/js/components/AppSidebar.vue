@@ -4,7 +4,10 @@ import {
     BookMarked,
     Building2,
     CalendarDays,
+    ClipboardList,
     Clock,
+    ListChecks,
+    SlidersHorizontal,
     ExternalLink,
     GraduationCap,
     LayoutGrid,
@@ -29,7 +32,9 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard, home } from '@/routes';
+import documentTransmissions from '@/routes/document-transmissions';
 import admin from '@/routes/admin';
+import faculty from '@/routes/faculty';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
 import { index as facultyDefenseCalendarIndex } from '@/routes/faculty/defense-calendar';
 import { index as facultyResearchIndex } from '@/routes/faculty/research';
@@ -75,7 +80,17 @@ const adminNavItems: NavItem[] = [
         href: admin.defenseCalendar.index.url(),
         icon: CalendarDays,
     },
+    {
+        title: 'Evaluation',
+        href: admin.evaluation.index.url(),
+        icon: ListChecks,
+    },
     { title: 'Classes', href: admin.classes.index(), icon: GraduationCap },
+    {
+        title: 'Handoffs',
+        href: documentTransmissions.index.url(),
+        icon: ClipboardList,
+    },
 ];
 
 const AdminSettingsItems: NavItem[] = [
@@ -87,6 +102,11 @@ const AdminSettingsItems: NavItem[] = [
     { title: 'Subjects', href: admin.subjects.index(), icon: ScrollText },
     { title: 'SDGs', href: admin.sdgs.index.url(), icon: Target },
     { title: 'Agendas', href: admin.agendas.index.url(), icon: BookMarked },
+    {
+        title: 'Evaluation criteria',
+        href: admin.evaluationCriteria.index.url(),
+        icon: SlidersHorizontal,
+    },
 ];
 
 const adminOnlyItems: NavItem[] = [
@@ -109,7 +129,17 @@ const facultyNavItems: NavItem[] = [
         href: facultyDefenseCalendarIndex(),
         icon: CalendarDays,
     },
+    {
+        title: 'Evaluation',
+        href: faculty.evaluation.index.url(),
+        icon: ListChecks,
+    },
     { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
+    {
+        title: 'Handoffs',
+        href: documentTransmissions.index.url(),
+        icon: ClipboardList,
+    },
 ];
 
 const studentNavItems: NavItem[] = [
@@ -121,6 +151,11 @@ const studentNavItems: NavItem[] = [
         icon: CalendarDays,
     },
     { title: 'My Classes', href: student.classes.index(), icon: GraduationCap },
+    {
+        title: 'Handoffs',
+        href: documentTransmissions.index.url(),
+        icon: ClipboardList,
+    },
 ];
 </script>
 

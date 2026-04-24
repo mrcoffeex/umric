@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Support\PanelDefenseSchedule;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -103,4 +105,150 @@ it('filters admin research by membership class', function () {
             ->where('papers.data.0.title', 'Paper in class A membership')
             ->where('papers.data.0.school_class.id', $classA->id)
         );
+});
+
+it('includes fixed panel schedule time options on admin research show', function () {
+    $admin = adminResearchUser();
+    $paper = ResearchPaper::factory()->create(['user_id' => studentResearchUser()->id]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.research.show', $paper))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/Research/Show')
+            ->has('panelScheduleTimeOptions', 25)
+            ->where('panelScheduleTimeOptions.0.value', '08:00')
+            ->where('panelScheduleTimeOptions.24.value', '20:00')
+        );
+});
+
+it('stores a panel defense with required date and fixed time slot', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Panelist One']);
+
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+
+    $date = '2031-05-20';
+
+    $this->actingAs($admin)
+        ->post(route('admin.research.panel-defenses.store', $paper), [
+            'defense_type' => 'outline',
+            'panel_members' => [$faculty->name],
+            'schedule_date' => $date,
+            'schedule_time' => '10:00',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $pd = PanelDefense::query()->where('research_paper_id', $paper->id)->first();
+    expect($pd)->not->toBeNull();
+    expect($pd->schedule->timezone(config('app.timezone'))->format('Y-m-d H:i'))->toBe('2031-05-20 10:00');
+
+    $paper->refresh();
+    expect($paper->outline_defense_schedule)->not->toBeNull();
+});
+
+it('rejects duplicate panel schedule for another paper', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $student2 = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Panelist Two']);
+
+    $paper1 = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    $paper2 = ResearchPaper::factory()->create(['user_id' => $student2->id]);
+
+    $date = '2031-06-01';
+
+    PanelDefense::factory()->create([
+        'research_paper_id' => $paper1->id,
+        'defense_type' => 'outline',
+        'panel_members' => ['Existing Member'],
+        'schedule' => PanelDefenseSchedule::combineToCarbon($date, '09:00'),
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.research.panel-defenses.store', $paper2), [
+            'defense_type' => 'final',
+            'panel_members' => [$faculty->name],
+            'schedule_date' => $date,
+            'schedule_time' => '09:00',
+        ])
+        ->assertSessionHasErrors('schedule_conflict');
+});
+
+it('allows panel defense at duplicate slot when conflict is acknowledged', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $student2 = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Panelist Ack']);
+
+    $paper1 = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    $paper2 = ResearchPaper::factory()->create(['user_id' => $student2->id]);
+
+    $date = '2031-06-15';
+
+    PanelDefense::factory()->create([
+        'research_paper_id' => $paper1->id,
+        'defense_type' => 'outline',
+        'panel_members' => ['Other Member'],
+        'schedule' => PanelDefenseSchedule::combineToCarbon($date, '10:00'),
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.research.panel-defenses.store', $paper2), [
+            'defense_type' => 'final',
+            'panel_members' => [$faculty->name],
+            'schedule_date' => $date,
+            'schedule_time' => '10:00',
+            'acknowledge_schedule_conflict' => true,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(PanelDefense::count())->toBe(2);
+});
+
+it('rejects panel defense when schedule time is not an allowed slot', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Panelist Three']);
+
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.research.panel-defenses.store', $paper), [
+            'defense_type' => 'title',
+            'panel_members' => [$faculty->name],
+            'schedule_date' => '2031-07-10',
+            'schedule_time' => '09:15',
+        ])
+        ->assertSessionHasErrors('schedule_time');
+});
+
+it('requires schedule date and time for panel defense', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Panelist Four']);
+
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.research.panel-defenses.store', $paper), [
+            'defense_type' => 'title',
+            'panel_members' => [$faculty->name],
+        ])
+        ->assertSessionHasErrors(['schedule_date', 'schedule_time']);
 });

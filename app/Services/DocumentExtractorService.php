@@ -3,13 +3,14 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
 use Smalot\PdfParser\Parser as PdfParser;
 use ZipArchive;
 
 class DocumentExtractorService
 {
     /**
-     * Extract title, abstract, and keywords from an uploaded document.
+     * Extract title, rationale (stored in `abstract` column), and keywords from an uploaded document.
      *
      * @return array{title: string, abstract: string, keywords: list<string>}
      */
@@ -44,9 +45,30 @@ class DocumentExtractorService
             return ['title' => '', 'abstract' => ''];
         }
 
-        $paragraphs = $this->splitIntoParagraphs($text);
+        $text = trim($text);
+        if ($text === '') {
+            return ['title' => '', 'abstract' => ''];
+        }
 
-        return $this->detectTitleAndAbstract($paragraphs);
+        $paragraphs = $this->splitForPdfExtraction($text);
+        $result = $this->detectTitleAndRationale($paragraphs);
+
+        if ($result['title'] !== '' && $result['abstract'] === '' && count($paragraphs) >= 2) {
+            $first = trim($paragraphs[0]);
+            if ($first === $result['title'] || str_starts_with($first, $result['title'])) {
+                $result['abstract'] = Str::limit(
+                    trim(implode(' ', array_slice($paragraphs, 1))),
+                    2000,
+                    '',
+                );
+            }
+        }
+
+        if ($result['title'] === '' && $result['abstract'] === '') {
+            $result = $this->fallbackFromUnstructuredText($text);
+        }
+
+        return $result;
     }
 
     /**
@@ -95,7 +117,7 @@ class DocumentExtractorService
             }
         }
 
-        return $this->detectTitleAndAbstract($paragraphs);
+        return $this->detectTitleAndRationale($paragraphs);
     }
 
     /**
@@ -124,12 +146,107 @@ class DocumentExtractorService
     }
 
     /**
-     * Apply heuristics to find the title and abstract from a paragraph list.
+     * PDFs often return one long line or one huge block. Split so title/rationale heuristics can work.
+     *
+     * @return list<string>
+     */
+    private function splitForPdfExtraction(string $text): array
+    {
+        $basic = $this->splitIntoParagraphs($text);
+
+        if (count($basic) > 1) {
+            return $basic;
+        }
+
+        if (count($basic) === 1) {
+            $one = $basic[0];
+            if (strlen($one) < 500) {
+                return $basic;
+            }
+
+            // One huge block: split on hard line breaks first.
+            $lines = array_values(
+                array_filter(
+                    array_map('trim', preg_split('/\R+/u', $one) ?: []),
+                    static fn (string $l) => $l !== '',
+                )
+            );
+            if (count($lines) > 1) {
+                return $lines;
+            }
+
+            // Single line, very long: split on sentence end for paragraph-like chunks.
+            $sentences = preg_split('/(?<=[.!?…])\s+/u', $one) ?: [];
+            $out = array_values(
+                array_filter(
+                    array_map('trim', $sentences),
+                    static fn (string $s) => strlen($s) > 2,
+                )
+            );
+
+            if (count($out) > 1) {
+                return $out;
+            }
+        }
+
+        return $basic;
+    }
+
+    /**
+     * Best-effort when no "Abstract" / "Rationale" section was found (common in PDFs).
+     *
+     * @return array{title: string, abstract: string}
+     */
+    private function fallbackFromUnstructuredText(string $text): array
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+
+        if (mb_strlen($text) < 10) {
+            return ['title' => '', 'abstract' => ''];
+        }
+
+        if (mb_strlen($text) <= 200) {
+            return ['title' => $text, 'abstract' => ''];
+        }
+
+        $title = $this->truncateAtLastWord($text, 200);
+        $rest = mb_substr($text, mb_strlen($title));
+        $rest = ltrim((string) preg_replace("/^[\s:–—\-.]+/u", '', $rest));
+
+        if ($rest === '' || $rest === $text) {
+            $rest = (string) Str::substr($text, 200, 2000);
+        }
+
+        return [
+            'title' => $title,
+            'abstract' => $rest === '' ? '' : Str::limit($rest, 2000, ''),
+        ];
+    }
+
+    private function truncateAtLastWord(string $text, int $maxLen): string
+    {
+        if (mb_strlen($text) <= $maxLen) {
+            return $text;
+        }
+
+        $slice = mb_substr($text, 0, $maxLen);
+        $pos = mb_strrpos($slice, ' ');
+
+        if ($pos !== false && $pos > 15) {
+            return mb_substr($text, 0, $pos);
+        }
+
+        return (string) Str::of($text)->limit($maxLen, '');
+    }
+
+    /**
+     * Find title and body text (rationale) from a paragraph list. Source PDFs often use an "Abstract" section;
+     * the body is returned under the `abstract` key for API/DB compatibility.
      *
      * @param  list<string>  $paragraphs
      * @return array{title: string, abstract: string}
      */
-    private function detectTitleAndAbstract(array $paragraphs): array
+    private function detectTitleAndRationale(array $paragraphs): array
     {
         $title = '';
         $abstract = '';
@@ -139,7 +256,7 @@ class DocumentExtractorService
         //  • Not a lone number / Roman numeral / page marker
         //  • Not a keyword like "abstract", "introduction", "chapter…"
         //  • Short enough to be a title (≤ 300 chars)
-        $titleBlocklist = ['abstract', 'introduction', 'acknowledgements', 'acknowledgments', 'references', 'bibliography'];
+        $titleBlocklist = ['abstract', 'rationale', 'introduction', 'acknowledgements', 'acknowledgments', 'references', 'bibliography'];
 
         foreach ($paragraphs as $para) {
             if (strlen($para) < 3) {
@@ -166,20 +283,20 @@ class DocumentExtractorService
             }
         }
 
-        // --- Abstract heuristic ---
+        // --- Body / rationale heuristic (locates common "Abstract" section heading in source files) ---
         $count = count($paragraphs);
         for ($i = 0; $i < $count; $i++) {
             $lower = strtolower(trim($paragraphs[$i]));
             $startIdx = -1;
             $firstChunk = '';
 
-            // Standalone "Abstract" heading — content starts on the next paragraph.
-            if ($lower === 'abstract') {
+            // Standalone section headings.
+            if ($lower === 'abstract' || $lower === 'rationale') {
                 $startIdx = $i + 1;
             }
-            // Inline "Abstract:" / "Abstract—" / "Abstract." prefix.
-            elseif (preg_match('/^abstract[\s:—.\-–]+/i', $paragraphs[$i])) {
-                $firstChunk = trim((string) preg_replace('/^abstract[\s:—.\-–]+/i', '', $paragraphs[$i]));
+            // Inline "Abstract:" / "Rationale:" (and similar) prefix on same line.
+            elseif (preg_match('/^(abstract|rationale)[\s:—.\-–]+/i', $paragraphs[$i])) {
+                $firstChunk = trim((string) preg_replace('/^(abstract|rationale)[\s:—.\-–]+/i', '', $paragraphs[$i]));
                 $startIdx = $i + 1;
             }
 
@@ -198,7 +315,7 @@ class DocumentExtractorService
                 }
             }
 
-            // Strip a trailing "Keywords: ..." that sometimes bleeds into the abstract.
+            // Strip a trailing "Keywords: ..." that sometimes bleeds into the body.
             $raw = trim(implode(' ', $parts));
             $raw = trim((string) preg_replace('/\s*keywords?[\s:—.\-–].*/i', '', $raw));
             $abstract = $raw;
@@ -209,12 +326,12 @@ class DocumentExtractorService
     }
 
     /**
-     * Detect whether a paragraph is a section heading that marks the end of the abstract.
+     * Whether a paragraph is a section heading that ends the title-proposal body text.
      */
     private function isSectionBoundary(string $para): bool
     {
         $lower = strtolower(trim($para));
-        $sectionHeadings = ['abstract', 'introduction', 'acknowledgements', 'acknowledgments', 'references', 'bibliography'];
+        $sectionHeadings = ['abstract', 'rationale', 'introduction', 'acknowledgements', 'acknowledgments', 'references', 'bibliography'];
 
         if (in_array($lower, $sectionHeadings, true)) {
             return true;

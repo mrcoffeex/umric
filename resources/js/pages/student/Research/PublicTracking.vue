@@ -179,7 +179,12 @@ const formatDate = (date: string) => {
                         {{ paper.title }}
                     </h1>
                     <p
-                        class="mt-3 line-clamp-3 text-sm leading-relaxed text-gray-500 sm:text-base dark:text-gray-400"
+                        class="mt-4 text-[11px] font-semibold tracking-wide text-gray-400 uppercase dark:text-gray-500"
+                    >
+                        Rationale
+                    </p>
+                    <p
+                        class="mt-1.5 line-clamp-3 text-sm leading-relaxed text-gray-500 sm:text-base dark:text-gray-400"
                     >
                         {{ paper.abstract }}
                     </p>

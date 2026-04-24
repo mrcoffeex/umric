@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ApproveUserController;
 use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\EvaluationCriteriaController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\ResearchController;
 use App\Http\Controllers\Admin\SchoolClassController;
@@ -15,9 +16,11 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentTransmissionController;
 use App\Http\Controllers\Faculty\AllResearchController;
 use App\Http\Controllers\Faculty\ClassJoinController;
 use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
+use App\Http\Controllers\PanelDefenseEvaluationController;
 use App\Http\Controllers\ResearchPaperController;
 use App\Http\Controllers\Student\ClassController;
 use App\Http\Controllers\Student\DefenseCalendarController as StudentDefenseCalendarController;
@@ -70,6 +73,17 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::post('papers/{paper}/files', [ResearchPaperController::class, 'storeFile'])->name('papers.storeFile');
     Route::get('papers/{paper}/qr', [ResearchPaperController::class, 'generateQR'])->name('papers.qr');
 
+    Route::prefix('document-transmissions')->name('document-transmissions.')->group(function () {
+        Route::get('/', [DocumentTransmissionController::class, 'index'])->name('index');
+        Route::get('/create', [DocumentTransmissionController::class, 'create'])->name('create');
+        Route::post('/', [DocumentTransmissionController::class, 'store'])->name('store');
+        Route::get('/recipients/search', [DocumentTransmissionController::class, 'searchRecipients'])->name('recipients.search');
+        Route::get('/claim/{token}', [DocumentTransmissionController::class, 'claim'])->name('claim');
+        Route::get('/{transmission}/items/{item}/file', [DocumentTransmissionController::class, 'downloadItemFile'])->name('items.file');
+        Route::post('/{transmission}/receive', [DocumentTransmissionController::class, 'receive'])->name('receive');
+        Route::get('/{transmission}', [DocumentTransmissionController::class, 'show'])->name('show');
+    });
+
     // Admin routes (admin + staff)
     Route::middleware(['can:accessAdmin,App\Models\User', 'admin-actions-throttle'])->prefix('admin')->name('admin.')->group(function () {
         Route::resource('departments', DepartmentController::class)->except(['create', 'edit', 'show']);
@@ -106,6 +120,16 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         // Admin Defense Calendar
         Route::get('defense-calendar', [AdminDefenseCalendarController::class, 'index'])->name('defense-calendar.index');
 
+        Route::get('evaluation', [PanelDefenseEvaluationController::class, 'index'])->name('evaluation.index');
+        Route::get('evaluation/evaluations/{panelDefenseEvaluation}/edit', [PanelDefenseEvaluationController::class, 'edit'])->name('evaluation.edit');
+        Route::get('evaluation/{panelDefense}/evaluate', [PanelDefenseEvaluationController::class, 'evaluate'])->name('evaluation.evaluate');
+        Route::post('evaluation/{panelDefense}', [PanelDefenseEvaluationController::class, 'store'])->name('evaluation.store');
+        Route::patch('evaluation/evaluations/{panelDefenseEvaluation}', [PanelDefenseEvaluationController::class, 'update'])->name('evaluation.update');
+
+        Route::resource('evaluation-criteria', EvaluationCriteriaController::class)
+            ->only(['index', 'store', 'update', 'destroy'])
+            ->parameters(['evaluation-criteria' => 'evaluation_criterion']);
+
         // Admin Activity Log
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     });
@@ -132,6 +156,10 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
 
         // Faculty Defense Calendar
         Route::get('defense-calendar', [FacultyDefenseCalendarController::class, 'index'])->name('defense-calendar.index');
+
+        Route::get('evaluation', [PanelDefenseEvaluationController::class, 'index'])->name('evaluation.index');
+        Route::get('evaluation/{panelDefense}/evaluate', [PanelDefenseEvaluationController::class, 'evaluate'])->name('evaluation.evaluate');
+        Route::post('evaluation/{panelDefense}', [PanelDefenseEvaluationController::class, 'store'])->name('evaluation.store');
     });
 
     Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {

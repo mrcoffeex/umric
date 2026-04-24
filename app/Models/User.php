@@ -103,6 +103,21 @@ class User extends Authenticatable
         return $this->hasMany(TrackingRecord::class, 'updated_by');
     }
 
+    public function documentTransmissionsSent(): HasMany
+    {
+        return $this->hasMany(DocumentTransmission::class, 'sender_id');
+    }
+
+    public function documentTransmissionsReceived(): HasMany
+    {
+        return $this->hasMany(DocumentTransmission::class, 'receiver_id');
+    }
+
+    public function panelDefenseEvaluations(): HasMany
+    {
+        return $this->hasMany(PanelDefenseEvaluation::class, 'evaluator_id');
+    }
+
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordNotification($token));

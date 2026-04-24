@@ -8,6 +8,7 @@ export type ExtractState =
     | 'partial'
     | 'failed';
 
+/** `abstract` matches the API/DB field; content is the title-proposal rationale. */
 export interface ExtractResult {
     title: string;
     abstract: string;
@@ -197,7 +198,8 @@ function isSectionBoundary(para: string): boolean {
     return false;
 }
 
-function detectMetadata(paragraphs: string[]): ExtractResult {
+/** Parse local DOCX text: map document sections to title + rationale (`abstract` key) + keywords. */
+function parseTitleRationaleAndKeywords(paragraphs: string[]): ExtractResult {
     let title = '';
     let abstract = '';
 
@@ -254,7 +256,7 @@ function detectMetadata(paragraphs: string[]): ExtractResult {
             }
         }
 
-        // Strip a trailing "Keywords: ..." that sometimes bleeds into the abstract.
+        // Strip a trailing "Keywords: ..." that sometimes bleeds into the body.
         let raw = parts.join(' ').trim();
         raw = raw.replace(/\s*keywords?[\s:—.–-].*/i, '').trim();
 
@@ -285,7 +287,7 @@ function detectMetadata(paragraphs: string[]): ExtractResult {
             .replace(/^[^A-Za-z]+/, '')
             .trim();
 
-        // A real abstract is at least a sentence; skip short fragments and keep looking.
+        // A real rationale block is at least a sentence; skip short fragments and keep looking.
         if (candidate.split(/\s+/).filter(Boolean).length < 10) {
             continue;
         }
@@ -349,7 +351,7 @@ async function extractDocx(file: File): Promise<ExtractResult> {
                 }
             }
 
-            resolve(detectMetadata(paragraphs));
+            resolve(parseTitleRationaleAndKeywords(paragraphs));
         });
     });
 }

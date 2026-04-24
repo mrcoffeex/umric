@@ -39,4 +39,14 @@ class StoreResearchPaperRequest extends FormRequest
             'file' => ['sometimes', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'abstract' => 'rationale',
+        ];
+    }
 }

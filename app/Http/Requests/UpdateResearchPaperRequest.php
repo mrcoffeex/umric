@@ -38,4 +38,14 @@ class UpdateResearchPaperRequest extends FormRequest
             'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'abstract' => 'rationale',
+        ];
+    }
 }

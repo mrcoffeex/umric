@@ -193,13 +193,13 @@ function submit() {
                             <Label
                                 class="mb-1.5 block text-sm font-medium text-foreground"
                             >
-                                Abstract
+                                Rationale
                             </Label>
                             <textarea
                                 v-model="form.abstract"
                                 rows="5"
                                 required
-                                placeholder="Write a concise abstract for this proposal"
+                                placeholder="Explain the rationale for this proposal: problem, significance, and expected outcomes…"
                                 class="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground transition outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-500/20"
                             />
                             <p

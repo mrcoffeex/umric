@@ -155,7 +155,7 @@ const formatDate = (date: string) => {
                 <input
                     v-model="search"
                     type="text"
-                    placeholder="Search by title or abstract…"
+                    placeholder="Search by title or rationale…"
                     class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-4 pl-10 text-sm text-slate-800 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-sidebar-border dark:bg-sidebar dark:text-slate-200"
                 />
             </div>

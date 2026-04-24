@@ -1,9 +1,11 @@
 <?php
 
+use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Models\UserProfile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -106,6 +108,67 @@ it('admin calendar excludes events from other months', function () {
         ->get(route('admin.defense-calendar.index', ['month' => 4, 'year' => 2026]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->where('events', []));
+});
+
+it('admin calendar shows schedules from panel_defenses when paper columns are empty', function () {
+    $admin = makeCalendarAdmin();
+    $student = makeCalendarStudent();
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'outline_defense_schedule' => null,
+        'final_defense_schedule' => null,
+    ]);
+
+    PanelDefense::factory()
+        ->forPaper($paper)
+        ->ofType('title')
+        ->createdBy($admin)
+        ->create([
+            'schedule' => Carbon::parse('2026-04-10 14:00:00', config('app.timezone')),
+            'panel_members' => ['Dr. A'],
+        ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.defense-calendar.index', ['month' => 4, 'year' => 2026]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('events', 1)
+            ->where('events.0.type', 'title_defense')
+        );
+});
+
+it('admin calendar shows every panel row including duplicate same-day-time slots', function () {
+    $admin = makeCalendarAdmin();
+    $student = makeCalendarStudent();
+    $schedule = Carbon::parse('2026-04-10 14:00:00', config('app.timezone'));
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'outline_defense_schedule' => null,
+        'final_defense_schedule' => null,
+    ]);
+
+    PanelDefense::factory()
+        ->forPaper($paper)
+        ->ofType('title')
+        ->createdBy($admin)
+        ->create(['schedule' => $schedule, 'panel_members' => ['Dr. A']]);
+
+    PanelDefense::factory()
+        ->forPaper($paper)
+        ->ofType('title')
+        ->createdBy($admin)
+        ->create(['schedule' => $schedule, 'panel_members' => ['Dr. B']]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.defense-calendar.index', ['month' => 4, 'year' => 2026]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('events', 2)
+            ->where('events.0.type', 'title_defense')
+            ->where('events.1.type', 'title_defense')
+        );
 });
 
 // ── Faculty ───────────────────────────────────────────────────────────────────

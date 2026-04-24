@@ -1,8 +1,10 @@
 {
     "mcpServers": {
         "laravel-boost": {
-            "command": "vendor/bin/sail",
-            "args": ["artisan", "boost:mcp"]
+            "type": "stdio",
+            "command": "php",
+            "args": ["${workspaceFolder}/artisan", "boost:mcp"],
+            "envFile": ".env"
         }
     }
 }

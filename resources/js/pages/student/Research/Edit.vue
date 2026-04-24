@@ -289,16 +289,16 @@ function submit() {
                             </p>
                         </div>
 
-                        <!-- Abstract -->
+                        <!-- Rationale (stored as abstract) -->
                         <div>
                             <Label
                                 class="mb-1.5 block text-sm font-medium text-foreground"
-                                >Abstract</Label
+                                >Rationale</Label
                             >
                             <textarea
                                 v-model="form.abstract"
                                 rows="6"
-                                placeholder="Write a concise abstract summarising your research proposal, methodology, and expected outcomes..."
+                                placeholder="Explain the rationale for your study: the problem, significance, scope, and expected contribution…"
                                 :class="[
                                     'w-full resize-y rounded-lg border bg-background px-3 py-2.5 text-sm text-foreground transition outline-none',
                                     form.errors.abstract
