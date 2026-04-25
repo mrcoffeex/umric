@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\DocumentTransmission;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,7 +45,14 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ? array_merge($user->toArray(), [
                     'role' => $user->role(),
                     'avatar_url' => $user->profile?->avatarUrl(),
+                    'hasAccountEsignature' => (bool) $user->hasAccountEsignature(),
+                    'accountEsignatureUrl' => $user->accountEsignaturePublicUrl(),
                 ]) : null,
+            ],
+            'documentHandoffs' => [
+                'incomingPending' => $user
+                    ? DocumentTransmission::pendingCountForUser($user->id, 'incoming')
+                    : 0,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

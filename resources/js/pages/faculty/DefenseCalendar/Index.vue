@@ -235,7 +235,7 @@ function defenseTypeLongLabel(
     }
 
     if (type === 'title_defense') {
-        return 'Title Defense';
+        return 'Title Evaluation';
     }
 
     return 'Final Defense';
@@ -304,7 +304,7 @@ function statusBadgeClass(status: string | null) {
                     class="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300"
                 >
                     <span class="h-2 w-2 rounded-full bg-violet-500"></span>
-                    Title Defense
+                    Title Evaluation
                 </span>
                 <span
                     class="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300"

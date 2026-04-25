@@ -155,8 +155,8 @@ watch([search, selectedStep], applyFilters);
 const orderedSteps = [
     'title_proposal',
     'ric_review',
-    'plagiarism_check',
     'outline_defense',
+    'data_gathering',
     'rating',
     'final_manuscript',
     'final_defense',

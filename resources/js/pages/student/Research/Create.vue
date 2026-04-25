@@ -250,7 +250,7 @@ function submit() {
                             </p>
                         </div>
                         <span class="ml-auto text-xs text-muted-foreground"
-                            >PDF, DOCX · max {{ uploadMaxSizeMb }} MB</span
+                            >PDF only · max {{ uploadMaxSizeMb }} MB</span
                         >
                     </div>
                     <div class="p-5">

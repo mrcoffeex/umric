@@ -16,6 +16,24 @@ class DocumentTransmission extends Model
     public const STATUS_COMPLETED = 'completed';
 
     /**
+     * Count of handoffs that still need the user's action on the given side
+     * (receiver must confirm: incoming; sender waits on recipient: outgoing).
+     */
+    public static function pendingCountForUser(string $userId, string $direction): int
+    {
+        $q = self::query()
+            ->where('status', self::STATUS_PENDING);
+
+        if ($direction === 'incoming') {
+            $q->where('receiver_id', $userId);
+        } else {
+            $q->where('sender_id', $userId);
+        }
+
+        return $q->count();
+    }
+
+    /**
      * @param  list<string>  $labels
      */
     public static function labelSetSignature(array $labels): string

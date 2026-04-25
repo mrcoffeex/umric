@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\LogsAdminActions;
 use App\Mail\ResearchStatusUpdated;
 use App\Models\Agenda;
+use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
@@ -13,6 +14,7 @@ use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use App\Models\User;
 use App\Support\PanelDefenseSchedule;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -153,8 +155,11 @@ class ResearchController extends Controller
             'statistician',
             'trackingRecords.updatedBy',
             'comments.user',
-            'panelDefenses.createdBy',
             'files',
+            'panelDefenses' => function ($q) {
+                $q->withCount('evaluations')
+                    ->with(['createdBy', 'evaluationFormat']);
+            },
         ]);
 
         $facultyUsers = User::whereHas('profile', fn ($q) => $q->where('role', 'faculty'))
@@ -165,6 +170,14 @@ class ResearchController extends Controller
 
         $sdgs = Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']);
         $agendas = Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+
+        $readyFormat = EvaluationFormat::query()
+            ->get()
+            ->first(fn (EvaluationFormat $f) => $f->isReady());
+        $fallbackFormatId = EvaluationFormat::query()->value('id');
+        $defaultPanelEvaluationFormatId = $readyFormat !== null
+            ? (string) $readyFormat->id
+            : ($fallbackFormatId !== null ? (string) $fallbackFormatId : null);
 
         return Inertia::render('admin/Research/Show', [
             'paper' => [
@@ -184,6 +197,7 @@ class ResearchController extends Controller
                 'plagiarism_score' => $paper->plagiarism_score,
                 'step_outline_defense' => $paper->step_outline_defense,
                 'outline_defense_schedule' => $paper->outline_defense_schedule?->toISOString(),
+                'step_data_gathering' => $paper->step_data_gathering,
                 'step_rating' => $paper->step_rating,
                 'grade' => $paper->grade,
                 'step_final_manuscript' => $paper->step_final_manuscript,
@@ -237,16 +251,36 @@ class ResearchController extends Controller
                 'user' => $c->user ? ['id' => $c->user->id, 'name' => $c->user->name] : null,
                 'created_at' => $c->created_at->toISOString(),
             ]),
-            'panelDefenses' => $paper->panelDefenses->map(fn ($pd) => [
+            'panelDefenses' => $paper->panelDefenses->map(fn (PanelDefense $pd) => [
                 'id' => $pd->id,
                 'defense_type' => $pd->defense_type,
                 'defense_type_label' => $pd->defense_type_label,
                 'panel_members' => $pd->panel_members,
                 'schedule' => $pd->schedule?->toDateTimeString(),
                 'notes' => $pd->notes,
+                'evaluations_count' => (int) $pd->evaluations_count,
+                'can_edit' => $pd->evaluations_count === 0,
+                'evaluation_format' => $pd->evaluationFormat ? [
+                    'id' => (string) $pd->evaluationFormat->id,
+                    'name' => $pd->evaluationFormat->name,
+                    'evaluation_type' => $pd->evaluationFormat->evaluation_type,
+                ] : null,
                 'created_by' => $pd->createdBy ? ['id' => $pd->createdBy->id, 'name' => $pd->createdBy->name] : null,
                 'created_at' => $pd->created_at->toISOString(),
             ]),
+            'evaluationFormatOptions' => EvaluationFormat::query()
+                ->orderBy('name')
+                ->get()
+                ->map(fn (EvaluationFormat $f) => [
+                    'id' => (string) $f->id,
+                    'name' => $f->name,
+                    'evaluation_type' => $f->evaluation_type,
+                    'is_ready' => $f->isReady(),
+                    'total_max' => (int) $f->criteria()->sum('max_points'),
+                ])
+                ->values()
+                ->all(),
+            'default_panel_evaluation_format_id' => $defaultPanelEvaluationFormatId,
             'panelScheduleTimeOptions' => PanelDefenseSchedule::timeOptionsForInertia(),
         ]);
     }
@@ -317,8 +351,6 @@ class ResearchController extends Controller
         $notes = $request->input('notes');
         $grade = $request->input('grade');
         $schedule = $request->input('schedule');
-        $plagiarism_score = $request->input('plagiarism_score');
-
         $oldStatus = null;
         $updateData = [];
         $metadata = [];
@@ -328,31 +360,12 @@ class ResearchController extends Controller
                 $oldStatus = $paper->step_ric_review;
                 $updateData['step_ric_review'] = $status;
                 if ($status === 'approved') {
-                    $updateData['current_step'] = 'plagiarism_check';
-                    $updateData['step_plagiarism'] = 'pending';
-                } elseif ($status === 'rejected') {
-                    $updateData['current_step'] = 'ric_review';
-                }
-                break;
-
-            case 'plagiarism_check':
-                if ($paper->plagiarism_attempts >= ResearchPaper::MAX_PLAGIARISM_ATTEMPTS && $status === 'failed') {
-                    Inertia::flash('toast', ['type' => 'error', 'message' => 'Maximum plagiarism attempts reached.']);
-
-                    return back();
-                }
-                $oldStatus = $paper->step_plagiarism;
-                $updateData['step_plagiarism'] = $status;
-                if ($plagiarism_score !== null) {
-                    $updateData['plagiarism_score'] = $plagiarism_score;
-                    $metadata['plagiarism_score'] = $plagiarism_score;
-                }
-                if ($status === 'failed') {
-                    $updateData['plagiarism_attempts'] = $paper->plagiarism_attempts + 1;
-                    $metadata['attempt'] = $paper->plagiarism_attempts + 1;
-                } elseif ($status === 'passed') {
                     $updateData['current_step'] = 'outline_defense';
                     $updateData['step_outline_defense'] = 'pending';
+                } elseif ($status === 'returned') {
+                    $updateData['current_step'] = 'title_proposal';
+                } elseif ($status === 'rejected') {
+                    $updateData['current_step'] = 'ric_review';
                 }
                 break;
 
@@ -364,6 +377,15 @@ class ResearchController extends Controller
                     $metadata['schedule'] = $schedule;
                 }
                 if ($status === 'passed') {
+                    $updateData['current_step'] = 'data_gathering';
+                    $updateData['step_data_gathering'] = 'pending';
+                }
+                break;
+
+            case 'data_gathering':
+                $oldStatus = $paper->step_data_gathering;
+                $updateData['step_data_gathering'] = $status;
+                if ($status === 'completed') {
                     $updateData['current_step'] = 'rating';
                     $updateData['step_rating'] = 'pending';
                 }
@@ -501,6 +523,7 @@ class ResearchController extends Controller
 
         $validated = $request->validate([
             'defense_type' => ['required', 'string', 'in:title,outline,final'],
+            'evaluation_format_id' => ['required', 'ulid', 'exists:evaluation_formats,id'],
             'panel_members' => ['required', 'array', 'min:1'],
             'panel_members.*' => ['required', 'string', 'max:255'],
             'schedule_date' => ['required', 'date_format:Y-m-d'],
@@ -509,13 +532,23 @@ class ResearchController extends Controller
             'acknowledge_schedule_conflict' => ['nullable', 'boolean'],
         ]);
 
+        $format = EvaluationFormat::query()->find($validated['evaluation_format_id']);
+        if (! $format instanceof EvaluationFormat || ! $format->isReady()) {
+            $message = $format?->isChecklist()
+                ? 'Choose a checklist format with at least one item, or complete setup under Evaluation formats.'
+                : 'Choose a rubric whose criteria add up to 100 points. Configure rubrics under Evaluation formats.';
+            throw ValidationException::withMessages([
+                'evaluation_format_id' => $message,
+            ]);
+        }
+
         $schedule = PanelDefenseSchedule::combineToCarbon(
             $validated['schedule_date'],
             $validated['schedule_time'],
         );
 
         if (
-            $this->panelScheduleSlotTaken($schedule)
+            $this->panelScheduleSlotTaken($schedule, null)
             && ! $request->boolean('acknowledge_schedule_conflict')
         ) {
             throw ValidationException::withMessages([
@@ -524,6 +557,7 @@ class ResearchController extends Controller
         }
 
         $paper->panelDefenses()->create([
+            'evaluation_format_id' => $validated['evaluation_format_id'],
             'defense_type' => $validated['defense_type'],
             'panel_members' => $validated['panel_members'],
             'schedule' => $schedule,
@@ -531,48 +565,143 @@ class ResearchController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        // Sync schedule + panel info to the corresponding step
-        $defenseType = $validated['defense_type'];
-        if (in_array($defenseType, ['outline', 'final'], true)) {
-            $stepKey = $defenseType === 'outline' ? 'outline_defense' : 'final_defense';
-            $scheduleField = $defenseType === 'outline' ? 'outline_defense_schedule' : 'final_defense_schedule';
-            $currentStatus = $defenseType === 'outline'
-                ? ($paper->step_outline_defense ?? 'pending')
-                : ($paper->step_final_defense ?? 'pending');
-
-            $paper->update([$scheduleField => $schedule]);
-
-            $panelNotes = 'Panel: '.implode(', ', $validated['panel_members']);
-            if (! empty($validated['notes'])) {
-                $panelNotes .= "\nRemarks: ".$validated['notes'];
-            }
-
-            TrackingRecord::log(
-                $paper->id,
-                $stepKey,
-                'Panel management: schedule set',
-                $currentStatus,
-                null,
-                $request->user()->id,
-                $panelNotes,
-                ['schedule' => $schedule->toIso8601String()],
-            );
-        }
+        $this->syncPaperAfterPanelDefenseSchedule(
+            $paper,
+            $validated['defense_type'],
+            $schedule,
+            $validated['panel_members'],
+            $validated['notes'] ?? null,
+            $request->user()->id,
+        );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Panel defense record added.']);
 
         return back();
     }
 
+    public function updatePanelDefense(Request $request, ResearchPaper $paper, PanelDefense $panelDefense): RedirectResponse
+    {
+        abort_unless($panelDefense->research_paper_id === $paper->id, 404);
+
+        if ($panelDefense->evaluations()->exists()) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'This panel defense cannot be edited after evaluation records exist.',
+            ]);
+
+            return back();
+        }
+
+        $allowedTimes = PanelDefenseSchedule::allowedTimeValues();
+
+        $validated = $request->validate([
+            'defense_type' => ['required', 'string', 'in:title,outline,final'],
+            'evaluation_format_id' => ['required', 'ulid', 'exists:evaluation_formats,id'],
+            'panel_members' => ['required', 'array', 'min:1'],
+            'panel_members.*' => ['required', 'string', 'max:255'],
+            'schedule_date' => ['required', 'date_format:Y-m-d'],
+            'schedule_time' => ['required', 'string', Rule::in($allowedTimes)],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'acknowledge_schedule_conflict' => ['nullable', 'boolean'],
+        ]);
+
+        $format = EvaluationFormat::query()->find($validated['evaluation_format_id']);
+        if (! $format instanceof EvaluationFormat || ! $format->isReady()) {
+            $message = $format?->isChecklist()
+                ? 'Choose a checklist format with at least one item, or complete setup under Evaluation formats.'
+                : 'Choose a rubric whose criteria add up to 100 points. Configure rubrics under Evaluation formats.';
+            throw ValidationException::withMessages([
+                'evaluation_format_id' => $message,
+            ]);
+        }
+
+        $schedule = PanelDefenseSchedule::combineToCarbon(
+            $validated['schedule_date'],
+            $validated['schedule_time'],
+        );
+
+        if (
+            $this->panelScheduleSlotTaken($schedule, (string) $panelDefense->id)
+            && ! $request->boolean('acknowledge_schedule_conflict')
+        ) {
+            throw ValidationException::withMessages([
+                'schedule_conflict' => 'This date and time is already used by another defense. Add this record anyway?',
+            ]);
+        }
+
+        $panelDefense->update([
+            'evaluation_format_id' => $validated['evaluation_format_id'],
+            'defense_type' => $validated['defense_type'],
+            'panel_members' => $validated['panel_members'],
+            'schedule' => $schedule,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $paper->refresh();
+        $this->syncPaperAfterPanelDefenseSchedule(
+            $paper,
+            $validated['defense_type'],
+            $schedule,
+            $validated['panel_members'],
+            $validated['notes'] ?? null,
+            $request->user()->id,
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Panel defense record updated.']);
+
+        return back();
+    }
+
+    /**
+     * @param  list<string>  $panelMemberNames
+     */
+    private function syncPaperAfterPanelDefenseSchedule(
+        ResearchPaper $paper,
+        string $defenseType,
+        Carbon $schedule,
+        array $panelMemberNames,
+        ?string $notes,
+        int|string $actorUserId,
+    ): void {
+        if (! in_array($defenseType, ['outline', 'final'], true)) {
+            return;
+        }
+
+        $stepKey = $defenseType === 'outline' ? 'outline_defense' : 'final_defense';
+        $scheduleField = $defenseType === 'outline' ? 'outline_defense_schedule' : 'final_defense_schedule';
+        $currentStatus = $defenseType === 'outline'
+            ? ($paper->step_outline_defense ?? 'pending')
+            : ($paper->step_final_defense ?? 'pending');
+
+        $paper->update([$scheduleField => $schedule]);
+
+        $panelNotes = 'Panel: '.implode(', ', $panelMemberNames);
+        if (! empty($notes)) {
+            $panelNotes .= "\nRemarks: ".$notes;
+        }
+
+        TrackingRecord::log(
+            $paper->id,
+            $stepKey,
+            'Panel management: schedule set',
+            $currentStatus,
+            null,
+            $actorUserId,
+            $panelNotes,
+            ['schedule' => $schedule->toIso8601String()],
+        );
+    }
+
     /**
      * Compare by Unix instant so DB-stored CarbonImmutable / timezone round-trips still match panel management input.
      */
-    private function panelScheduleSlotTaken(Carbon $schedule): bool
+    private function panelScheduleSlotTaken(Carbon $schedule, ?string $exceptPanelDefenseId): bool
     {
         $target = (int) $schedule->getTimestamp();
 
         return PanelDefense::query()
             ->whereNotNull('schedule')
+            ->when($exceptPanelDefenseId, fn (Builder $q) => $q->whereKeyNot($exceptPanelDefenseId))
             ->whereBetween('schedule', [
                 $schedule->copy()->subMinutes(5),
                 $schedule->copy()->addMinutes(5),
@@ -590,6 +719,15 @@ class ResearchController extends Controller
     public function destroyPanelDefense(Request $request, ResearchPaper $paper, PanelDefense $panelDefense): RedirectResponse
     {
         abort_unless($panelDefense->research_paper_id === $paper->id, 404);
+
+        if ($panelDefense->evaluations()->exists()) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'This panel defense cannot be removed after evaluation records exist.',
+            ]);
+
+            return back();
+        }
 
         $panelDefense->delete();
 

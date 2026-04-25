@@ -21,6 +21,7 @@ import { show as facultyResearchShow } from '@/routes/faculty/research';
 type LineItem = {
     criterion_id: string;
     name: string;
+    content?: string | null;
     max_points: number;
     score: number;
 };
@@ -29,6 +30,7 @@ type MyEvaluation = {
     id: string;
     line_items: LineItem[];
     final_score: number;
+    comments?: string | null;
 };
 
 type AdminEvalRow = {
@@ -37,6 +39,7 @@ type AdminEvalRow = {
     evaluator_name: string;
     line_items: LineItem[];
     final_score: number;
+    comments?: string | null;
     is_mine: boolean;
 };
 
@@ -52,6 +55,12 @@ type DefenseRow = {
     /** Names from the panel defense (ordered as stored) */
     panel_members: string[];
     is_on_panel: boolean;
+    evaluation_format: {
+        id: string;
+        name: string;
+        evaluation_type?: string;
+    } | null;
+    evaluation_format_ready: boolean;
     can_evaluate: boolean;
     my_evaluation: MyEvaluation | null;
     evaluations: AdminEvalRow[];
@@ -84,8 +93,8 @@ type Paginator<T> = {
 
 const props = defineProps<{
     defenses: Paginator<DefenseRow>;
-    criteriaReady: boolean;
-    criteriaTotalMax: number;
+    /** At least one rubric has criteria totaling 100 (new schedules can use it) */
+    anyEvaluationFormatReady: boolean;
     context: 'admin' | 'faculty';
     defenseTypeOptions: DefenseTypeOption[];
     filters: FilterProps;
@@ -167,7 +176,7 @@ function runListFetch(
         router.get(listUrl(), query, {
             preserveState: true,
             replace: true,
-            only: ['defenses', 'filters'],
+            only: ['defenses', 'filters', 'anyEvaluationFormatReady'],
         });
     };
 
@@ -274,6 +283,22 @@ function defenseTypeBadgeClass(defenseType: string): string {
 
 type ScoreVariant = 'secondary' | 'outline' | 'success' | 'warning' | 'info';
 
+function formatEvalDisplay(
+    d: DefenseRow,
+    score: number,
+    lineItems?: { length: number } | null,
+): string {
+    if (
+        d.evaluation_format?.evaluation_type === 'checklist' &&
+        lineItems &&
+        lineItems.length > 0
+    ) {
+        return `${score} / ${lineItems.length} yes`;
+    }
+
+    return `${score} / 100`;
+}
+
 function scoreBadgeVariant(score: number): ScoreVariant {
     if (score >= 85) {
         return 'success';
@@ -338,7 +363,7 @@ function formatAverageScore(n: number): string {
 
         <div class="mx-auto space-y-6 p-4 md:p-6">
             <div
-                v-if="isAdmin && !criteriaReady"
+                v-if="isAdmin && !anyEvaluationFormatReady"
                 class="flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-500/20 dark:bg-amber-950/30 dark:text-amber-100"
             >
                 <AlertTriangle
@@ -346,19 +371,20 @@ function formatAverageScore(n: number): string {
                 />
                 <div>
                     <p class="font-semibold">
-                        Evaluation criteria must total 100 (currently
-                        {{ criteriaTotalMax }}).
+                        No evaluation format is ready to use yet.
                     </p>
                     <p class="mt-1 text-amber-900/80 dark:text-amber-200/80">
-                        Panelists can only submit when weights add up to 100.
+                        Create a format and set criteria so weights add up to
+                        100. Panel defense schedules can only use a “ready”
+                        rubric.
                     </p>
                     <Button
                         as-child
                         class="mt-3 bg-orange-500 text-white hover:bg-orange-600"
                         size="sm"
                     >
-                        <Link :href="admin.evaluationCriteria.index.url()">
-                            Open criteria settings
+                        <Link :href="admin.evaluationFormats.index.url()">
+                            Open evaluation formats
                         </Link>
                     </Button>
                 </div>
@@ -381,9 +407,9 @@ function formatAverageScore(n: number): string {
                         </h1>
                         <p class="text-sm text-muted-foreground">
                             <template v-if="context === 'admin'">
-                                Search scheduled defenses. Use criteria settings
-                                to set weights to 100. You can open a full-page
-                                form to score or edit a panelist file.
+                                Search scheduled defenses. Each row shows which
+                                rubric applies. You can open a full-page form to
+                                score or edit a panelist file.
                             </template>
                             <template v-else>
                                 Your panel. Submissions are final and are kept
@@ -541,6 +567,7 @@ function formatAverageScore(n: number): string {
                         <tr>
                             <th class="px-4 py-3">Schedule</th>
                             <th class="px-4 py-3">Type</th>
+                            <th class="px-4 py-3">Rubric</th>
                             <th class="px-4 py-3">Research</th>
                             <th class="px-4 py-3">Student</th>
                             <th v-if="context === 'admin'" class="px-4 py-3">
@@ -578,6 +605,42 @@ function formatAverageScore(n: number): string {
                                 >
                                     {{ d.defense_type_label }}
                                 </Badge>
+                            </td>
+                            <td class="max-w-[200px] px-4 py-3 align-top">
+                                <p
+                                    v-if="d.evaluation_format"
+                                    class="text-xs font-medium text-foreground"
+                                >
+                                    {{ d.evaluation_format.name }}
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    —
+                                </p>
+                                <p
+                                    v-if="d.evaluation_format?.evaluation_type"
+                                    class="mt-0.5 text-[10px] text-muted-foreground"
+                                >
+                                    {{
+                                        d.evaluation_format.evaluation_type ===
+                                        'checklist'
+                                            ? 'Checklist (yes / no)'
+                                            : 'Scoring (100%)'
+                                    }}
+                                </p>
+                                <p
+                                    v-if="
+                                        d.evaluation_format &&
+                                        !d.evaluation_format_ready
+                                    "
+                                    class="mt-1 text-[10px] text-amber-800 dark:text-amber-300/90"
+                                >
+                                    {{
+                                        d.evaluation_format.evaluation_type ===
+                                        'checklist'
+                                            ? 'Rubric not ready (add items)'
+                                            : 'Rubric not ready (weights ≠ 100)'
+                                    }}
+                                </p>
                             </td>
                             <td class="px-4 py-3">
                                 <div
@@ -669,41 +732,71 @@ function formatAverageScore(n: number): string {
                                         <div
                                             v-for="ev in d.evaluations"
                                             :key="ev.id"
-                                            class="flex flex-wrap items-center gap-2"
+                                            class="flex flex-col gap-1"
                                         >
-                                            <span
-                                                class="line-clamp-1 min-w-0 text-muted-foreground"
-                                                >{{ ev.evaluator_name }}</span
+                                            <div
+                                                class="flex flex-wrap items-center gap-2"
                                             >
-                                            <Badge
-                                                v-if="ev.is_mine"
-                                                variant="secondary"
-                                                class="shrink-0 text-[9px] uppercase"
-                                                >You</Badge
-                                            >
-                                            <Badge
-                                                :variant="
-                                                    scoreBadgeVariant(
-                                                        ev.final_score,
-                                                    )
-                                                "
-                                                class="shrink-0 font-semibold tabular-nums"
-                                            >
-                                                {{ ev.final_score }}/100
-                                            </Badge>
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                class="h-7 text-[11px]"
-                                                as-child
-                                            >
-                                                <Link
-                                                    :href="
-                                                        adminEditEvalUrl(ev.id)
-                                                    "
-                                                    >Edit</Link
+                                                <span
+                                                    class="line-clamp-1 min-w-0 text-muted-foreground"
+                                                    >{{
+                                                        ev.evaluator_name
+                                                    }}</span
                                                 >
-                                            </Button>
+                                                <Badge
+                                                    v-if="ev.is_mine"
+                                                    variant="secondary"
+                                                    class="shrink-0 text-[9px] uppercase"
+                                                    >You</Badge
+                                                >
+                                                <Badge
+                                                    :variant="
+                                                        scoreBadgeVariant(
+                                                            d.evaluation_format
+                                                                ?.evaluation_type ===
+                                                                'checklist' &&
+                                                                ev.line_items
+                                                                    .length
+                                                                ? (ev.final_score /
+                                                                      ev
+                                                                          .line_items
+                                                                          .length) *
+                                                                      100
+                                                                : ev.final_score,
+                                                        )
+                                                    "
+                                                    class="shrink-0 font-semibold tabular-nums"
+                                                >
+                                                    {{
+                                                        formatEvalDisplay(
+                                                            d,
+                                                            ev.final_score,
+                                                            ev.line_items,
+                                                        )
+                                                    }}
+                                                </Badge>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    class="h-7 text-[11px]"
+                                                    as-child
+                                                >
+                                                    <Link
+                                                        :href="
+                                                            adminEditEvalUrl(
+                                                                ev.id,
+                                                            )
+                                                        "
+                                                        >Edit</Link
+                                                    >
+                                                </Button>
+                                            </div>
+                                            <p
+                                                v-if="ev.comments"
+                                                class="line-clamp-2 max-w-full text-[11px] leading-snug break-words text-muted-foreground"
+                                            >
+                                                {{ ev.comments }}
+                                            </p>
                                         </div>
                                     </div>
                                     <div
@@ -715,6 +808,26 @@ function formatAverageScore(n: number): string {
                                             >Average</span
                                         >
                                         <Badge
+                                            v-if="
+                                                d.evaluation_format
+                                                    ?.evaluation_type ===
+                                                'checklist'
+                                            "
+                                            variant="outline"
+                                            class="shrink-0 border-teal-300 bg-teal-100/95 font-semibold text-teal-950 tabular-nums dark:border-teal-600 dark:bg-teal-950/60 dark:text-teal-100"
+                                        >
+                                            {{
+                                                formatAverageScore(
+                                                    d.average_score,
+                                                )
+                                            }}
+                                            <span
+                                                class="ml-0.5 text-[9px] font-normal opacity-80"
+                                                >yes avg</span
+                                            >
+                                        </Badge>
+                                        <Badge
+                                            v-else
                                             variant="outline"
                                             class="shrink-0 border-teal-300 bg-teal-100/95 font-semibold text-teal-950 tabular-nums dark:border-teal-600 dark:bg-teal-950/60 dark:text-teal-100"
                                         >
@@ -738,12 +851,27 @@ function formatAverageScore(n: number): string {
                                     v-if="d.my_evaluation"
                                     :variant="
                                         scoreBadgeVariant(
-                                            d.my_evaluation.final_score,
+                                            d.evaluation_format
+                                                ?.evaluation_type ===
+                                                'checklist' &&
+                                                d.my_evaluation.line_items
+                                                    .length
+                                                ? (d.my_evaluation.final_score /
+                                                      d.my_evaluation.line_items
+                                                          .length) *
+                                                      100
+                                                : d.my_evaluation.final_score,
                                         )
                                     "
                                     class="font-semibold tabular-nums"
                                 >
-                                    {{ d.my_evaluation.final_score }}/100
+                                    {{
+                                        formatEvalDisplay(
+                                            d,
+                                            d.my_evaluation.final_score,
+                                            d.my_evaluation.line_items,
+                                        )
+                                    }}
                                 </Badge>
                                 <span
                                     v-else

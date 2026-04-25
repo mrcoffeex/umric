@@ -10,6 +10,8 @@ use App\Models\DocumentTransmissionHistory;
 use App\Models\DocumentTransmissionItem;
 use App\Models\DocumentTransmissionItemActivity;
 use App\Models\User;
+use App\Services\HandoffPdfSignatureEmbedder;
+use App\Support\HandoffEsignatureStorage;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -112,8 +114,10 @@ class DocumentTransmissionController extends Controller
         ]);
     }
 
-    public function storeForward(StoreDocumentForwardRequest $request, DocumentTransmission $transmission): RedirectResponse
-    {
+    public function storeForward(
+        StoreDocumentForwardRequest $request,
+        DocumentTransmission $transmission,
+    ): RedirectResponse {
         Gate::authorize('forward', $transmission);
 
         $transmission->load(['items' => fn ($q) => $q->orderBy('sort_order')]);
@@ -194,21 +198,23 @@ class DocumentTransmissionController extends Controller
 
             $row->load(['sender:id,name,email', 'receiver:id,name,email', 'items']);
 
+            $forwardMeta = [
+                'receiver_name' => $row->receiver?->name,
+                'item_count' => $row->items->count(),
+                'forwarded_from_id' => $transmission->id,
+                'forwarded_from_purpose' => Str::limit($transmission->purpose, 200),
+                'documents' => $row->items->map(fn (DocumentTransmissionItem $item) => [
+                    'label' => $item->label,
+                    'has_attachment' => $item->hasAttachment(),
+                    'file_name' => $item->hasAttachment() ? $item->file_name : null,
+                ])->values()->all(),
+            ];
+
             DocumentTransmissionHistory::create([
                 'document_transmission_id' => $row->id,
                 'user_id' => $userId,
                 'event' => DocumentTransmissionHistory::EVENT_HANDOFF_CREATED,
-                'meta' => [
-                    'receiver_name' => $row->receiver?->name,
-                    'item_count' => $row->items->count(),
-                    'forwarded_from_id' => $transmission->id,
-                    'forwarded_from_purpose' => Str::limit($transmission->purpose, 200),
-                    'documents' => $row->items->map(fn (DocumentTransmissionItem $item) => [
-                        'label' => $item->label,
-                        'has_attachment' => $item->hasAttachment(),
-                        'file_name' => $item->hasAttachment() ? $item->file_name : null,
-                    ])->values()->all(),
-                ],
+                'meta' => $forwardMeta,
             ]);
 
             return $row;
@@ -237,7 +243,7 @@ class DocumentTransmissionController extends Controller
 
         return [
             'total' => $base()->count(),
-            'pending' => $base()->where('status', DocumentTransmission::STATUS_PENDING)->count(),
+            'pending' => DocumentTransmission::pendingCountForUser($userId, $direction),
             'completed' => $base()->where('status', DocumentTransmission::STATUS_COMPLETED)->count(),
         ];
     }
@@ -375,6 +381,10 @@ class DocumentTransmissionController extends Controller
         ]);
 
         $claimUrl = route('document-transmissions.claim', ['token' => $transmission->share_token]);
+        $u = $request->user();
+        if ($u) {
+            $u->refresh();
+        }
 
         return Inertia::render('DocumentTransmissions/Show', [
             'transmission' => $this->serializeDetail($transmission),
@@ -383,6 +393,8 @@ class DocumentTransmissionController extends Controller
             'isSender' => $request->user()->id === $transmission->sender_id,
             'isReceiver' => $request->user()->id === $transmission->receiver_id,
             'canForward' => Gate::allows('forward', $transmission),
+            'hasAccountEsignature' => (bool) $u?->hasAccountEsignature(),
+            'accountEsignatureUrl' => $u?->accountEsignaturePublicUrl(),
         ]);
     }
 
@@ -398,21 +410,30 @@ class DocumentTransmissionController extends Controller
     public function receive(
         ConfirmDocumentTransmissionReceiptRequest $request,
         DocumentTransmission $transmission,
+        HandoffPdfSignatureEmbedder $pdfSignatureEmbedder,
     ): RedirectResponse {
         $ids = collect($request->validated('item_ids'))
             ->unique()
             ->values();
 
-        DB::transaction(function () use ($request, $transmission, $ids) {
+        $embedEsignature = $request->boolean('embed_esignature', true);
+
+        DB::transaction(function () use ($request, $transmission, $ids, $pdfSignatureEmbedder, $embedEsignature) {
             $transmission->load('items');
             $userId = $request->user()->id;
 
+            /** @var list<DocumentTransmissionItem> $newlyReceivedPdfItems */
+            $newlyReceivedPdfItems = [];
+
             foreach ($transmission->items as $item) {
+                $wasPending = $item->received_at === null;
                 $before = $item->received_at?->toIso8601String();
                 if ($ids->contains($item->id)) {
-                    $item->forceFill(['received_at' => now()])->save();
+                    if ($item->received_at === null) {
+                        $item->forceFill(['received_at' => now()])->save();
+                    }
                 } else {
-                    $item->forceFill(['received_at' => null])->save();
+                    // Do not clear received_at: each line, once received, stays received.
                 }
                 $item->refresh();
                 $after = $item->received_at?->toIso8601String();
@@ -420,6 +441,13 @@ class DocumentTransmissionController extends Controller
                     $item->logActivity(DocumentTransmissionItemActivity::EVENT_RECEIPT_CHANGED, $userId, [
                         'marked_received' => $item->received_at !== null,
                     ]);
+                }
+                if ($embedEsignature
+                    && $ids->contains($item->id)
+                    && $item->received_at
+                    && $wasPending
+                    && $pdfSignatureEmbedder->isPdfItem($item)) {
+                    $newlyReceivedPdfItems[] = $item;
                 }
             }
 
@@ -429,18 +457,33 @@ class DocumentTransmissionController extends Controller
             $received = $transmission->items->filter(fn (DocumentTransmissionItem $item) => $item->received_at !== null);
             $pending = $transmission->items->filter(fn (DocumentTransmissionItem $item) => $item->received_at === null);
 
+            $receiptMeta = [
+                'received_document_labels' => $received->pluck('label')->values()->all(),
+                'pending_document_labels' => $pending->pluck('label')->values()->all(),
+                'received_count' => $received->count(),
+                'total_count' => $transmission->items->count(),
+                'status' => $transmission->status,
+                'completed_at' => $transmission->completed_at?->toIso8601String(),
+            ];
+
+            if ($embedEsignature) {
+                $receiptMeta['esignature_path'] = $this->resolveHandoffEsignaturePng(
+                    $request,
+                    $transmission->id,
+                );
+                $pngPath = $receiptMeta['esignature_path'];
+                $signerName = (string) ($request->user()?->name ?? '');
+                $signedAt = now();
+                foreach ($newlyReceivedPdfItems as $pdfItem) {
+                    $pdfSignatureEmbedder->embedPngOnLastPage($pdfItem, $pngPath, $signerName, $signedAt);
+                }
+            }
+
             DocumentTransmissionHistory::create([
                 'document_transmission_id' => $transmission->id,
                 'user_id' => $request->user()->id,
                 'event' => DocumentTransmissionHistory::EVENT_RECEIPT_CONFIRMED,
-                'meta' => [
-                    'received_document_labels' => $received->pluck('label')->values()->all(),
-                    'pending_document_labels' => $pending->pluck('label')->values()->all(),
-                    'received_count' => $received->count(),
-                    'total_count' => $transmission->items->count(),
-                    'status' => $transmission->status,
-                    'completed_at' => $transmission->completed_at?->toIso8601String(),
-                ],
+                'meta' => $receiptMeta,
             ]);
         });
 
@@ -620,7 +663,39 @@ class DocumentTransmissionController extends Controller
             'file_name' => $sourceItem->file_name,
             'file_size' => $sourceItem->file_size,
             'disk' => $disk,
+            'pdf_esignature_embed_count' => (int) $sourceItem->pdf_esignature_embed_count,
         ])->save();
+    }
+
+    /**
+     * Saves a newly drawn PNG to the user’s account (overwriting any previous), then returns
+     * a unique per-transmission path for handoff history / PDF embed. If no `signature` is
+     * sent, copies from the user’s saved account file.
+     */
+    private function resolveHandoffEsignaturePng(Request $request, string $transmissionId): string
+    {
+        $user = $request->user();
+        if ($user === null) {
+            throw ValidationException::withMessages(['signature' => 'Not authenticated.']);
+        }
+
+        if ($request->filled('signature')) {
+            $dataUrl = (string) $request->input('signature');
+            $userPath = HandoffEsignatureStorage::storePngDataUrlForUserAccount($dataUrl, (string) $user->id);
+            $user->forceFill(['esignature_path' => $userPath])->save();
+
+            return HandoffEsignatureStorage::copyPublicToTransmission($userPath, $transmissionId);
+        }
+
+        $user->refresh();
+
+        if (! $user->hasAccountEsignature()) {
+            throw ValidationException::withMessages([
+                'signature' => 'Draw your signature to confirm, or complete a handoff once to save a signature to your account.',
+            ]);
+        }
+
+        return HandoffEsignatureStorage::copyPublicToTransmission((string) $user->esignature_path, $transmissionId);
     }
 
     /**
@@ -632,7 +707,7 @@ class DocumentTransmissionController extends Controller
             ->map(fn (DocumentTransmissionHistory $row) => [
                 'id' => $row->id,
                 'event' => $row->event,
-                'meta' => $row->meta ?? [],
+                'meta' => $this->handoffHistoryMetaForResponse($row->meta ?? []),
                 'created_at' => $row->created_at->toIso8601String(),
                 'actor' => $row->user
                     ? ['id' => $row->user->id, 'name' => $row->user->name]
@@ -640,5 +715,17 @@ class DocumentTransmissionController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     * @return array<string, mixed>
+     */
+    private function handoffHistoryMetaForResponse(array $meta): array
+    {
+        // Keep paths server-side for PDF embeds; do not expose signature images/URLs in history UI.
+        unset($meta['esignature_path'], $meta['esignature_url']);
+
+        return $meta;
     }
 }

@@ -40,6 +40,7 @@ class ResearchPaperFactory extends Factory
             'plagiarism_score' => null,
             'step_outline_defense' => null,
             'outline_defense_schedule' => null,
+            'step_data_gathering' => null,
             'step_rating' => null,
             'grade' => null,
             'step_final_manuscript' => null,

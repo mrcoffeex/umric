@@ -4,6 +4,16 @@ import type { Auth } from '@/types/auth';
 declare module 'vite/client' {
     interface ImportMetaEnv {
         readonly VITE_APP_NAME: string;
+        /** Main brand; default Button uses `primary` → maps here */
+        readonly VITE_BRAND_PRIMARY?: string;
+        readonly VITE_BRAND_ON_PRIMARY?: string;
+        /** Secondary CTA, secondary button, chart accents */
+        readonly VITE_BRAND_SECONDARY?: string;
+        readonly VITE_BRAND_ON_SECONDARY?: string;
+        readonly VITE_BRAND_RING?: string;
+        readonly VITE_BRAND_MUTED?: string;
+        readonly VITE_BRAND_MUTED_FOREGROUND?: string;
+        readonly VITE_BRAND_ON_MUTED?: string;
         [key: string]: string | boolean | undefined;
     }
 
@@ -18,6 +28,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            documentHandoffs: { incomingPending: number };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

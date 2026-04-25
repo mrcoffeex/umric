@@ -22,12 +22,14 @@ class DocumentTransmissionItem extends Model
         'disk',
         'sort_order',
         'received_at',
+        'pdf_esignature_embed_count',
     ];
 
     protected function casts(): array
     {
         return [
             'received_at' => 'datetime',
+            'pdf_esignature_embed_count' => 'integer',
         ];
     }
 

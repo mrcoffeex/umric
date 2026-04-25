@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ApproveUserController;
 use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\EvaluationCriteriaController;
+use App\Http\Controllers\Admin\EvaluationFormatController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\ResearchController;
 use App\Http\Controllers\Admin\SchoolClassController;
@@ -105,6 +106,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::post('research/{paper}/comments', [ResearchController::class, 'storeComment'])->name('research.store-comment');
         Route::get('research/{paper}/receive', [ResearchController::class, 'receive'])->name('research.receive');
         Route::post('research/{paper}/panel-defenses', [ResearchController::class, 'storePanelDefense'])->name('research.panel-defenses.store');
+        Route::patch('research/{paper}/panel-defenses/{panelDefense}', [ResearchController::class, 'updatePanelDefense'])->name('research.panel-defenses.update');
         Route::delete('research/{paper}/panel-defenses/{panelDefense}', [ResearchController::class, 'destroyPanelDefense'])->name('research.panel-defenses.destroy');
 
         // Admin Announcements
@@ -127,10 +129,17 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::get('evaluation/{panelDefense}/evaluate', [PanelDefenseEvaluationController::class, 'evaluate'])->name('evaluation.evaluate');
         Route::post('evaluation/{panelDefense}', [PanelDefenseEvaluationController::class, 'store'])->name('evaluation.store');
         Route::patch('evaluation/evaluations/{panelDefenseEvaluation}', [PanelDefenseEvaluationController::class, 'update'])->name('evaluation.update');
+        Route::get('evaluation/evaluations/{panelDefenseEvaluation}/pdf', [PanelDefenseEvaluationController::class, 'pdf'])->name('evaluation.pdf');
 
-        Route::resource('evaluation-criteria', EvaluationCriteriaController::class)
-            ->only(['index', 'store', 'update', 'destroy'])
-            ->parameters(['evaluation-criteria' => 'evaluation_criterion']);
+        Route::resource('evaluation-formats', EvaluationFormatController::class)
+            ->only(['index', 'store', 'update', 'destroy']);
+
+        Route::prefix('evaluation-formats/{evaluationFormat}')->name('evaluation-formats.')->group(function () {
+            Route::get('criteria', [EvaluationCriteriaController::class, 'index'])->name('criteria');
+            Route::post('criteria', [EvaluationCriteriaController::class, 'store'])->name('criteria.store');
+            Route::patch('criteria/{evaluation_criterion}', [EvaluationCriteriaController::class, 'update'])->name('criteria.update');
+            Route::delete('criteria/{evaluation_criterion}', [EvaluationCriteriaController::class, 'destroy'])->name('criteria.destroy');
+        });
 
         // Admin Activity Log
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
@@ -162,6 +171,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::get('evaluation', [PanelDefenseEvaluationController::class, 'index'])->name('evaluation.index');
         Route::get('evaluation/{panelDefense}/evaluate', [PanelDefenseEvaluationController::class, 'evaluate'])->name('evaluation.evaluate');
         Route::post('evaluation/{panelDefense}', [PanelDefenseEvaluationController::class, 'store'])->name('evaluation.store');
+        Route::get('evaluation/evaluations/{panelDefenseEvaluation}/pdf', [PanelDefenseEvaluationController::class, 'pdf'])->name('evaluation.pdf');
     });
 
     Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->group(function () {
@@ -171,6 +181,7 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::post('research/extract-metadata', [App\Http\Controllers\Student\ResearchController::class, 'extractMetadata'])->name('student.research.extract-metadata');
         Route::post('research', [App\Http\Controllers\Student\ResearchController::class, 'store'])->name('student.research.store');
         Route::get('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'show'])->name('student.research.show');
+        Route::post('research/{paper}/defense-documents', [App\Http\Controllers\Student\ResearchController::class, 'uploadDefenseDocument'])->name('student.research.defense-documents.store');
         Route::get('research/{paper}/edit', [App\Http\Controllers\Student\ResearchController::class, 'edit'])->name('student.research.edit');
         Route::put('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'update'])->name('student.research.update');
         Route::delete('research/{paper}', [App\Http\Controllers\Student\ResearchController::class, 'destroy'])->name('student.research.destroy');

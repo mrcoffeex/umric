@@ -20,7 +20,15 @@ class DocumentTransmissionPolicy
 
     public function receive(User $user, DocumentTransmission $transmission): bool
     {
-        return $user->id === $transmission->receiver_id;
+        if ($user->id !== $transmission->receiver_id) {
+            return false;
+        }
+
+        if ($transmission->status === DocumentTransmission::STATUS_COMPLETED) {
+            return false;
+        }
+
+        return true;
     }
 
     public function forward(User $user, DocumentTransmission $transmission): bool

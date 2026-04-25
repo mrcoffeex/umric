@@ -139,6 +139,7 @@ class ResearchController extends Controller
                 'plagiarism_score' => $paper->plagiarism_score,
                 'step_outline_defense' => $paper->step_outline_defense,
                 'outline_defense_schedule' => $paper->outline_defense_schedule?->toISOString(),
+                'step_data_gathering' => $paper->step_data_gathering,
                 'step_rating' => $paper->step_rating,
                 'grade' => $paper->grade,
                 'step_final_manuscript' => $paper->step_final_manuscript,
@@ -226,7 +227,7 @@ class ResearchController extends Controller
         $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
         $validated = $request->validate([
-            'step' => ['required', Rule::in(['outline_defense', 'rating', 'final_defense'])],
+            'step' => ['required', Rule::in(['outline_defense', 'data_gathering', 'rating', 'final_defense'])],
             'status' => ['required', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'schedule' => ['nullable', 'date'],
@@ -250,6 +251,16 @@ class ResearchController extends Controller
                 }
 
                 if ($status === 'passed') {
+                    $updateData['current_step'] = 'data_gathering';
+                    $updateData['step_data_gathering'] = 'pending';
+                }
+                break;
+
+            case 'data_gathering':
+                $oldStatus = $paper->step_data_gathering;
+                $updateData['step_data_gathering'] = $status;
+
+                if ($status === 'completed') {
                     $updateData['current_step'] = 'rating';
                     $updateData['step_rating'] = $paper->step_rating ?? 'pending';
                 }
@@ -331,8 +342,8 @@ class ResearchController extends Controller
 
         $paper->update([
             'step_ric_review' => 'approved',
-            'current_step' => 'plagiarism_check',
-            'step_plagiarism' => 'pending',
+            'current_step' => 'outline_defense',
+            'step_outline_defense' => 'pending',
         ]);
 
         TrackingRecord::log(
@@ -345,7 +356,7 @@ class ResearchController extends Controller
             $validated['notes'] ?? null,
         );
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => 'Paper approved for plagiarism check.']);
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Title proposal approved for outline defense.']);
 
         return back();
     }

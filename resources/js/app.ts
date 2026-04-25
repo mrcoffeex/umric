@@ -4,9 +4,16 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import PublicInfoLayout from '@/layouts/PublicInfoLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
+import { applyBrandColorVariables } from '@/lib/applyBrandColorVariables';
 import { initializeFlashToast } from '@/lib/flashToast';
 
+applyBrandColorVariables();
+
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const inertiaProgressColor =
+    import.meta.env.VITE_BRAND_RING ||
+    import.meta.env.VITE_BRAND_PRIMARY ||
+    '#4B5563';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -27,7 +34,7 @@ createInertiaApp({
         }
     },
     progress: {
-        color: '#4B5563',
+        color: inertiaProgressColor,
     },
 });
 

@@ -6,8 +6,15 @@ use App\Models\DocumentTransmissionItem;
 use App\Models\DocumentTransmissionItemActivity;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Support\HandoffEsignatureStorage;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+
+function validHandoffSignatureDataUrl(): string
+{
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+}
 
 test('guests cannot access document handoffs', function () {
     $this->get(route('document-transmissions.index'))->assertRedirect(route('login'));
@@ -22,13 +29,16 @@ test('users can create a handoff and receiver can complete checklist', function 
     $receiver = User::factory()->create();
     UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
 
+    $signedForm = UploadedFile::fake()->create('signed-form.pdf', 120, 'application/pdf');
+    $manuscript = UploadedFile::fake()->create('manuscript.pdf', 120, 'application/pdf');
+
     $this->actingAs($sender)
         ->post(route('document-transmissions.store'), [
             'receiver_id' => $receiver->id,
             'purpose' => 'Routing slip for defense packet.',
             'items' => [
-                ['label' => 'Signed form'],
-                ['label' => 'Manuscript'],
+                ['file' => $signedForm],
+                ['file' => $manuscript],
             ],
         ])
         ->assertRedirect();
@@ -58,12 +68,15 @@ test('users can create a handoff and receiver can complete checklist', function 
 
     $first = $ordered->first();
     $second = $ordered->last();
-    expect($first)->not->toBeNull()
-        ->and($second)->not->toBeNull();
+    expect($first)->not->toBeNull();
+    expect($second)->not->toBeNull();
+    expect($first->label)->toBe('signed-form.pdf');
+    expect($second->label)->toBe('manuscript.pdf');
 
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$first->id],
+            'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
 
@@ -81,6 +94,7 @@ test('users can create a handoff and receiver can complete checklist', function 
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$first->id, $second->id],
+            'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
 
@@ -107,7 +121,101 @@ test('users can create a handoff and receiver can complete checklist', function 
     ]);
 });
 
-test('handoff can store optional pdf per line and recipient can download', function () {
+test('receiver can confirm receipt with saved account esignature without sending signature', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $path = HandoffEsignatureStorage::storePngDataUrlForUserAccount(
+        validHandoffSignatureDataUrl(),
+        (string) $receiver->id
+    );
+    $receiver->forceFill(['esignature_path' => $path])->save();
+
+    $pdf = UploadedFile::fake()->create('one.pdf', 200, 'application/pdf');
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Route with saved sig.',
+            'items' => [
+                ['file' => $pdf],
+            ],
+        ])
+        ->assertRedirect();
+
+    $transmission = DocumentTransmission::query()->first();
+    expect($transmission)->not->toBeNull();
+
+    $item = $transmission->items()->orderBy('sort_order')->first();
+    expect($item)->not->toBeNull();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $transmission), [
+            'item_ids' => [$item->id],
+        ])
+        ->assertRedirect();
+
+    $receipt = DocumentTransmissionHistory::query()
+        ->where('document_transmission_id', $transmission->id)
+        ->where('event', DocumentTransmissionHistory::EVENT_RECEIPT_CONFIRMED)
+        ->first();
+    expect($receipt)->not->toBeNull();
+
+    $metaPath = $receipt?->meta['esignature_path'] ?? null;
+    expect($metaPath)->toBeString()
+        ->and(Storage::disk('public')->exists($metaPath))->toBeTrue();
+});
+
+test('receiver can confirm receipt without embedding e-signature on PDFs', function () {
+    $this->withoutVite();
+    Storage::fake('public');
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $pdf = UploadedFile::fake()->create('one.pdf', 200, 'application/pdf');
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Test.',
+            'items' => [
+                ['file' => $pdf],
+            ],
+        ])
+        ->assertRedirect();
+
+    $transmission = DocumentTransmission::query()->first();
+    expect($transmission)->not->toBeNull();
+    $item = $transmission->items()->orderBy('sort_order')->first();
+    expect($item)->not->toBeNull();
+    expect((int) $item->pdf_esignature_embed_count)->toBe(0);
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $transmission), [
+            'item_ids' => [$item->id],
+            'embed_esignature' => false,
+        ])
+        ->assertRedirect();
+
+    $item->refresh();
+    expect($item->received_at)->not->toBeNull();
+    expect((int) $item->pdf_esignature_embed_count)->toBe(0);
+
+    $receipt = DocumentTransmissionHistory::query()
+        ->where('document_transmission_id', $transmission->id)
+        ->where('event', DocumentTransmissionHistory::EVENT_RECEIPT_CONFIRMED)
+        ->first();
+    expect($receipt?->meta['esignature_path'] ?? null)->toBeNull();
+});
+
+test('handoff requires pdf per line and recipient can download', function () {
     $this->withoutVite();
 
     $sender = User::factory()->create();
@@ -117,14 +225,15 @@ test('handoff can store optional pdf per line and recipient can download', funct
     UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
 
     $pdf = UploadedFile::fake()->create('routing.pdf', 200, 'application/pdf');
+    $pdfMemo = UploadedFile::fake()->create('memo-only.pdf', 200, 'application/pdf');
 
     $this->actingAs($sender)
         ->post(route('document-transmissions.store'), [
             'receiver_id' => $receiver->id,
             'purpose' => 'Digital routing.',
             'items' => [
-                ['label' => 'Cover', 'file' => $pdf],
-                ['label' => 'Memo only'],
+                ['file' => $pdf],
+                ['file' => $pdfMemo],
             ],
         ])
         ->assertRedirect();
@@ -179,8 +288,98 @@ test('sender cannot confirm receipt', function () {
     $this->actingAs($sender)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$item->id],
+            'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertForbidden();
+});
+
+test('receiver cannot confirm receipt again after handoff is completed', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'One doc.',
+            'items' => [
+                ['file' => UploadedFile::fake()->create('a.pdf', 80, 'application/pdf')],
+            ],
+        ])
+        ->assertRedirect();
+
+    $t = DocumentTransmission::query()->first();
+    $item = $t->items()->first();
+    expect($item)->not->toBeNull();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$item->id],
+            'signature' => validHandoffSignatureDataUrl(),
+        ])
+        ->assertRedirect();
+
+    $t->refresh();
+    expect($t->status)->toBe(DocumentTransmission::STATUS_COMPLETED);
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$item->id],
+            'signature' => validHandoffSignatureDataUrl(),
+        ])
+        ->assertForbidden();
+});
+
+test('receiver cannot unmark an already received document line', function () {
+    $this->withoutVite();
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Two docs.',
+            'items' => [
+                ['file' => UploadedFile::fake()->create('one.pdf', 80, 'application/pdf')],
+                ['file' => UploadedFile::fake()->create('two.pdf', 80, 'application/pdf')],
+            ],
+        ])
+        ->assertRedirect();
+
+    $t = DocumentTransmission::query()->first();
+    $ordered = $t->items()->orderBy('sort_order')->get();
+    $first = $ordered->first();
+    $second = $ordered->last();
+    expect($first)->not->toBeNull();
+    expect($second)->not->toBeNull();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$first->id],
+            'signature' => validHandoffSignatureDataUrl(),
+        ])
+        ->assertRedirect();
+
+    expect($first->fresh()->received_at)->not->toBeNull()
+        ->and($second->fresh()->received_at)->toBeNull();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $t), [
+            'item_ids' => [$second->id],
+            'signature' => validHandoffSignatureDataUrl(),
+        ])
+        ->assertRedirect();
+
+    expect($first->fresh()->received_at)->not->toBeNull()
+        ->and($second->fresh()->received_at)->not->toBeNull();
 });
 
 test('document handoff index supports search direction and status filters', function () {
@@ -259,13 +458,16 @@ test('create handoff rejects duplicate document lines and duplicate pending hand
     $receiver = User::factory()->create();
     UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
 
+    $dupA = UploadedFile::fake()->create('same.pdf', 80, 'application/pdf');
+    $dupB = UploadedFile::fake()->create('same.pdf', 80, 'application/pdf');
+
     $this->actingAs($sender)
         ->post(route('document-transmissions.store'), [
             'receiver_id' => $receiver->id,
             'purpose' => 'Test duplicate lines.',
             'items' => [
-                ['label' => '  Same Title  '],
-                ['label' => 'SAME title'],
+                ['file' => $dupA],
+                ['file' => $dupB],
             ],
         ])
         ->assertSessionHasErrors('items');
@@ -275,8 +477,8 @@ test('create handoff rejects duplicate document lines and duplicate pending hand
             'receiver_id' => $receiver->id,
             'purpose' => 'First handoff',
             'items' => [
-                ['label' => 'A'],
-                ['label' => 'B'],
+                ['file' => UploadedFile::fake()->create('a.pdf', 50, 'application/pdf')],
+                ['file' => UploadedFile::fake()->create('b.pdf', 50, 'application/pdf')],
             ],
         ])
         ->assertRedirect();
@@ -286,8 +488,8 @@ test('create handoff rejects duplicate document lines and duplicate pending hand
             'receiver_id' => $receiver->id,
             'purpose' => 'Second same bundle',
             'items' => [
-                ['label' => 'b'],
-                ['label' => 'a'],
+                ['file' => UploadedFile::fake()->create('B.pdf', 50, 'application/pdf')],
+                ['file' => UploadedFile::fake()->create('a.pdf', 50, 'application/pdf')],
             ],
         ])
         ->assertSessionHasErrors('items');
@@ -310,7 +512,7 @@ test('completing handoff allows forward and copies item events', function () {
             'receiver_id' => $receiver->id,
             'purpose' => 'Packet A',
             'items' => [
-                ['label' => 'Form'],
+                ['file' => UploadedFile::fake()->create('form.pdf', 80, 'application/pdf')],
             ],
         ])
         ->assertRedirect();
@@ -322,6 +524,7 @@ test('completing handoff allows forward and copies item events', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$item->id],
+            'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
 
@@ -387,8 +590,8 @@ test('forward can include a subset of documents', function () {
             'receiver_id' => $receiver->id,
             'purpose' => 'Multi',
             'items' => [
-                ['label' => 'Keep'],
-                ['label' => 'Skip'],
+                ['file' => UploadedFile::fake()->create('keep.pdf', 80, 'application/pdf')],
+                ['file' => UploadedFile::fake()->create('skip.pdf', 80, 'application/pdf')],
             ],
         ])
         ->assertRedirect();
@@ -404,6 +607,7 @@ test('forward can include a subset of documents', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$keep->id, $skip->id],
+            'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
 
@@ -423,7 +627,7 @@ test('forward can include a subset of documents', function () {
         ->first();
     expect($new)->not->toBeNull()
         ->and($new->items)->toHaveCount(1)
-        ->and($new->items->first()->label)->toBe('Keep');
+        ->and($new->items->first()->label)->toBe('keep.pdf');
 });
 
 test('original sender can forward a completed handoff', function () {
@@ -443,7 +647,7 @@ test('original sender can forward a completed handoff', function () {
             'receiver_id' => $receiver->id,
             'purpose' => 'Packet B',
             'items' => [
-                ['label' => 'Only doc'],
+                ['file' => UploadedFile::fake()->create('only-doc.pdf', 80, 'application/pdf')],
             ],
         ])
         ->assertRedirect();
@@ -454,6 +658,7 @@ test('original sender can forward a completed handoff', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$item->id],
+            'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
 
@@ -519,4 +724,55 @@ test('claim route redirects to handoff for authorized user', function () {
     $this->actingAs($receiver)
         ->get(route('document-transmissions.claim', ['token' => $transmission->share_token]))
         ->assertRedirect(route('document-transmissions.show', $transmission));
+});
+
+test('pending count for user matches status pending and direction', function () {
+    $sender = User::factory()->create();
+    $receiver = User::factory()->create();
+    $other = User::factory()->create();
+
+    DocumentTransmission::create([
+        'sender_id' => $sender->id,
+        'receiver_id' => $receiver->id,
+        'purpose' => 'First',
+        'share_token' => 'p1-'.str_repeat('a', 40),
+        'status' => DocumentTransmission::STATUS_PENDING,
+    ]);
+    DocumentTransmission::create([
+        'sender_id' => $sender->id,
+        'receiver_id' => $receiver->id,
+        'purpose' => 'Second',
+        'share_token' => 'p2-'.str_repeat('b', 40),
+        'status' => DocumentTransmission::STATUS_COMPLETED,
+        'completed_at' => now(),
+    ]);
+
+    expect(DocumentTransmission::pendingCountForUser($sender->id, 'outgoing'))->toBe(1);
+    expect(DocumentTransmission::pendingCountForUser($receiver->id, 'incoming'))->toBe(1);
+    expect(DocumentTransmission::pendingCountForUser($receiver->id, 'outgoing'))->toBe(0);
+    expect(DocumentTransmission::pendingCountForUser($other->id, 'incoming'))->toBe(0);
+});
+
+test('inertia shares incoming pending handoff count for authenticated user', function () {
+    $this->withoutVite();
+    $sender = User::factory()->create();
+    $receiver = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $sender->id]);
+    UserProfile::factory()->faculty()->create(['user_id' => $receiver->id]);
+
+    DocumentTransmission::create([
+        'sender_id' => $sender->id,
+        'receiver_id' => $receiver->id,
+        'purpose' => 'Test',
+        'share_token' => 'sh-'.str_repeat('k', 40),
+        'status' => DocumentTransmission::STATUS_PENDING,
+    ]);
+
+    $this->actingAs($receiver)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('documentHandoffs', fn (Assert $doc) => $doc
+                ->where('incomingPending', 1)
+            )
+        );
 });

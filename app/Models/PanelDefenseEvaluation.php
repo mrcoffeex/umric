@@ -20,6 +20,7 @@ class PanelDefenseEvaluation extends Model
         'evaluator_id',
         'line_items',
         'final_score',
+        'comments',
     ];
 
     /**

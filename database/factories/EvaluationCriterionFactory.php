@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\EvaluationCriterion;
+use App\Models\EvaluationFormat;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -15,8 +16,9 @@ class EvaluationCriterionFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->sentence(3),
-            'max_points' => 25,
+            'evaluation_format_id' => EvaluationFormat::factory(),
+            'content' => '<p>'.e(fake()->sentence(3), false).'</p>',
+            'max_points' => 100,
             'sort_order' => 0,
         ];
     }

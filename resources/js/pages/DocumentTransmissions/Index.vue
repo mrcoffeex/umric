@@ -568,10 +568,10 @@ const statusPills = computed(() => [
         >
             <ClipboardList class="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
             <p>
-                A handoff is a checklist of document titles plus an optional PDF
-                per line. The receiver ticks the rows they accept and confirms
-                receipt once on the handoff detail page. History is kept for
-                every confirmation.
+                A handoff is a checklist: each line is one PDF, named after the
+                file you upload. The receiver ticks the rows they accept and
+                confirms receipt once on the handoff detail page. History is
+                kept for every confirmation.
             </p>
         </div>
     </div>

@@ -12,6 +12,11 @@ import {
     UserRoundPlus,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import {
+    firstPendingWorkflowStepIndex,
+    workflowFocusStepKey,
+    workflowProgressPercent,
+} from '@/lib/research-workflow-ui';
 import { getStepStatusClass } from '@/lib/step-colors';
 import classesRoutes from '@/routes/classes';
 import student from '@/routes/student';
@@ -39,6 +44,13 @@ interface Paper {
     tracking_id: string;
     current_step: string;
     step_label?: string;
+    step_ric_review?: string | null;
+    step_outline_defense?: string | null;
+    step_data_gathering?: string | null;
+    step_rating?: string | null;
+    step_final_manuscript?: string | null;
+    step_final_defense?: string | null;
+    step_hard_bound?: string | null;
 }
 
 interface Props {
@@ -90,22 +102,28 @@ const announcementDotStyles: Record<Announcement['type'], string> = {
     danger: 'bg-red-500',
 };
 
-const currentStepIndex = computed(() => {
+const workflowFocusIndex = computed(() => {
     if (!props.paper) {
         return -1;
     }
 
-    return props.steps.indexOf(props.paper.current_step);
+    return firstPendingWorkflowStepIndex(props.paper);
+});
+
+const focusStepKey = computed(() => {
+    if (!props.paper) {
+        return '';
+    }
+
+    return workflowFocusStepKey(props.paper);
 });
 
 const progressPercent = computed(() => {
-    if (currentStepIndex.value < 0 || props.steps.length <= 1) {
+    if (!props.paper) {
         return 0;
     }
 
-    return Math.round(
-        (currentStepIndex.value / (props.steps.length - 1)) * 100,
-    );
+    return workflowProgressPercent(props.paper);
 });
 
 function stepLabel(step: string): string {
@@ -125,11 +143,19 @@ function formatDate(value?: string | null): string {
 }
 
 function isCompletedStep(index: number): boolean {
-    return currentStepIndex.value > index;
+    if (!props.paper || workflowFocusIndex.value < 0) {
+        return false;
+    }
+
+    return index < workflowFocusIndex.value;
 }
 
 function isCurrentStep(index: number): boolean {
-    return currentStepIndex.value === index;
+    if (!props.paper || workflowFocusIndex.value < 0) {
+        return false;
+    }
+
+    return index === workflowFocusIndex.value;
 }
 
 function joinClassUrl(): string {
@@ -329,10 +355,7 @@ defineOptions({
                         <span
                             class="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
                         >
-                            {{
-                                paper.step_label ??
-                                stepLabel(paper.current_step)
-                            }}
+                            {{ stepLabel(focusStepKey) }}
                         </span>
                     </div>
 
@@ -364,11 +387,7 @@ defineOptions({
                             :data-completed="isCompletedStep(idx) || undefined"
                             :class="[
                                 'rounded-xl border px-3 py-2 text-center text-sm font-semibold',
-                                getStepStatusClass(
-                                    step,
-                                    paper.current_step,
-                                    steps,
-                                ),
+                                getStepStatusClass(step, focusStepKey, steps),
                             ]"
                         >
                             {{ stepLabel(step) }}

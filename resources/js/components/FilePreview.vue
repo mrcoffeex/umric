@@ -9,7 +9,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    accept: '.pdf,.doc,.docx',
+    accept: '.pdf,application/pdf',
     hoverBorderClass: '',
 });
 
@@ -82,7 +82,7 @@ function clearFile() {
             <p class="text-sm font-medium text-foreground">
                 Drag and drop your file here, or click to browse
             </p>
-            <p class="mt-1 text-xs text-muted-foreground">PDF, DOC, DOCX</p>
+            <p class="mt-1 text-xs text-muted-foreground">PDF only</p>
         </div>
 
         <!-- State 2 — File selected -->

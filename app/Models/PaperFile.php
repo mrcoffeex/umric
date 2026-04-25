@@ -11,6 +11,12 @@ class PaperFile extends Model
 {
     use HasUlids;
 
+    public const CATEGORY_TITLE = 'paper';
+
+    public const CATEGORY_OUTLINE_DEFENSE = 'outline_defense';
+
+    public const CATEGORY_FINAL_DEFENSE = 'final_defense';
+
     protected $fillable = [
         'research_paper_id',
         'file_name',

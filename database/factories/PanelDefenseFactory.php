@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\User;
@@ -24,6 +25,14 @@ class PanelDefenseFactory extends Factory
 
         return [
             'research_paper_id' => ResearchPaper::factory(),
+            'evaluation_format_id' => function () {
+                $id = EvaluationFormat::query()->value('id');
+                if ($id !== null) {
+                    return $id;
+                }
+
+                return EvaluationFormat::factory()->create()->id;
+            },
             'defense_type' => fake()->randomElement($types),
             'panel_members' => fake()->randomElements(
                 [

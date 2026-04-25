@@ -415,6 +415,20 @@ function getCsrf(): string {
 export function useDocumentExtractor(extractUrl: string) {
     const state = ref<ExtractState>('idle');
 
+    function applyExtractState(result: ExtractResult): void {
+        const hasTitle = result.title.length > 0;
+        const hasAbstract = result.abstract.length > 0;
+        const hasKeywords = result.keywords.length > 0;
+
+        if (!hasTitle && !hasAbstract && !hasKeywords) {
+            state.value = 'failed';
+        } else if (hasTitle && hasAbstract) {
+            state.value = 'success';
+        } else {
+            state.value = 'partial';
+        }
+    }
+
     async function extract(file: File): Promise<ExtractResult | null> {
         const ext = file.name.split('.').pop()?.toLowerCase();
 
@@ -430,17 +444,7 @@ export function useDocumentExtractor(extractUrl: string) {
                     ? await extractDocx(file)
                     : await extractPdfViaServer(file, extractUrl, getCsrf());
 
-            const hasTitle = result.title.length > 0;
-            const hasAbstract = result.abstract.length > 0;
-            const hasKeywords = result.keywords.length > 0;
-
-            if (!hasTitle && !hasAbstract && !hasKeywords) {
-                state.value = 'failed';
-            } else if (hasTitle && hasAbstract) {
-                state.value = 'success';
-            } else {
-                state.value = 'partial';
-            }
+            applyExtractState(result);
 
             return result;
         } catch {

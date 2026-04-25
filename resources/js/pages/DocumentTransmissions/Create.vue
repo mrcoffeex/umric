@@ -33,25 +33,24 @@ defineOptions({
 const uploadMaxSizeMb = Number(import.meta.env.VITE_UPLOAD_MAX_SIZE_MB ?? 25);
 
 interface ItemRow {
-    label: string;
     file: File | null;
 }
 
 const form = useForm({
     receiver_id: '',
     purpose: '',
-    items: [{ label: '', file: null }] as ItemRow[],
+    items: [{ file: null }] as ItemRow[],
 });
 
-const hasDuplicateItemLabels = computed(() => {
+const hasDuplicateFileNames = computed(() => {
     const seen = new Set<string>();
 
     for (const row of form.items) {
-        const k = row.label.trim().toLowerCase();
-
-        if (k === '') {
+        if (!row.file) {
             continue;
         }
+
+        const k = row.file.name.trim().toLowerCase();
 
         if (seen.has(k)) {
             return true;
@@ -187,12 +186,12 @@ function addItemRow() {
         return;
     }
 
-    form.items.push({ label: '', file: null });
+    form.items.push({ file: null });
 }
 
 function removeItemRow(index: number) {
     if (form.items.length <= 1) {
-        form.items[0] = { label: '', file: null };
+        form.items[0] = { file: null };
         nextTick(() => {
             const el = document.getElementById(
                 'item-file-0',
@@ -237,15 +236,16 @@ function clearItemFile(index: number) {
 }
 
 function submit() {
+    if (!form.items.some((row) => row.file)) {
+        return;
+    }
+
     form.transform((data) => ({
         receiver_id: data.receiver_id,
         purpose: data.purpose,
         items: data.items
-            .map((row) => ({
-                label: row.label.trim(),
-                file: row.file,
-            }))
-            .filter((row) => row.label !== ''),
+            .filter((row: ItemRow) => row.file)
+            .map((row) => ({ file: row.file as File })),
     })).post(documentTransmissions.store.url(), {
         forceFormData: true,
     });
@@ -274,8 +274,8 @@ function submit() {
                     </h1>
                     <p class="text-xs text-muted-foreground">
                         Choose who receives the bundle, describe why you are
-                        sending it, list each document, and optionally attach a
-                        PDF per line.
+                        sending it, and add one PDF per line. Each file is
+                        listed by its file name.
                     </p>
                 </div>
             </div>
@@ -394,7 +394,7 @@ function submit() {
                         <textarea
                             v-model="form.purpose"
                             rows="4"
-                            placeholder="e.g. Title defense packet for adviser review — please sign the routing slip when complete."
+                            placeholder="e.g. Title evaluation packet for adviser review — please sign the routing slip when complete."
                             class="min-h-[100px] w-full resize-y rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground transition outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-500/20"
                         />
                         <p
@@ -417,8 +417,9 @@ function submit() {
                                 Documents in this handoff
                             </h2>
                             <p class="text-xs text-muted-foreground">
-                                One line per document. PDF only, up to
-                                {{ uploadMaxSizeMb }} MB each.
+                                One line per document. A PDF is required on each
+                                line; the document title is the file name (up to
+                                {{ uploadMaxSizeMb }} MB each).
                             </p>
                         </div>
                         <Button
@@ -438,12 +439,30 @@ function submit() {
                             :key="idx"
                             class="rounded-lg border border-border bg-muted/20 p-3"
                         >
-                            <div class="flex gap-2">
-                                <Input
-                                    v-model="form.items[idx].label"
-                                    :placeholder="`Document ${idx + 1}`"
-                                    class="flex-1"
-                                />
+                            <div
+                                class="mb-2 flex items-start justify-between gap-2"
+                            >
+                                <div class="min-w-0 space-y-0.5">
+                                    <p
+                                        class="text-xs font-medium text-foreground"
+                                    >
+                                        Document {{ idx + 1 }}
+                                    </p>
+                                    <p
+                                        v-if="row.file"
+                                        class="truncate text-sm text-foreground"
+                                        :title="row.file.name"
+                                    >
+                                        {{ row.file.name }}
+                                    </p>
+                                    <p
+                                        v-else
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        No file chosen — choose a PDF to set the
+                                        document name.
+                                    </p>
+                                </div>
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -456,16 +475,17 @@ function submit() {
                                 </Button>
                             </div>
                             <div
-                                class="mt-2 flex flex-wrap items-center gap-2 border-t border-border/60 pt-2"
+                                class="flex flex-wrap items-center gap-2 border-t border-border/60 pt-2"
                             >
                                 <FileText
                                     class="h-3.5 w-3.5 shrink-0 text-muted-foreground"
                                 />
                                 <Label
                                     :for="`item-file-${idx}`"
-                                    class="cursor-pointer text-xs font-normal text-muted-foreground"
+                                    class="cursor-pointer text-xs font-medium text-foreground"
                                 >
-                                    PDF (optional)
+                                    PDF
+                                    <span class="text-destructive">*</span>
                                 </Label>
                                 <input
                                     :id="`item-file-${idx}`"
@@ -478,9 +498,6 @@ function submit() {
                                     v-if="row.file"
                                     class="flex min-w-0 items-center gap-1 text-xs text-foreground"
                                 >
-                                    <span class="truncate">{{
-                                        row.file.name
-                                    }}</span>
                                     <button
                                         type="button"
                                         class="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -491,12 +508,6 @@ function submit() {
                                     </button>
                                 </span>
                             </div>
-                            <p
-                                v-if="form.errors[`items.${idx}.label`]"
-                                class="mt-1 text-xs text-destructive"
-                            >
-                                {{ form.errors[`items.${idx}.label`] }}
-                            </p>
                             <p
                                 v-if="form.errors[`items.${idx}.file`]"
                                 class="mt-1 text-xs text-destructive"
@@ -511,12 +522,12 @@ function submit() {
                             {{ form.errors.items }}
                         </p>
                         <p
-                            v-if="hasDuplicateItemLabels"
+                            v-if="hasDuplicateFileNames"
                             class="text-xs text-amber-800 dark:text-amber-200/90"
                         >
-                            Two or more lines use the same title (ignoring
-                            spaces and letter case). Fix duplicates before
-                            creating the handoff.
+                            Two or more lines use the same file name. Use
+                            different files or rename them before creating the
+                            handoff.
                         </p>
                     </div>
                 </section>
@@ -535,7 +546,7 @@ function submit() {
                     <Button
                         type="submit"
                         class="bg-orange-500 text-white hover:bg-orange-600"
-                        :disabled="form.processing"
+                        :disabled="form.processing || hasDuplicateFileNames"
                     >
                         <Loader2
                             v-if="form.processing"

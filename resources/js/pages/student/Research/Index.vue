@@ -10,6 +10,7 @@ import {
     Trash2,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { workflowProgressPercent } from '@/lib/research-workflow-ui';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import student from '@/routes/student';
 
@@ -25,6 +26,13 @@ interface Paper {
     proponents?: Array<{ id: string; name: string }> | null;
     school_class?: { id: string; name: string; section?: string | null } | null;
     adviser?: { id: string; name: string } | null;
+    step_ric_review?: string | null;
+    step_outline_defense?: string | null;
+    step_data_gathering?: string | null;
+    step_rating?: string | null;
+    step_final_manuscript?: string | null;
+    step_final_defense?: string | null;
+    step_hard_bound?: string | null;
 }
 
 interface Props {
@@ -74,13 +82,7 @@ function stepLabel(step: string): string {
 }
 
 function progressPercent(paper: Paper): number {
-    const idx = props.steps.indexOf(paper.current_step);
-
-    if (idx < 0 || props.steps.length <= 1) {
-        return 0;
-    }
-
-    return Math.round((idx / (props.steps.length - 1)) * 100);
+    return workflowProgressPercent(paper);
 }
 
 function isOwner(paper: Paper): boolean {

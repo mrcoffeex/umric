@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\ResearchPaper;
 use App\Models\User;
@@ -64,6 +65,10 @@ class PanelDefenseSeeder extends Seeder
         $members = $panelists->shuffle()->take($memberCount)->pluck('name')->values()->all();
 
         $creator = $panelists->shuffle()->first();
+        $formatId = EvaluationFormat::query()->value('id');
+        if ($formatId === null) {
+            return;
+        }
 
         PanelDefense::updateOrCreate(
             [
@@ -71,6 +76,7 @@ class PanelDefenseSeeder extends Seeder
                 'defense_type' => $type,
             ],
             [
+                'evaluation_format_id' => $formatId,
                 'panel_members' => $members,
                 'schedule' => $schedule,
                 'notes' => fake()->optional()->sentence(),

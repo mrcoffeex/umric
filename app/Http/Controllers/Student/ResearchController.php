@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agenda;
+use App\Models\PaperFile;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\Sdg;
@@ -14,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,16 +53,34 @@ class ResearchController extends Controller
         }
 
         $userId = $request->user()->id;
-        $isProponent = collect($paper->proponents ?? [])->contains('id', (string) $userId);
 
-        if ($paper->user_id !== $userId && ! $isProponent) {
+        if (! $paper->isOwnerOrProponent($userId)) {
             abort(403);
         }
 
-        $paper->load(['schoolClass', 'trackingRecords.updatedBy', 'adviser', 'statistician', 'panelDefenses.createdBy', 'comments.user', 'files']);
+        $paper->load([
+            'schoolClass',
+            'trackingRecords.updatedBy',
+            'adviser',
+            'statistician',
+            'panelDefenses.createdBy',
+            'comments.user',
+            'files' => fn ($q) => $q->orderByDesc('created_at'),
+        ]);
+
+        $defenseMayManage = $paper->isOwnerOrProponent($userId);
 
         return Inertia::render('student/Research/Show', [
             'paper' => $paper,
+            'trackingPublicUrl' => url('/track/'.$paper->tracking_id),
+            'defenseDocumentUpload' => [
+                'mayManage' => $defenseMayManage,
+                'ricReturned' => $paper->isRicReviewReturned(),
+                'outline' => $defenseMayManage && $paper->mayStudentUploadDefenseDocument('outline'),
+                'final' => $defenseMayManage && $paper->mayStudentUploadDefenseDocument('final'),
+                'outlineUploaded' => $paper->hasStudentDefenseDocument('outline'),
+                'finalUploaded' => $paper->hasStudentDefenseDocument('final'),
+            ],
             'trackingLog' => $paper->trackingRecords,
             'stepLabels' => ResearchPaper::STEP_LABELS,
             'steps' => ResearchPaper::STEPS,
@@ -146,7 +166,7 @@ class ResearchController extends Controller
                 'agenda_ids' => ['nullable', 'array'],
                 'agenda_ids.*' => ['string', 'exists:agendas,id'],
                 'keywords' => ['nullable', 'string', 'max:500'],
-                'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
+                'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
             ],
             [],
             ['abstract' => 'rationale'],
@@ -185,6 +205,7 @@ class ResearchController extends Controller
                 'file_path' => $uploadedFile->store('papers', $disk),
                 'file_type' => $uploadedFile->getMimeType(),
                 'file_size' => $uploadedFile->getSize(),
+                'file_category' => PaperFile::CATEGORY_TITLE,
                 'disk' => $disk,
             ]);
         }
@@ -247,11 +268,13 @@ class ResearchController extends Controller
                 'agenda_ids' => ['nullable', 'array'],
                 'agenda_ids.*' => ['string', 'exists:agendas,id'],
                 'keywords' => ['nullable', 'string', 'max:500'],
-                'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
+                'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
             ],
             [],
             ['abstract' => 'rationale'],
         );
+
+        $resubmitAfterRicReturn = $paper->step_ric_review === 'returned';
 
         $paper->update([
             'title' => $validated['title'],
@@ -262,8 +285,24 @@ class ResearchController extends Controller
             'keywords' => array_key_exists('keywords', $validated) ? $validated['keywords'] : $paper->keywords,
         ]);
 
+        if ($resubmitAfterRicReturn) {
+            $paper->update([
+                'step_ric_review' => 'pending',
+                'current_step' => 'ric_review',
+            ]);
+
+            TrackingRecord::log(
+                $paper->id,
+                'title_proposal',
+                'Title proposal resubmitted after RIC return',
+                'submitted',
+                'returned',
+                $request->user()->id,
+            );
+        }
+
         if ($request->hasFile('file')) {
-            $paper->files()->each(function ($file) {
+            $paper->files()->where('file_category', PaperFile::CATEGORY_TITLE)->get()->each(function ($file) {
                 Storage::disk($file->disk)->delete($file->file_path);
                 $file->delete();
             });
@@ -275,6 +314,7 @@ class ResearchController extends Controller
                 'file_path' => $uploadedFile->store('papers', $disk),
                 'file_type' => $uploadedFile->getMimeType(),
                 'file_size' => $uploadedFile->getSize(),
+                'file_category' => PaperFile::CATEGORY_TITLE,
                 'disk' => $disk,
             ]);
         }
@@ -300,5 +340,59 @@ class ResearchController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Research paper deleted.']);
 
         return redirect()->route('student.research.index');
+    }
+
+    public function uploadDefenseDocument(Request $request, ResearchPaper $paper): RedirectResponse
+    {
+        $userId = $request->user()->id;
+
+        if (! $request->user()->isStudent() || ! $paper->isOwnerOrProponent($userId)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'defense' => ['required', Rule::in(['outline', 'final'])],
+            'file' => ['required', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
+        ]);
+
+        $defense = $validated['defense'];
+
+        if (! $paper->mayStudentUploadDefenseDocument($defense)) {
+            abort(403);
+        }
+
+        $expectedStep = $defense === 'outline' ? 'outline_defense' : 'final_defense';
+
+        $category = $defense === 'outline'
+            ? PaperFile::CATEGORY_OUTLINE_DEFENSE
+            : PaperFile::CATEGORY_FINAL_DEFENSE;
+
+        $uploadedFile = $request->file('file');
+        $disk = config('filesystems.default') === 's3' ? 's3' : 'public';
+
+        $paper->files()->create([
+            'file_name' => $uploadedFile->getClientOriginalName(),
+            'file_path' => $uploadedFile->store('papers', $disk),
+            'file_type' => $uploadedFile->getMimeType(),
+            'file_size' => $uploadedFile->getSize(),
+            'file_category' => $category,
+            'disk' => $disk,
+        ]);
+
+        $stepLabel = $defense === 'outline' ? 'Outline defense' : 'Final defense';
+
+        TrackingRecord::log(
+            $paper->id,
+            $expectedStep,
+            $stepLabel.' document uploaded',
+            'document_uploaded',
+            null,
+            $request->user()->id,
+            $uploadedFile->getClientOriginalName(),
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => $stepLabel.' document added to your research files.']);
+
+        return back();
     }
 }

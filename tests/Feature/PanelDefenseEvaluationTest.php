@@ -42,10 +42,14 @@ function scheduledDefenseOnPanelFor(User $panelist): PanelDefense
 /**
  * @return array<string, int>
  */
-function evalScoresExample(int $each = 3): array
+function evalScoresExample(int $each = 3, ?PanelDefense $defense = null): array
 {
+    $query = EvaluationCriterion::query()->orderBy('sort_order');
+    if ($defense !== null) {
+        $query->where('evaluation_format_id', $defense->evaluation_format_id);
+    }
     $out = [];
-    foreach (EvaluationCriterion::query()->orderBy('sort_order')->get() as $c) {
+    foreach ($query->get() as $c) {
         $out[(string) $c->id] = $each;
     }
 
@@ -87,22 +91,25 @@ it('lets faculty on the panel list only their panel defenses and submit once', f
             ->where('defenses.data.0.can_evaluate', true)
         );
 
-    $scores = evalScoresExample(3);
-    $expectedTotal = array_sum($scores);
+    $scores = evalScoresExample(3, $defense);
+    // Weighted scoring: sum of (score/100 * weight%) with four 25% criteria and 3 each → 3.
+    $expectedTotal = 3;
 
     $this->actingAs($faculty)
         ->from(route('faculty.evaluation.index'))
         ->post(route('faculty.evaluation.store', $defense), [
             'scores' => $scores,
+            'comments' => 'Adequate work; see chapter 3 for revisions.',
         ])
         ->assertRedirect(route('faculty.evaluation.index'));
 
-    expect(
-        (int) PanelDefenseEvaluation::query()
-            ->where('panel_defense_id', (string) $defense->id)
-            ->where('evaluator_id', (string) $faculty->id)
-            ->value('final_score')
-    )->toBe($expectedTotal);
+    $eval = PanelDefenseEvaluation::query()
+        ->where('panel_defense_id', (string) $defense->id)
+        ->where('evaluator_id', (string) $faculty->id)
+        ->first();
+    expect($eval)->not->toBeNull();
+    expect((int) $eval->final_score)->toBe($expectedTotal);
+    expect($eval->comments)->toBe('Adequate work; see chapter 3 for revisions.');
 
     $this->actingAs($faculty)
         ->get(route('faculty.evaluation.index'))
@@ -115,7 +122,8 @@ it('lets faculty on the panel list only their panel defenses and submit once', f
     $this->actingAs($faculty)
         ->from(route('faculty.evaluation.index'))
         ->post(route('faculty.evaluation.store', $defense), [
-            'scores' => evalScoresExample(1),
+            'scores' => evalScoresExample(1, $defense),
+            'comments' => 'Re-eval attempt.',
         ])
         ->assertSessionHasErrors('scores');
 });
@@ -126,7 +134,8 @@ it('forbids evaluation when the user is not on the panel', function () {
 
     $this->actingAs($faculty)
         ->post(route('faculty.evaluation.store', $defense), [
-            'scores' => evalScoresExample(2),
+            'scores' => evalScoresExample(2, $defense),
+            'comments' => 'Not on panel; should not get here.',
         ])
         ->assertForbidden();
 });
@@ -179,13 +188,17 @@ it('lets admin list all scheduled defenses and submit when on the panel', functi
             ->where('defenses.data.0.can_evaluate', true)
         );
 
-    $scores = evalScoresExample(0);
-    $firstId = (string) EvaluationCriterion::query()->orderBy('sort_order')->value('id');
+    $scores = evalScoresExample(0, $defense);
+    $firstId = (string) EvaluationCriterion::query()
+        ->where('evaluation_format_id', $defense->evaluation_format_id)
+        ->orderBy('sort_order')
+        ->value('id');
     $scores[$firstId] = 25;
 
     $this->actingAs($admin)
         ->post(route('admin.evaluation.store', $defense), [
             'scores' => $scores,
+            'comments' => 'Strong manuscript and defense.',
         ])
         ->assertRedirect(route('admin.evaluation.index'));
 
@@ -201,17 +214,32 @@ it('lets admin list all scheduled defenses and submit when on the panel', functi
         );
 });
 
+it('requires comments when submitting an evaluation', function () {
+    $faculty = makePanelEvalFaculty();
+    $defense = scheduledDefenseOnPanelFor($faculty);
+
+    $this->actingAs($faculty)
+        ->post(route('faculty.evaluation.store', $defense), [
+            'scores' => evalScoresExample(3, $defense),
+        ])
+        ->assertSessionHasErrors('comments');
+});
+
 it('rejects out of range criteria scores', function () {
     $faculty = makePanelEvalFaculty();
     $defense = scheduledDefenseOnPanelFor($faculty);
 
-    $scores = evalScoresExample(0);
-    $firstId = (string) EvaluationCriterion::query()->orderBy('sort_order')->value('id');
-    $scores[$firstId] = 26;
+    $scores = evalScoresExample(0, $defense);
+    $firstId = (string) EvaluationCriterion::query()
+        ->where('evaluation_format_id', $defense->evaluation_format_id)
+        ->orderBy('sort_order')
+        ->value('id');
+    $scores[$firstId] = 101;
 
     $this->actingAs($faculty)
         ->post(route('faculty.evaluation.store', $defense), [
             'scores' => $scores,
+            'comments' => 'Out of range test.',
         ])
         ->assertSessionHasErrors('scores.'.$firstId);
 });
@@ -226,7 +254,11 @@ it('allows admin to update any panel evaluation', function () {
         'evaluator_id' => (string) $panelist->id,
     ]);
 
-    $ids = EvaluationCriterion::query()->orderBy('sort_order')->pluck('id')->all();
+    $ids = EvaluationCriterion::query()
+        ->where('evaluation_format_id', $defense->evaluation_format_id)
+        ->orderBy('sort_order')
+        ->pluck('id')
+        ->all();
     $scores = [];
     foreach ($ids as $id) {
         $scores[(string) $id] = 0;
@@ -236,9 +268,57 @@ it('allows admin to update any panel evaluation', function () {
     $this->actingAs($admin)
         ->patch(route('admin.evaluation.update', $eval), [
             'scores' => $scores,
+            'comments' => 'Admin correction to submitted scores.',
         ])
         ->assertRedirect(route('admin.evaluation.index'));
 
     $eval->refresh();
-    expect($eval->final_score)->toBe(25);
+    // 25% weight, score 25 → 25*25/100 = 6.25 → 6
+    expect($eval->final_score)->toBe(6);
+});
+
+it('lets the faculty evaluator download a PDF when the format enables it', function () {
+    $faculty = makePanelEvalFaculty();
+    $defense = scheduledDefenseOnPanelFor($faculty);
+    $defense->evaluationFormat?->update([
+        'pdf_settings' => ['enabled' => true],
+    ]);
+    $scores = evalScoresExample(80, $defense);
+    $this->actingAs($faculty)
+        ->post(route('faculty.evaluation.store', $defense), [
+            'scores' => $scores,
+            'comments' => 'PDF test comment.',
+        ]);
+    $eval = PanelDefenseEvaluation::query()
+        ->where('panel_defense_id', (string) $defense->id)
+        ->where('evaluator_id', (string) $faculty->id)
+        ->first();
+    expect($eval)->not->toBeNull();
+
+    $this->actingAs($faculty)
+        ->get(route('faculty.evaluation.pdf', $eval))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
+it('returns 404 when PDF export is disabled for the format', function () {
+    $faculty = makePanelEvalFaculty();
+    $defense = scheduledDefenseOnPanelFor($faculty);
+    $defense->evaluationFormat?->update([
+        'pdf_settings' => ['enabled' => false],
+    ]);
+    $scores = evalScoresExample(80, $defense);
+    $this->actingAs($faculty)
+        ->post(route('faculty.evaluation.store', $defense), [
+            'scores' => $scores,
+            'comments' => 'No PDF.',
+        ]);
+    $eval = PanelDefenseEvaluation::query()
+        ->where('panel_defense_id', (string) $defense->id)
+        ->where('evaluator_id', (string) $faculty->id)
+        ->first();
+
+    $this->actingAs($faculty)
+        ->get(route('faculty.evaluation.pdf', $eval))
+        ->assertNotFound();
 });

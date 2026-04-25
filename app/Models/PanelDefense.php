@@ -14,13 +14,14 @@ class PanelDefense extends Model
     use HasFactory, HasUlids;
 
     public const DEFENSE_TYPES = [
-        'title' => 'Title Defense',
+        'title' => 'Title Evaluation',
         'outline' => 'Outline Defense',
         'final' => 'Final Defense',
     ];
 
     protected $fillable = [
         'research_paper_id',
+        'evaluation_format_id',
         'defense_type',
         'panel_members',
         'schedule',
@@ -36,6 +37,11 @@ class PanelDefense extends Model
     public function researchPaper(): BelongsTo
     {
         return $this->belongsTo(ResearchPaper::class);
+    }
+
+    public function evaluationFormat(): BelongsTo
+    {
+        return $this->belongsTo(EvaluationFormat::class, 'evaluation_format_id');
     }
 
     public function createdBy(): BelongsTo

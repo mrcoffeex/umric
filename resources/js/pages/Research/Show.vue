@@ -7,6 +7,7 @@ import StatusBadge from '@/components/StatusBadge.vue';
 import TrackingTimeline from '@/components/TrackingTimeline.vue';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { workflowFocusStepKey } from '@/lib/research-workflow-ui';
 import { edit, index, publicTracking } from '@/routes/papers';
 
 interface Author {
@@ -73,6 +74,13 @@ interface Paper {
     citations?: Citation[];
     files?: File[];
     tracking_records?: TrackingRecord[];
+    step_ric_review?: string | null;
+    step_outline_defense?: string | null;
+    step_data_gathering?: string | null;
+    step_rating?: string | null;
+    step_final_manuscript?: string | null;
+    step_final_defense?: string | null;
+    step_hard_bound?: string | null;
 }
 
 interface Props {
@@ -84,6 +92,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
+
 const sdgMap = computed(() =>
     Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
 );
@@ -102,6 +113,11 @@ defineOptions({
 
 const copied = ref(false);
 const qrModalOpen = ref(false);
+const previewingFileId = ref<string | null>(null);
+
+function togglePreview(fileId: string) {
+    previewingFileId.value = previewingFileId.value === fileId ? null : fileId;
+}
 
 const publicTrackingUrl = computed(
     () =>
@@ -270,7 +286,7 @@ const copyToClipboard = async (text: string) => {
                                 Submission Progress
                             </h2>
                             <TrackingTimeline
-                                :current-step="paper.current_step"
+                                :current-step="focusStepKey"
                                 :steps="steps"
                                 :step-labels="stepLabels"
                                 :tracking="paper.tracking_records || []"
@@ -295,55 +311,98 @@ const copyToClipboard = async (text: string) => {
                                 <div
                                     v-for="file in paper.files"
                                     :key="file.id"
-                                    class="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 transition hover:bg-muted"
+                                    class="overflow-hidden rounded-lg bg-muted/50 transition hover:bg-muted"
                                 >
-                                    <svg
-                                        class="h-8 w-8 shrink-0 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
+                                    <div
+                                        class="flex items-center gap-3 px-4 py-3"
                                     >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                                        />
-                                    </svg>
-                                    <div class="min-w-0 flex-1">
-                                        <p
-                                            class="truncate text-sm font-medium text-foreground"
+                                        <svg
+                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="1.5"
                                         >
-                                            {{ file.file_name }}
-                                        </p>
-                                        <p
-                                            class="text-xs text-muted-foreground"
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                            />
+                                        </svg>
+                                        <div class="min-w-0 flex-1">
+                                            <p
+                                                class="truncate text-sm font-medium text-foreground"
+                                            >
+                                                {{ file.file_name }}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    formatFileSize(
+                                                        file.file_size,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="flex shrink-0 items-center gap-2"
                                         >
-                                            {{ formatFileSize(file.file_size) }}
-                                        </p>
+                                            <button
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                type="button"
+                                                class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                                :aria-expanded="
+                                                    previewingFileId === file.id
+                                                "
+                                                :aria-controls="`file-preview-${file.id}`"
+                                                @click="togglePreview(file.id)"
+                                            >
+                                                {{
+                                                    previewingFileId === file.id
+                                                        ? 'Hide preview'
+                                                        : 'Preview'
+                                                }}
+                                            </button>
+                                            <a
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                :href="fileUrl(file)"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Open
+                                            </a>
+                                            <a
+                                                :href="fileUrl(file)"
+                                                download
+                                                class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Download
+                                            </a>
+                                        </div>
                                     </div>
                                     <div
-                                        class="flex shrink-0 items-center gap-2"
+                                        v-if="
+                                            file.file_type ===
+                                                'application/pdf' &&
+                                            previewingFileId === file.id
+                                        "
+                                        :id="`file-preview-${file.id}`"
+                                        class="border-t border-border bg-background"
                                     >
-                                        <a
-                                            v-if="
-                                                file.file_type ===
-                                                'application/pdf'
-                                            "
-                                            :href="fileUrl(file)"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Preview
-                                        </a>
-                                        <a
-                                            :href="fileUrl(file)"
-                                            download
-                                            class="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Download
-                                        </a>
+                                        <iframe
+                                            :src="fileUrl(file)"
+                                            :title="`Preview of ${file.file_name}`"
+                                            class="block h-[70vh] min-h-[420px] w-full"
+                                            loading="lazy"
+                                        />
                                     </div>
                                 </div>
                             </div>

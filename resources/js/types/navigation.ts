@@ -11,4 +11,6 @@ export type NavItem = {
     href: NonNullable<InertiaLinkProps['href']>;
     icon?: LucideIcon;
     isActive?: boolean;
+    /** e.g. pending incoming handoffs for the Handoffs link */
+    badgeCount?: number;
 };

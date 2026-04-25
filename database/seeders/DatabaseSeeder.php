@@ -325,22 +325,6 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        $timeline = $timeline->copy()->addDays(fake()->numberBetween(3, 10));
-        $plagiarismStatus = fake()->boolean(82) ? 'passed' : 'failed';
-        $this->applyAdminStep(
-            $paper,
-            $admin,
-            'plagiarism_check',
-            $plagiarismStatus,
-            $timeline,
-            'Plagiarism screening completed.',
-            plagiarismScore: fake()->randomFloat(2, 3, 28),
-        );
-
-        if ($plagiarismStatus !== 'passed') {
-            return;
-        }
-
         $timeline = $timeline->copy()->addDays(fake()->numberBetween(5, 14));
         $outlineStatus = fake()->boolean(74) ? 'passed' : 'pending';
         $outlineSchedule = $outlineStatus === 'passed'
@@ -359,6 +343,21 @@ class DatabaseSeeder extends Seeder
         );
 
         if ($outlineStatus !== 'passed') {
+            return;
+        }
+
+        $timeline = $timeline->copy()->addDays(fake()->numberBetween(3, 10));
+        $dataGatheringStatus = fake()->boolean(85) ? 'completed' : 'pending';
+        $this->applyAdminStep(
+            $paper,
+            $admin,
+            'data_gathering',
+            $dataGatheringStatus,
+            $timeline,
+            'Data gathering phase updated.',
+        );
+
+        if ($dataGatheringStatus !== 'completed') {
             return;
         }
 
@@ -441,7 +440,6 @@ class DatabaseSeeder extends Seeder
         ?string $notes = null,
         ?float $grade = null,
         ?CarbonInterface $schedule = null,
-        ?float $plagiarismScore = null,
     ): void {
         $oldStatus = null;
         $updateData = [];
@@ -453,31 +451,10 @@ class DatabaseSeeder extends Seeder
                 $updateData['step_ric_review'] = $status;
 
                 if ($status === 'approved') {
-                    $updateData['current_step'] = 'plagiarism_check';
-                    $updateData['step_plagiarism'] = 'pending';
-                } else {
-                    $updateData['current_step'] = 'ric_review';
-                }
-                break;
-
-            case 'plagiarism_check':
-                $oldStatus = $paper->step_plagiarism;
-                $updateData['step_plagiarism'] = $status;
-
-                if ($plagiarismScore !== null) {
-                    $updateData['plagiarism_score'] = $plagiarismScore;
-                    $metadata['plagiarism_score'] = $plagiarismScore;
-                }
-
-                if ($status === 'failed') {
-                    $updateData['plagiarism_attempts'] = $paper->plagiarism_attempts + 1;
-                    $metadata['attempt'] = $updateData['plagiarism_attempts'];
-                    $updateData['current_step'] = 'plagiarism_check';
-                }
-
-                if ($status === 'passed') {
                     $updateData['current_step'] = 'outline_defense';
                     $updateData['step_outline_defense'] = 'pending';
+                } else {
+                    $updateData['current_step'] = 'ric_review';
                 }
                 break;
 
@@ -491,10 +468,22 @@ class DatabaseSeeder extends Seeder
                 }
 
                 if ($status === 'passed') {
+                    $updateData['current_step'] = 'data_gathering';
+                    $updateData['step_data_gathering'] = 'pending';
+                } else {
+                    $updateData['current_step'] = 'outline_defense';
+                }
+                break;
+
+            case 'data_gathering':
+                $oldStatus = $paper->step_data_gathering;
+                $updateData['step_data_gathering'] = $status;
+
+                if ($status === 'completed') {
                     $updateData['current_step'] = 'rating';
                     $updateData['step_rating'] = 'pending';
                 } else {
-                    $updateData['current_step'] = 'outline_defense';
+                    $updateData['current_step'] = 'data_gathering';
                 }
                 break;
 
@@ -653,8 +642,7 @@ class DatabaseSeeder extends Seeder
     {
         return match ($step) {
             'title_proposal', 'ric_review' => 'submitted',
-            'plagiarism_check' => 'under_review',
-            'outline_defense', 'rating', 'final_manuscript' => 'approved',
+            'outline_defense', 'data_gathering', 'rating', 'final_manuscript' => 'approved',
             'final_defense', 'hard_bound' => 'presented',
             'completed' => 'published',
             default => 'submitted',

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import {
-    AlertTriangle,
     BookCheck,
     CalendarClock,
     Check,
@@ -29,6 +28,13 @@ import FormSelect from '@/components/FormSelect.vue';
 import MultiSelect from '@/components/MultiSelect.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/composables/useConfirm';
+import {
+    firstPendingWorkflowStepIndex,
+    isWorkflowStepSatisfied,
+    workflowFocusStepKey,
+    workflowProgressPercent,
+} from '@/lib/research-workflow-ui';
+import type { WorkflowStepKey } from '@/lib/research-workflow-ui';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import {
     index as researchIndex,
@@ -63,6 +69,13 @@ interface PanelDefenseRecord {
     panel_members: string[];
     schedule: string | null;
     notes: string | null;
+    evaluations_count: number;
+    can_edit: boolean;
+    evaluation_format: {
+        id: string;
+        name: string;
+        evaluation_type?: 'scoring' | 'checklist';
+    } | null;
     created_by: { id: string; name: string } | null;
     created_at: string;
 }
@@ -93,11 +106,9 @@ interface Paper {
     proponents?: string[] | Array<{ id: string; name: string }> | string | null;
     user_id?: number | null;
     step_ric_review?: string | null;
-    step_plagiarism?: string | null;
-    plagiarism_attempts?: number | null;
-    plagiarism_score?: number | null;
     step_outline_defense?: string | null;
     outline_defense_schedule?: string | null;
+    step_data_gathering?: string | null;
     step_rating?: string | null;
     grade?: number | null;
     step_final_manuscript?: string | null;
@@ -122,6 +133,14 @@ interface Props {
     staffUsers: Array<{ id: string; name: string }>;
     comments?: Comment[];
     panelDefenses?: PanelDefenseRecord[];
+    evaluationFormatOptions?: Array<{
+        id: string;
+        name: string;
+        evaluation_type: 'scoring' | 'checklist';
+        is_ready: boolean;
+        total_max: number;
+    }>;
+    default_panel_evaluation_format_id?: string | null;
     panelScheduleTimeOptions?: Array<{ value: string; label: string }>;
 }
 
@@ -136,24 +155,23 @@ const agendaMap = computed(() =>
 
 const copied = ref(false);
 const qrModalOpen = ref(false);
+const previewingFileId = ref<string | null>(null);
+
+function togglePreview(fileId: string) {
+    previewingFileId.value = previewingFileId.value === fileId ? null : fileId;
+}
 
 const trackingUrl = computed(() => {
     return `${window.location.origin}/track/${props.paper.tracking_id}`;
 });
 
-const currentStepIndex = computed(() => {
-    return props.steps.indexOf(props.paper.current_step);
-});
+const workflowFocusIndex = computed(() =>
+    firstPendingWorkflowStepIndex(props.paper),
+);
 
-const completedSteps = computed(() => currentStepIndex.value);
+const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
 
-const progressPercent = computed(() => {
-    if (props.steps.length <= 1) {
-        return 0;
-    }
-
-    return Math.round((completedSteps.value / (props.steps.length - 1)) * 100);
-});
+const progressPercent = computed(() => workflowProgressPercent(props.paper));
 
 const proponents = computed(() => {
     if (!props.paper.proponents) {
@@ -199,16 +217,9 @@ const stepDetails = computed(() => {
             statusType: statusType(
                 p.step_ric_review,
                 ['approved'],
-                ['rejected'],
+                ['rejected', 'returned'],
             ),
             info: null,
-        },
-        {
-            key: 'plagiarism_check',
-            icon: FileSearch,
-            status: statusLabel(p.step_plagiarism),
-            statusType: statusType(p.step_plagiarism, ['passed'], ['failed']),
-            info: `Attempts: ${p.plagiarism_attempts ?? 0} / 3${p.plagiarism_score != null ? ` · Score: ${p.plagiarism_score}%` : ''}`,
         },
         {
             key: 'outline_defense',
@@ -222,6 +233,13 @@ const stepDetails = computed(() => {
             info: p.outline_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.outline_defense_schedule)}`
                 : null,
+        },
+        {
+            key: 'data_gathering',
+            icon: FileSearch,
+            status: statusLabel(p.step_data_gathering),
+            statusType: statusType(p.step_data_gathering, ['completed'], []),
+            info: null,
         },
         {
             key: 'rating',
@@ -290,25 +308,13 @@ const stepStatusOptions: Record<
             color: 'bg-teal-500 text-white hover:bg-teal-600',
         },
         {
+            value: 'returned',
+            label: 'Return to student',
+            color: 'bg-amber-600 text-white hover:bg-amber-700',
+        },
+        {
             value: 'rejected',
             label: 'Rejected',
-            color: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        },
-    ],
-    plagiarism_check: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'passed',
-            label: 'Passed',
-            color: 'bg-teal-500 text-white hover:bg-teal-600',
-        },
-        {
-            value: 'failed',
-            label: 'Failed',
             color: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         },
     ],
@@ -327,6 +333,18 @@ const stepStatusOptions: Record<
             value: 're_defense',
             label: 'Re-Defense',
             color: 'bg-amber-500 text-white hover:bg-amber-600',
+        },
+    ],
+    data_gathering: [
+        {
+            value: 'pending',
+            label: 'Pending',
+            color: 'bg-muted text-foreground',
+        },
+        {
+            value: 'completed',
+            label: 'Completed',
+            color: 'bg-violet-600 text-white hover:bg-violet-700',
         },
     ],
     rating: [
@@ -403,7 +421,6 @@ const stepForm = useForm({
     status: '',
     notes: '',
     grade: '',
-    plagiarism_score: '',
 });
 
 const assignmentForm = useForm({
@@ -417,8 +434,12 @@ const { confirm } = useConfirm();
 
 const page = usePage();
 
+const editingPanelDefenseId = ref<string | null>(null);
+
 const panelForm = useForm({
     defense_type: 'title' as 'title' | 'outline' | 'final',
+    evaluation_format_id:
+        props.default_panel_evaluation_format_id ?? ('' as string),
     panel_member_ids: [] as string[],
     schedule_date: '',
     schedule_time: '',
@@ -427,6 +448,77 @@ const panelForm = useForm({
     /** Placeholder so Inertia maps `schedule_conflict` validation errors onto the form. */
     schedule_conflict: '',
 });
+
+function normalizeName(s: string): string {
+    return s.trim().toLowerCase();
+}
+
+function panelMemberNamesToIds(names: string[]): string[] {
+    const seen = new Set<string>();
+    const out: string[] = [];
+
+    for (const name of names) {
+        const u = props.facultyUsers.find(
+            (f) => normalizeName(f.name) === normalizeName(name),
+        );
+
+        if (u && !seen.has(u.id)) {
+            seen.add(u.id);
+            out.push(u.id);
+        }
+    }
+
+    return out;
+}
+
+/** Parse DB `toDateTimeString()` into date + time-slot value (H:i). */
+function parsePanelScheduleForForm(schedule: string | null): {
+    schedule_date: string;
+    schedule_time: string;
+} {
+    if (!schedule?.trim()) {
+        return { schedule_date: '', schedule_time: '' };
+    }
+
+    const m = schedule.trim().match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/);
+
+    if (!m) {
+        return { schedule_date: '', schedule_time: '' };
+    }
+
+    return { schedule_date: m[1], schedule_time: `${m[2]}:${m[3]}` };
+}
+
+function resetPanelFormForAdd(): void {
+    editingPanelDefenseId.value = null;
+    panelForm.reset();
+    panelForm.defense_type = 'title';
+    panelForm.evaluation_format_id =
+        props.default_panel_evaluation_format_id ?? '';
+    panelForm.acknowledge_schedule_conflict = false;
+    panelForm.clearErrors();
+}
+
+function startEditPanel(pd: PanelDefenseRecord): void {
+    if (!pd.can_edit) {
+        return;
+    }
+
+    editingPanelDefenseId.value = pd.id;
+    panelForm.clearErrors();
+    panelForm.acknowledge_schedule_conflict = false;
+    panelForm.defense_type = pd.defense_type;
+    panelForm.evaluation_format_id = pd.evaluation_format?.id ?? '';
+    panelForm.panel_member_ids = panelMemberNamesToIds(pd.panel_members);
+    const parsed = parsePanelScheduleForForm(pd.schedule);
+    panelForm.schedule_date = parsed.schedule_date;
+    panelForm.schedule_time = parsed.schedule_time;
+    panelForm.notes = pd.notes ?? '';
+}
+
+function cancelEditPanel(): void {
+    resetPanelFormForAdd();
+}
 
 const facultyOptions = computed(() =>
     props.facultyUsers.map((u) => ({ value: u.id, label: u.name })),
@@ -437,7 +529,8 @@ function panelServerError(
         | 'panel_members'
         | 'schedule_conflict'
         | 'schedule_date'
-        | 'schedule_time',
+        | 'schedule_time'
+        | 'evaluation_format_id',
 ): string | undefined {
     return (panelForm.errors as Record<string, string | undefined>)[key];
 }
@@ -459,71 +552,108 @@ function firstScheduleConflictError(
     return err;
 }
 
+function formatEvaluationFormatOptionLabel(
+    opt: NonNullable<Props['evaluationFormatOptions']>[number],
+): string {
+    if (opt.evaluation_type === 'checklist') {
+        if (opt.is_ready) {
+            return `${opt.name} (Checklist · ${opt.total_max} item${
+                opt.total_max === 1 ? '' : 's'
+            })`;
+        }
+
+        return `${opt.name} (Checklist — add items — not ready)`;
+    }
+
+    if (opt.is_ready) {
+        return `${opt.name} (Scoring · ${opt.total_max}/100)`;
+    }
+
+    return `${opt.name} (Scoring — weights ${opt.total_max}/100 — not ready)`;
+}
+
 function submitPanelDefense(): void {
-    panelForm
-        .transform((data) => ({
-            defense_type: data.defense_type,
-            panel_members: data.panel_member_ids.map(
-                (id) =>
-                    props.facultyUsers.find((u) => u.id === id)?.name ??
-                    String(id),
-            ),
-            schedule_date: data.schedule_date,
-            schedule_time: data.schedule_time,
-            notes: data.notes || null,
-            acknowledge_schedule_conflict: data.acknowledge_schedule_conflict
-                ? true
-                : undefined,
-        }))
-        .post(panelDefensesRoutes.store.url({ paper: props.paper.id }), {
-            preserveScroll: true,
-            onSuccess: () => {
-                panelForm.reset();
-                panelForm.defense_type = 'title';
-            },
-            onError: (errors) => {
-                const fromVisit = errors as Record<
-                    string,
-                    string | string[] | undefined
-                >;
-                const fromPage = (page.props.errors ?? {}) as Record<
-                    string,
-                    string | string[] | undefined
-                >;
-                const raw =
-                    fromVisit.schedule_conflict ?? fromPage.schedule_conflict;
+    const isEdit = editingPanelDefenseId.value !== null;
+    const url = isEdit
+        ? panelDefensesRoutes.update.url({
+              paper: props.paper.id,
+              panelDefense: editingPanelDefenseId.value!,
+          })
+        : panelDefensesRoutes.store.url({ paper: props.paper.id });
 
-                if (raw === undefined || raw === null || raw === '') {
-                    return;
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            resetPanelFormForAdd();
+        },
+        onError: (errors: unknown) => {
+            const fromVisit = errors as Record<
+                string,
+                string | string[] | undefined
+            >;
+            const fromPage = (page.props.errors ?? {}) as Record<
+                string,
+                string | string[] | undefined
+            >;
+            const raw =
+                fromVisit.schedule_conflict ?? fromPage.schedule_conflict;
+
+            if (raw === undefined || raw === null || raw === '') {
+                return;
+            }
+
+            void (async () => {
+                const ok = await confirm(
+                    firstScheduleConflictError(
+                        Array.isArray(raw) ? raw[0] : raw,
+                    ),
+                    {
+                        title: 'Schedule time already in use',
+                        confirmLabel: isEdit ? 'Save anyway' : 'Add anyway',
+                        cancelLabel: 'Change schedule',
+                        destructive: false,
+                    },
+                );
+
+                panelForm.clearErrors();
+
+                if (ok) {
+                    panelForm.acknowledge_schedule_conflict = true;
+                    submitPanelDefense();
+                } else {
+                    panelForm.acknowledge_schedule_conflict = false;
                 }
+            })();
+        },
+    };
 
-                void (async () => {
-                    const ok = await confirm(
-                        firstScheduleConflictError(
-                            Array.isArray(raw) ? raw[0] : raw,
-                        ),
-                        {
-                            title: 'Schedule time already in use',
-                            confirmLabel: 'Add anyway',
-                            cancelLabel: 'Change schedule',
-                            destructive: false,
-                        },
-                    );
+    const chain = panelForm.transform((data) => ({
+        defense_type: data.defense_type,
+        evaluation_format_id: data.evaluation_format_id,
+        panel_members: data.panel_member_ids.map(
+            (id) =>
+                props.facultyUsers.find((u) => u.id === id)?.name ?? String(id),
+        ),
+        schedule_date: data.schedule_date,
+        schedule_time: data.schedule_time,
+        notes: data.notes || null,
+        acknowledge_schedule_conflict: data.acknowledge_schedule_conflict
+            ? true
+            : undefined,
+    }));
 
-                    panelForm.clearErrors();
-
-                    if (ok) {
-                        panelForm.acknowledge_schedule_conflict = true;
-                        submitPanelDefense();
-                    } else {
-                        panelForm.acknowledge_schedule_conflict = false;
-                    }
-                })();
-            },
-        });
+    if (isEdit) {
+        chain.patch(url, options);
+    } else {
+        chain.post(url, options);
+    }
 }
 
 async function deletePanelDefense(pd: PanelDefenseRecord): Promise<void> {
+    if (!pd.can_edit) {
+        return;
+    }
+
     const ok = await confirm(
         `Remove the ${pd.defense_type_label} panel defense record?`,
         { title: 'Delete Panel Defense', confirmLabel: 'Delete' },
@@ -678,14 +808,14 @@ function stepLabel(step: string): string {
     return props.stepLabels[step] ?? step;
 }
 
-function isCompletedStep(idx: number): boolean {
-    return currentStepIndex.value > idx;
+function isCompletedStepForKey(key: string): boolean {
+    return isWorkflowStepSatisfied(props.paper, key as WorkflowStepKey);
 }
 function isCurrentStep(idx: number): boolean {
-    return currentStepIndex.value === idx;
+    return idx === workflowFocusIndex.value;
 }
 function isFutureStep(idx: number): boolean {
-    return currentStepIndex.value < idx;
+    return idx > workflowFocusIndex.value;
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -742,10 +872,7 @@ defineOptions({
                         <span
                             class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
                         >
-                            {{
-                                paper.step_label ??
-                                stepLabel(paper.current_step)
-                            }}
+                            {{ stepLabel(focusStepKey) }}
                         </span>
                         <span class="text-xs text-muted-foreground"
                             >{{ progressPercent }}% complete</span
@@ -882,7 +1009,9 @@ defineOptions({
                                             ? 'border-orange-400 ring-2 ring-orange-200 dark:border-orange-600 dark:ring-orange-900/40'
                                             : isCurrentStep(idx)
                                               ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
-                                              : isCompletedStep(idx)
+                                              : isCompletedStepForKey(
+                                                      detail.key,
+                                                  )
                                                 ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
                                                 : 'border-border bg-card',
                                     ]"
@@ -899,7 +1028,9 @@ defineOptions({
                                         <div
                                             :class="[
                                                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                                                isCompletedStep(idx)
+                                                isCompletedStepForKey(
+                                                    detail.key,
+                                                )
                                                     ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
                                                     : isCurrentStep(idx)
                                                       ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
@@ -907,7 +1038,11 @@ defineOptions({
                                             ]"
                                         >
                                             <Check
-                                                v-if="isCompletedStep(idx)"
+                                                v-if="
+                                                    isCompletedStepForKey(
+                                                        detail.key,
+                                                    )
+                                                "
                                                 class="h-4 w-4"
                                             />
                                             <component
@@ -1009,42 +1144,6 @@ defineOptions({
                                                     class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                                                     placeholder="Optional notes for tracking record..."
                                                 />
-                                            </div>
-
-                                            <!-- Plagiarism-specific: score -->
-                                            <div
-                                                v-if="
-                                                    detail.key ===
-                                                    'plagiarism_check'
-                                                "
-                                                class="grid gap-3 md:grid-cols-2"
-                                            >
-                                                <div>
-                                                    <label
-                                                        class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                                        >Plagiarism Score</label
-                                                    >
-                                                    <input
-                                                        v-model="
-                                                            stepForm.plagiarism_score
-                                                        "
-                                                        type="number"
-                                                        min="0"
-                                                        max="100"
-                                                        step="0.01"
-                                                        class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                                                    />
-                                                </div>
-                                                <div
-                                                    class="flex items-center rounded-xl border border-border bg-muted px-3 py-2 text-xs font-semibold text-foreground"
-                                                >
-                                                    Attempts:
-                                                    {{
-                                                        paper.plagiarism_attempts ??
-                                                        0
-                                                    }}
-                                                    / 3
-                                                </div>
                                             </div>
 
                                             <!-- Grade (rating) -->
@@ -1354,55 +1453,98 @@ defineOptions({
                                 <div
                                     v-for="file in paper.files"
                                     :key="file.id"
-                                    class="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3 transition hover:bg-muted"
+                                    class="overflow-hidden rounded-xl bg-muted/50 transition hover:bg-muted"
                                 >
-                                    <svg
-                                        class="h-8 w-8 shrink-0 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
+                                    <div
+                                        class="flex items-center gap-3 px-4 py-3"
                                     >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                                        />
-                                    </svg>
-                                    <div class="min-w-0 flex-1">
-                                        <p
-                                            class="truncate text-sm font-medium text-foreground"
+                                        <svg
+                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="1.5"
                                         >
-                                            {{ file.file_name }}
-                                        </p>
-                                        <p
-                                            class="text-xs text-muted-foreground"
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                            />
+                                        </svg>
+                                        <div class="min-w-0 flex-1">
+                                            <p
+                                                class="truncate text-sm font-medium text-foreground"
+                                            >
+                                                {{ file.file_name }}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    formatFileSize(
+                                                        file.file_size,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="flex shrink-0 items-center gap-2"
                                         >
-                                            {{ formatFileSize(file.file_size) }}
-                                        </p>
+                                            <button
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                type="button"
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                                :aria-expanded="
+                                                    previewingFileId === file.id
+                                                "
+                                                :aria-controls="`file-preview-${file.id}`"
+                                                @click="togglePreview(file.id)"
+                                            >
+                                                {{
+                                                    previewingFileId === file.id
+                                                        ? 'Hide preview'
+                                                        : 'Preview'
+                                                }}
+                                            </button>
+                                            <a
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                :href="fileUrl(file)"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Open
+                                            </a>
+                                            <a
+                                                :href="fileUrl(file)"
+                                                download
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Download
+                                            </a>
+                                        </div>
                                     </div>
                                     <div
-                                        class="flex shrink-0 items-center gap-2"
+                                        v-if="
+                                            file.file_type ===
+                                                'application/pdf' &&
+                                            previewingFileId === file.id
+                                        "
+                                        :id="`file-preview-${file.id}`"
+                                        class="border-t border-border bg-background"
                                     >
-                                        <a
-                                            v-if="
-                                                file.file_type ===
-                                                'application/pdf'
-                                            "
-                                            :href="fileUrl(file)"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Preview
-                                        </a>
-                                        <a
-                                            :href="fileUrl(file)"
-                                            download
-                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Download
-                                        </a>
+                                        <iframe
+                                            :src="fileUrl(file)"
+                                            :title="`Preview of ${file.file_name}`"
+                                            class="block h-[70vh] min-h-[420px] w-full"
+                                            loading="lazy"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -1431,15 +1573,6 @@ defineOptions({
                             >
                                 {{ (panelDefenses ?? []).length }}
                             </span>
-                        </TabsTrigger>
-                        <TabsTrigger
-                            v-if="
-                                paper.current_step === 'plagiarism_check' &&
-                                (paper.plagiarism_attempts ?? 0) >= 2
-                            "
-                            value="alert"
-                        >
-                            Alert
                         </TabsTrigger>
                     </TabsList>
 
@@ -1523,14 +1656,18 @@ defineOptions({
                                 </span>
                             </div>
 
-                            <!-- Add Panel Form -->
+                            <!-- Add / edit panel form -->
                             <div
                                 class="mb-5 rounded-xl border border-border bg-muted/30 p-4"
                             >
                                 <p
                                     class="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
                                 >
-                                    Add Panel Defense Record
+                                    {{
+                                        editingPanelDefenseId
+                                            ? 'Edit panel defense'
+                                            : 'Add panel defense record'
+                                    }}
                                 </p>
                                 <div class="space-y-3">
                                     <div>
@@ -1542,7 +1679,7 @@ defineOptions({
                                             v-model="panelForm.defense_type"
                                         >
                                             <option value="title">
-                                                Title Defense
+                                                Title Evaluation
                                             </option>
                                             <option value="outline">
                                                 Outline Defense
@@ -1551,6 +1688,49 @@ defineOptions({
                                                 Final Defense
                                             </option>
                                         </FormSelect>
+                                    </div>
+                                    <div>
+                                        <label
+                                            class="mb-1.5 block text-xs font-semibold text-muted-foreground"
+                                            >Evaluation format</label
+                                        >
+                                        <FormSelect
+                                            v-model="
+                                                panelForm.evaluation_format_id
+                                            "
+                                            required
+                                        >
+                                            <option disabled value="">
+                                                Select a rubric…
+                                            </option>
+                                            <option
+                                                v-for="opt in evaluationFormatOptions ??
+                                                []"
+                                                :key="opt.id"
+                                                :value="opt.id"
+                                                :disabled="!opt.is_ready"
+                                            >
+                                                {{
+                                                    formatEvaluationFormatOptionLabel(
+                                                        opt,
+                                                    )
+                                                }}
+                                            </option>
+                                        </FormSelect>
+                                        <p
+                                            v-if="
+                                                panelServerError(
+                                                    'evaluation_format_id',
+                                                )
+                                            "
+                                            class="mt-1 text-xs text-destructive"
+                                        >
+                                            {{
+                                                panelServerError(
+                                                    'evaluation_format_id',
+                                                )
+                                            }}
+                                        </p>
                                     </div>
                                     <div>
                                         <label
@@ -1654,12 +1834,23 @@ defineOptions({
                                             placeholder="Any remarks…"
                                         />
                                     </div>
-                                    <div class="flex justify-end">
+                                    <div
+                                        class="flex flex-wrap justify-end gap-2"
+                                    >
+                                        <button
+                                            v-if="editingPanelDefenseId"
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:bg-muted"
+                                            @click="cancelEditPanel"
+                                        >
+                                            Cancel edit
+                                        </button>
                                         <button
                                             type="button"
                                             :disabled="
                                                 !panelForm.panel_member_ids
                                                     .length ||
+                                                !panelForm.evaluation_format_id ||
                                                 !panelForm.schedule_date ||
                                                 !panelForm.schedule_time ||
                                                 panelForm.processing
@@ -1667,8 +1858,12 @@ defineOptions({
                                             class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-600 disabled:opacity-50"
                                             @click="submitPanelDefense"
                                         >
-                                            <Check class="h-3.5 w-3.5" /> Save
-                                            Record
+                                            <Check class="h-3.5 w-3.5" />
+                                            {{
+                                                editingPanelDefenseId
+                                                    ? 'Update record'
+                                                    : 'Save record'
+                                            }}
                                         </button>
                                     </div>
                                 </div>
@@ -1714,14 +1909,50 @@ defineOptions({
                                                 }}
                                             </span>
                                         </div>
-                                        <button
-                                            type="button"
-                                            class="shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-                                            @click="deletePanelDefense(pd)"
+                                        <div
+                                            class="flex shrink-0 items-center gap-0.5"
                                         >
-                                            <X class="h-3.5 w-3.5" />
-                                        </button>
+                                            <button
+                                                v-if="pd.can_edit"
+                                                type="button"
+                                                class="rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                                title="Edit"
+                                                @click="startEditPanel(pd)"
+                                            >
+                                                <Pencil class="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                v-if="pd.can_edit"
+                                                type="button"
+                                                class="rounded-lg p-1 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                                                title="Delete"
+                                                @click="deletePanelDefense(pd)"
+                                            >
+                                                <X class="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
+                                    <p
+                                        v-if="pd.evaluation_format"
+                                        class="mt-1.5 text-xs text-muted-foreground"
+                                    >
+                                        Rubric:
+                                        <span
+                                            class="font-medium text-foreground"
+                                            >{{ pd.evaluation_format.name
+                                            }}{{
+                                                pd.evaluation_format
+                                                    .evaluation_type ===
+                                                'checklist'
+                                                    ? ' · Checklist'
+                                                    : pd.evaluation_format
+                                                            .evaluation_type ===
+                                                        'scoring'
+                                                      ? ' · Scoring'
+                                                      : ''
+                                            }}</span
+                                        >
+                                    </p>
                                     <div class="mt-2 flex flex-wrap gap-1.5">
                                         <span
                                             v-for="member in pd.panel_members"
@@ -1743,6 +1974,17 @@ defineOptions({
                                         Added by
                                         {{ pd.created_by?.name ?? 'System' }} ·
                                         {{ timeAgo(pd.created_at) }}
+                                        <span
+                                            v-if="
+                                                !pd.can_edit &&
+                                                pd.evaluations_count > 0
+                                            "
+                                            class="mt-1 block text-amber-700 dark:text-amber-400"
+                                        >
+                                            Locked: {{ pd.evaluations_count }}
+                                            evaluation(s) on file — edit and
+                                            delete are disabled.
+                                        </span>
                                     </p>
                                 </div>
                             </div>
@@ -1997,51 +2239,6 @@ defineOptions({
                                                 paper.final_defense_schedule,
                                             )
                                         }}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-                    </TabsContent>
-
-                    <TabsContent
-                        v-if="
-                            paper.current_step === 'plagiarism_check' &&
-                            (paper.plagiarism_attempts ?? 0) >= 2
-                        "
-                        value="alert"
-                        class="mt-0"
-                    >
-                        <section
-                            id="research-show-plagiarism"
-                            class="scroll-mt-24 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/20"
-                        >
-                            <div class="flex items-start gap-3">
-                                <AlertTriangle
-                                    class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
-                                />
-                                <div>
-                                    <p
-                                        class="text-sm font-bold text-amber-700 dark:text-amber-300"
-                                    >
-                                        Plagiarism Check Warning
-                                    </p>
-                                    <p
-                                        class="mt-1 text-xs text-amber-600 dark:text-amber-400"
-                                    >
-                                        Student has used
-                                        {{ paper.plagiarism_attempts }} of 3
-                                        attempts.
-                                        <template
-                                            v-if="
-                                                (paper.plagiarism_attempts ??
-                                                    0) >= 3
-                                            "
-                                            >No more attempts
-                                            remaining.</template
-                                        >
-                                        <template v-else
-                                            >1 attempt remaining.</template
-                                        >
                                     </p>
                                 </div>
                             </div>

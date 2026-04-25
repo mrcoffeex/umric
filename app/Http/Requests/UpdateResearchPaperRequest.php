@@ -35,7 +35,7 @@ class UpdateResearchPaperRequest extends FormRequest
             'proponents' => ['nullable', 'array'],
             'proponents.*.id' => ['nullable', 'integer'],
             'proponents.*.name' => ['nullable', 'string', 'max:255'],
-            'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:'.config('uploads.max_size_kb')],
+            'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
         ];
     }
 

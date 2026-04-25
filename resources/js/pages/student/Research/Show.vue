@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { Head, Link, setLayoutProps, usePage } from '@inertiajs/vue3';
+import { Head, Link, setLayoutProps, useForm, usePage } from '@inertiajs/vue3';
 import {
-    AlertTriangle,
     BookCheck,
     Check,
     MessageSquare,
@@ -14,6 +13,7 @@ import {
     Maximize2,
     Pencil,
     ScrollText,
+    Paperclip,
     Send,
     Shield,
     Trophy,
@@ -23,6 +23,13 @@ import {
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    firstPendingWorkflowStepIndex,
+    isWorkflowStepSatisfied,
+    workflowProgressPercent,
+    workflowFocusStepKey,
+} from '@/lib/research-workflow-ui';
+import type { WorkflowStepKey } from '@/lib/research-workflow-ui';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import student from '@/routes/student';
 
@@ -42,8 +49,10 @@ interface PaperFile {
     file_path: string;
     file_type: string;
     file_size: number;
+    file_category?: string | null;
     disk: string;
     url?: string | null;
+    created_at?: string;
 }
 
 interface Paper {
@@ -61,11 +70,9 @@ interface Paper {
     agenda_ids?: string[] | null;
     proponents?: string[] | Array<{ id: string; name: string }> | string | null;
     step_ric_review?: string | null;
-    step_plagiarism?: string | null;
-    plagiarism_attempts?: number | null;
-    plagiarism_score?: number | null;
     step_outline_defense?: string | null;
     outline_defense_schedule?: string | null;
+    step_data_gathering?: string | null;
     step_rating?: string | null;
     grade?: number | null;
     step_final_manuscript?: string | null;
@@ -79,8 +86,22 @@ interface Paper {
     files?: PaperFile[] | null;
 }
 
+interface DefenseDocumentUpload {
+    mayManage: boolean;
+    ricReturned: boolean;
+    outline: boolean;
+    final: boolean;
+    /** True once a student-submitted file already exists for the matching defense type. */
+    outlineUploaded: boolean;
+    finalUploaded: boolean;
+}
+
 interface Props {
     paper: Paper;
+    /** Absolute public tracking link (Laravel `url()`); used instead of `window` for SSR. */
+    trackingPublicUrl?: string;
+    /** Mirrors ResearchPaper::mayStudentUploadDefenseDocument (RIC returned, or matching defense step). */
+    defenseDocumentUpload?: DefenseDocumentUpload;
     trackingLog?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
@@ -111,9 +132,18 @@ interface PanelDefenseRecord {
 const props = defineProps<Props>();
 
 const page = usePage();
-const authUserId = computed(
-    () => (page.props.auth as { user: { id: string } }).user.id,
-);
+const authUserId = computed(() => {
+    const auth = page.props.auth as
+        | { user?: { id?: string | number } }
+        | undefined;
+    const id = auth?.user?.id;
+
+    if (id == null) {
+        return '';
+    }
+
+    return String(id);
+});
 const canEdit = computed(() => {
     if (props.paper.current_step !== 'title_proposal') {
         return false;
@@ -134,6 +164,122 @@ const canEdit = computed(() => {
     );
 });
 
+/** Set on the server (same rules as the upload endpoint) so the UI can’t get out of sync. */
+const defenseUpload = computed((): DefenseDocumentUpload => {
+    return (
+        props.defenseDocumentUpload ?? {
+            mayManage: false,
+            ricReturned: false,
+            outline: false,
+            final: false,
+            outlineUploaded: false,
+            finalUploaded: false,
+        }
+    );
+});
+
+/** Whether the outline-defense upload window is currently open (status-wise). */
+const outlineWindowActive = computed(
+    () =>
+        defenseUpload.value.ricReturned ||
+        props.paper.current_step === 'outline_defense',
+);
+
+/** Whether the final-defense upload window is currently open (status-wise). */
+const finalWindowActive = computed(
+    () =>
+        defenseUpload.value.ricReturned ||
+        props.paper.current_step === 'final_defense',
+);
+
+/**
+ * Defense file uploads live in the Files tab, never on the read-only Step details rows.
+ * Visible whenever a defense window is active, whether the slot is still open or already used —
+ * the latter shows a “Submitted” acknowledgement so the student isn’t left wondering.
+ */
+const showDefenseUploadBanner = computed(
+    () =>
+        defenseUpload.value.mayManage &&
+        (outlineWindowActive.value || finalWindowActive.value),
+);
+
+/** Files tab is visible if there are existing files OR the upload is currently allowed. */
+const filesTabVisible = computed(
+    () =>
+        Boolean((props.paper.files ?? []).length) ||
+        showDefenseUploadBanner.value,
+);
+
+/** Reason chip shown next to the upload area so the student knows why it’s open. */
+const defenseUploadReason = computed(() => {
+    if (defenseUpload.value.ricReturned) {
+        return 'RIC review returned';
+    }
+
+    if (props.paper.current_step === 'outline_defense') {
+        return 'Outline defense step';
+    }
+
+    if (props.paper.current_step === 'final_defense') {
+        return 'Final defense step';
+    }
+
+    return 'Defense documents';
+});
+
+const hasPanelDefenses = computed(() => (props.panelDefenses ?? []).length > 0);
+
+const rightSidebarDefaultTab = computed(() =>
+    hasPanelDefenses.value ? 'panels' : 'paper',
+);
+
+const defenseDocForm = useForm<{
+    defense: 'outline' | 'final';
+    file: File | null;
+}>({
+    defense: 'outline',
+    file: null,
+});
+
+function uploadDefenseFile(which: 'outline' | 'final', e: Event): void {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+        return;
+    }
+
+    defenseDocForm.clearErrors();
+    defenseDocForm.defense = which;
+    defenseDocForm.file = file;
+    defenseDocForm.post(
+        student.research.defenseDocuments.store.url({ paper: props.paper.id }),
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                input.value = '';
+            },
+        },
+    );
+}
+
+function fileCategoryLabel(category?: string | null): string {
+    if (!category || category === 'paper') {
+        return 'Title proposal document';
+    }
+
+    if (category === 'outline_defense') {
+        return 'Research document — outline defense';
+    }
+
+    if (category === 'final_defense') {
+        return 'Research document — final defense';
+    }
+
+    return category.replace(/_/g, ' ');
+}
+
 const sdgMap = computed(() =>
     Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
 );
@@ -143,24 +289,32 @@ const agendaMap = computed(() =>
 
 const copied = ref(false);
 const qrModalOpen = ref(false);
+const previewingFileId = ref<string | null>(null);
+
+function togglePreview(fileId: string) {
+    previewingFileId.value = previewingFileId.value === fileId ? null : fileId;
+}
 
 const trackingUrl = computed(() => {
+    if (props.trackingPublicUrl) {
+        return props.trackingPublicUrl;
+    }
+
+    if (typeof window === 'undefined') {
+        return '';
+    }
+
     return `${window.location.origin}/track/${props.paper.tracking_id}`;
 });
 
-const currentStepIndex = computed(() => {
-    return props.steps.indexOf(props.paper.current_step);
-});
+/** First step that is still waiting (pending) — drives “current” and progress. */
+const workflowFocusIndex = computed(() =>
+    firstPendingWorkflowStepIndex(props.paper),
+);
 
-const completedSteps = computed(() => currentStepIndex.value);
+const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
 
-const progressPercent = computed(() => {
-    if (props.steps.length <= 1) {
-        return 0;
-    }
-
-    return Math.round((completedSteps.value / (props.steps.length - 1)) * 100);
-});
+const progressPercent = computed(() => workflowProgressPercent(props.paper));
 
 const proponents = computed(() => {
     if (!props.paper.proponents) {
@@ -206,16 +360,9 @@ const stepDetails = computed(() => {
             statusType: statusType(
                 p.step_ric_review,
                 ['approved'],
-                ['rejected'],
+                ['rejected', 'returned'],
             ),
             info: null,
-        },
-        {
-            key: 'plagiarism_check',
-            icon: FileSearch,
-            status: statusLabel(p.step_plagiarism),
-            statusType: statusType(p.step_plagiarism, ['passed'], ['failed']),
-            info: `Attempts: ${p.plagiarism_attempts ?? 0} / 3${p.plagiarism_score != null ? ` · Score: ${p.plagiarism_score}%` : ''}`,
         },
         {
             key: 'outline_defense',
@@ -229,6 +376,13 @@ const stepDetails = computed(() => {
             info: p.outline_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.outline_defense_schedule)}`
                 : null,
+        },
+        {
+            key: 'data_gathering',
+            icon: FileSearch,
+            status: statusLabel(p.step_data_gathering),
+            statusType: statusType(p.step_data_gathering, ['completed'], []),
+            info: null,
         },
         {
             key: 'rating',
@@ -363,16 +517,16 @@ function stepLabel(step: string): string {
     return props.stepLabels[step] ?? step;
 }
 
-function isCompletedStep(idx: number): boolean {
-    return currentStepIndex.value > idx;
+function isCompletedStepForKey(key: string): boolean {
+    return isWorkflowStepSatisfied(props.paper, key as WorkflowStepKey);
 }
 
 function isCurrentStep(idx: number): boolean {
-    return currentStepIndex.value === idx;
+    return idx === workflowFocusIndex.value;
 }
 
 function isFutureStep(idx: number): boolean {
-    return currentStepIndex.value < idx;
+    return idx > workflowFocusIndex.value;
 }
 
 function timeAgo(value: string): string {
@@ -452,10 +606,7 @@ setLayoutProps({
                         <span
                             class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
                         >
-                            {{
-                                paper.step_label ??
-                                stepLabel(paper.current_step)
-                            }}
+                            {{ stepLabel(focusStepKey) }}
                         </span>
                         <span class="text-xs text-muted-foreground"
                             >{{ progressPercent }}% complete</span
@@ -548,15 +699,19 @@ setLayoutProps({
                                 {{ (comments ?? []).length }}
                             </span>
                         </TabsTrigger>
-                        <TabsTrigger
-                            v-if="paper.files && paper.files.length"
-                            value="files"
-                        >
+                        <TabsTrigger v-if="filesTabVisible" value="files">
                             Files
                             <span
+                                v-if="(paper.files ?? []).length"
                                 class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
                             >
-                                {{ paper.files.length }}
+                                {{ paper.files?.length }}
+                            </span>
+                            <span
+                                v-if="showDefenseUploadBanner"
+                                class="ml-0.5 rounded-full bg-amber-100 px-1.5 py-0 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                            >
+                                Upload
                             </span>
                         </TabsTrigger>
                     </TabsList>
@@ -578,7 +733,7 @@ setLayoutProps({
                                         'relative overflow-hidden rounded-xl border p-4 transition-all',
                                         isCurrentStep(idx)
                                             ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
-                                            : isCompletedStep(idx)
+                                            : isCompletedStepForKey(detail.key)
                                               ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
                                               : 'border-border bg-card',
                                     ]"
@@ -596,7 +751,9 @@ setLayoutProps({
                                         <div
                                             :class="[
                                                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                                                isCompletedStep(idx)
+                                                isCompletedStepForKey(
+                                                    detail.key,
+                                                )
                                                     ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
                                                     : isCurrentStep(idx)
                                                       ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
@@ -604,7 +761,11 @@ setLayoutProps({
                                             ]"
                                         >
                                             <Check
-                                                v-if="isCompletedStep(idx)"
+                                                v-if="
+                                                    isCompletedStepForKey(
+                                                        detail.key,
+                                                    )
+                                                "
                                                 class="h-4 w-4"
                                             />
                                             <component
@@ -654,6 +815,8 @@ setLayoutProps({
                                                 Waiting for previous steps to
                                                 complete.
                                             </p>
+
+                                            <!-- Defense document uploads live in the Files tab when the rule allows -->
                                         </div>
                                     </div>
                                 </div>
@@ -855,7 +1018,7 @@ setLayoutProps({
                     </TabsContent>
 
                     <TabsContent
-                        v-if="paper.files && paper.files.length > 0"
+                        v-if="filesTabVisible"
                         value="files"
                         class="mt-0"
                     >
@@ -880,63 +1043,284 @@ setLayoutProps({
                                     Documents
                                 </h2>
                                 <span
+                                    v-if="(paper.files ?? []).length"
                                     class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
-                                    >{{ paper.files.length }}</span
+                                    >{{ paper.files?.length }}</span
                                 >
                             </div>
-                            <div class="space-y-2">
+
+                            <!-- Upload research document(s) — visible when the rule allows (RIC returned, outline defense, final defense) -->
+                            <div
+                                v-if="showDefenseUploadBanner"
+                                class="mb-5 rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 dark:border-amber-800/50 dark:bg-amber-950/25"
+                            >
+                                <div
+                                    class="mb-1 flex flex-wrap items-center gap-2"
+                                >
+                                    <p
+                                        class="text-sm font-semibold text-foreground"
+                                    >
+                                        Upload research document
+                                    </p>
+                                    <span
+                                        class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                                    >
+                                        {{ defenseUploadReason }}
+                                    </span>
+                                </div>
+                                <p class="mb-3 text-xs text-muted-foreground">
+                                    PDF only. You can upload one document per
+                                    defense type while the status allows it.
+                                </p>
+                                <div
+                                    class="grid gap-4 sm:grid-cols-1 md:grid-cols-2"
+                                >
+                                    <div
+                                        v-if="outlineWindowActive"
+                                        class="rounded-lg border border-dashed border-orange-200 bg-orange-50/40 p-3 dark:border-orange-800/50 dark:bg-orange-950/20"
+                                    >
+                                        <p
+                                            class="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase"
+                                        >
+                                            Outline defense
+                                        </p>
+                                        <template
+                                            v-if="defenseUpload.outlineUploaded"
+                                        >
+                                            <div
+                                                class="flex items-center gap-1.5 text-xs font-semibold text-foreground"
+                                            >
+                                                <Check
+                                                    class="h-4 w-4 text-green-600 dark:text-green-400"
+                                                />
+                                                Submitted
+                                            </div>
+                                            <p
+                                                class="mt-1.5 text-xs text-muted-foreground"
+                                            >
+                                                Your outline defense document is
+                                                in this paper’s files. Only one
+                                                upload is allowed per status.
+                                            </p>
+                                        </template>
+                                        <template v-else>
+                                            <div
+                                                class="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground"
+                                            >
+                                                <Paperclip
+                                                    class="h-4 w-4 text-orange-600 dark:text-orange-400"
+                                                />
+                                                Upload file
+                                            </div>
+                                            <input
+                                                :id="`files-tab-outline-attach-${paper.id}`"
+                                                type="file"
+                                                accept=".pdf,application/pdf"
+                                                class="block w-full max-w-md cursor-pointer text-xs file:mr-2 file:cursor-pointer file:rounded-md file:border-0 file:bg-background file:px-3 file:py-2 file:font-medium file:text-foreground hover:file:bg-muted"
+                                                :disabled="
+                                                    defenseDocForm.processing
+                                                "
+                                                @change="
+                                                    uploadDefenseFile(
+                                                        'outline',
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+                                            <p
+                                                v-if="
+                                                    defenseDocForm.processing &&
+                                                    defenseDocForm.defense ===
+                                                        'outline'
+                                                "
+                                                class="mt-1.5 text-xs text-muted-foreground"
+                                            >
+                                                Uploading…
+                                            </p>
+                                        </template>
+                                    </div>
+                                    <div
+                                        v-if="finalWindowActive"
+                                        class="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 p-3 dark:border-teal-800/50 dark:bg-teal-950/20"
+                                    >
+                                        <p
+                                            class="mb-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase"
+                                        >
+                                            Final defense
+                                        </p>
+                                        <template
+                                            v-if="defenseUpload.finalUploaded"
+                                        >
+                                            <div
+                                                class="flex items-center gap-1.5 text-xs font-semibold text-foreground"
+                                            >
+                                                <Check
+                                                    class="h-4 w-4 text-green-600 dark:text-green-400"
+                                                />
+                                                Submitted
+                                            </div>
+                                            <p
+                                                class="mt-1.5 text-xs text-muted-foreground"
+                                            >
+                                                Your final defense document is
+                                                in this paper’s files. Only one
+                                                upload is allowed per status.
+                                            </p>
+                                        </template>
+                                        <template v-else>
+                                            <div
+                                                class="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground"
+                                            >
+                                                <Paperclip
+                                                    class="h-4 w-4 text-teal-600 dark:text-teal-400"
+                                                />
+                                                Upload file
+                                            </div>
+                                            <input
+                                                :id="`files-tab-final-attach-${paper.id}`"
+                                                type="file"
+                                                accept=".pdf,application/pdf"
+                                                class="block w-full max-w-md cursor-pointer text-xs file:mr-2 file:cursor-pointer file:rounded-md file:border-0 file:bg-background file:px-3 file:py-2 file:font-medium file:text-foreground hover:file:bg-muted"
+                                                :disabled="
+                                                    defenseDocForm.processing
+                                                "
+                                                @change="
+                                                    uploadDefenseFile(
+                                                        'final',
+                                                        $event,
+                                                    )
+                                                "
+                                            />
+                                            <p
+                                                v-if="
+                                                    defenseDocForm.processing &&
+                                                    defenseDocForm.defense ===
+                                                        'final'
+                                                "
+                                                class="mt-1.5 text-xs text-muted-foreground"
+                                            >
+                                                Uploading…
+                                            </p>
+                                        </template>
+                                    </div>
+                                </div>
+                                <p
+                                    v-if="defenseDocForm.errors.file"
+                                    class="mt-3 text-xs text-destructive"
+                                >
+                                    {{ defenseDocForm.errors.file }}
+                                </p>
+                            </div>
+
+                            <p
+                                v-if="!(paper.files ?? []).length"
+                                class="text-xs text-muted-foreground"
+                            >
+                                No files uploaded yet.
+                            </p>
+
+                            <div v-else class="space-y-2">
                                 <div
                                     v-for="file in paper.files"
                                     :key="file.id"
-                                    class="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3 transition hover:bg-muted"
+                                    class="overflow-hidden rounded-xl bg-muted/50 transition hover:bg-muted"
                                 >
-                                    <svg
-                                        class="h-8 w-8 shrink-0 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
+                                    <div
+                                        class="flex items-center gap-3 px-4 py-3"
                                     >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                                        />
-                                    </svg>
-                                    <div class="min-w-0 flex-1">
-                                        <p
-                                            class="truncate text-sm font-medium text-foreground"
+                                        <svg
+                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="1.5"
                                         >
-                                            {{ file.file_name }}
-                                        </p>
-                                        <p
-                                            class="text-xs text-muted-foreground"
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                            />
+                                        </svg>
+                                        <div class="min-w-0 flex-1">
+                                            <p
+                                                class="truncate text-sm font-medium text-foreground"
+                                            >
+                                                {{ file.file_name }}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    fileCategoryLabel(
+                                                        file.file_category,
+                                                    )
+                                                }}
+                                                ·
+                                                {{
+                                                    formatFileSize(
+                                                        file.file_size,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="flex shrink-0 items-center gap-2"
                                         >
-                                            {{ formatFileSize(file.file_size) }}
-                                        </p>
+                                            <button
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                type="button"
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                                :aria-expanded="
+                                                    previewingFileId === file.id
+                                                "
+                                                :aria-controls="`file-preview-${file.id}`"
+                                                @click="togglePreview(file.id)"
+                                            >
+                                                {{
+                                                    previewingFileId === file.id
+                                                        ? 'Hide preview'
+                                                        : 'Preview'
+                                                }}
+                                            </button>
+                                            <a
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                :href="fileUrl(file)"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Open
+                                            </a>
+                                            <a
+                                                :href="fileUrl(file)"
+                                                download
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Download
+                                            </a>
+                                        </div>
                                     </div>
                                     <div
-                                        class="flex shrink-0 items-center gap-2"
+                                        v-if="
+                                            file.file_type ===
+                                                'application/pdf' &&
+                                            previewingFileId === file.id
+                                        "
+                                        :id="`file-preview-${file.id}`"
+                                        class="border-t border-border bg-background"
                                     >
-                                        <a
-                                            v-if="
-                                                file.file_type ===
-                                                'application/pdf'
-                                            "
-                                            :href="fileUrl(file)"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Preview
-                                        </a>
-                                        <a
-                                            :href="fileUrl(file)"
-                                            download
-                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Download
-                                        </a>
+                                        <iframe
+                                            :src="fileUrl(file)"
+                                            :title="`Preview of ${file.file_name}`"
+                                            class="block h-[70vh] min-h-[420px] w-full"
+                                            loading="lazy"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -947,21 +1331,13 @@ setLayoutProps({
 
             <!-- Right Sidebar -->
             <div>
-                <Tabs
-                    class="w-full"
-                    :default-value="
-                        (panelDefenses ?? []).length ? 'panels' : 'paper'
-                    "
-                >
+                <Tabs class="w-full" :default-value="rightSidebarDefaultTab">
                     <TabsList
                         class="mb-3"
                         aria-label="Paper details and panels"
                     >
-                        <TabsTrigger
-                            v-if="(panelDefenses ?? []).length"
-                            value="panels"
-                        >
-                            Panels
+                        <TabsTrigger v-if="hasPanelDefenses" value="panels">
+                            Panel management
                             <span
                                 class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
                             >
@@ -969,19 +1345,10 @@ setLayoutProps({
                             </span>
                         </TabsTrigger>
                         <TabsTrigger value="paper"> Paper </TabsTrigger>
-                        <TabsTrigger
-                            v-if="
-                                paper.current_step === 'plagiarism_check' &&
-                                (paper.plagiarism_attempts ?? 0) >= 2
-                            "
-                            value="alert"
-                        >
-                            Alert
-                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent
-                        v-if="(panelDefenses ?? []).length"
+                        v-if="hasPanelDefenses"
                         value="panels"
                         class="mt-0"
                     >
@@ -991,14 +1358,31 @@ setLayoutProps({
                             <div class="mb-4 flex items-center gap-2">
                                 <Users class="h-4 w-4 text-indigo-500" />
                                 <h2 class="text-base font-bold text-foreground">
-                                    Panels
+                                    Panel management
                                 </h2>
                                 <span
                                     class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
                                 >
-                                    {{ (panelDefenses ?? []).length }}
+                                    {{ (panelDefenses ?? []).length }} panel{{
+                                        (panelDefenses ?? []).length === 1
+                                            ? ''
+                                            : 's'
+                                    }}
                                 </span>
                             </div>
+
+                            <p
+                                class="mb-3 rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground"
+                            >
+                                You can attach multiple outline or final defense
+                                files under
+                                <strong class="text-foreground"
+                                    >Step details</strong
+                                >
+                                when you are on that step; each is kept on this
+                                paper.
+                            </p>
+
                             <div class="space-y-3">
                                 <div
                                     v-for="pd in panelDefenses"
@@ -1216,50 +1600,6 @@ setLayoutProps({
                                             }}
                                         </span>
                                     </div>
-                                </div>
-                            </div>
-                        </section>
-                    </TabsContent>
-
-                    <TabsContent
-                        v-if="
-                            paper.current_step === 'plagiarism_check' &&
-                            (paper.plagiarism_attempts ?? 0) >= 2
-                        "
-                        value="alert"
-                        class="mt-0"
-                    >
-                        <section
-                            class="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/20"
-                        >
-                            <div class="flex items-start gap-3">
-                                <AlertTriangle
-                                    class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
-                                />
-                                <div>
-                                    <p
-                                        class="text-sm font-bold text-amber-700 dark:text-amber-300"
-                                    >
-                                        Plagiarism Check Warning
-                                    </p>
-                                    <p
-                                        class="mt-1 text-xs text-amber-600 dark:text-amber-400"
-                                    >
-                                        You have used
-                                        {{ paper.plagiarism_attempts }} of 3
-                                        attempts.
-                                        <template
-                                            v-if="
-                                                (paper.plagiarism_attempts ??
-                                                    0) >= 3
-                                            "
-                                            >No more attempts
-                                            remaining.</template
-                                        >
-                                        <template v-else
-                                            >1 attempt remaining.</template
-                                        >
-                                    </p>
                                 </div>
                             </div>
                         </section>

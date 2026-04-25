@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    AlertTriangle,
     BookCheck,
     Check,
     CheckCircle2,
@@ -22,6 +21,13 @@ import {
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    firstPendingWorkflowStepIndex,
+    isWorkflowStepSatisfied,
+    workflowFocusStepKey,
+    workflowProgressPercent,
+} from '@/lib/research-workflow-ui';
+import type { WorkflowStepKey } from '@/lib/research-workflow-ui';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import research from '@/routes/faculty/classes/research';
 import { index as researchIndex } from '@/routes/faculty/research';
@@ -81,11 +87,9 @@ interface Paper {
     proponents?: string[] | Array<{ id: string; name: string }> | string | null;
     user_id?: number | null;
     step_ric_review?: string | null;
-    step_plagiarism?: string | null;
-    plagiarism_attempts?: number | null;
-    plagiarism_score?: number | null;
     step_outline_defense?: string | null;
     outline_defense_schedule?: string | null;
+    step_data_gathering?: string | null;
     step_rating?: string | null;
     grade?: number | null;
     step_final_manuscript?: string | null;
@@ -131,24 +135,23 @@ const agendaMap = computed(() =>
 
 const copied = ref(false);
 const qrModalOpen = ref(false);
+const previewingFileId = ref<string | null>(null);
+
+function togglePreview(fileId: string) {
+    previewingFileId.value = previewingFileId.value === fileId ? null : fileId;
+}
 
 const trackingUrl = computed(() => {
     return `${window.location.origin}/track/${props.paper.tracking_id}`;
 });
 
-const currentStepIndex = computed(() => {
-    return props.steps.indexOf(props.paper.current_step);
-});
+const workflowFocusIndex = computed(() =>
+    firstPendingWorkflowStepIndex(props.paper),
+);
 
-const completedSteps = computed(() => currentStepIndex.value);
+const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
 
-const progressPercent = computed(() => {
-    if (props.steps.length <= 1) {
-        return 0;
-    }
-
-    return Math.round((completedSteps.value / (props.steps.length - 1)) * 100);
-});
+const progressPercent = computed(() => workflowProgressPercent(props.paper));
 
 const proponents = computed(() => {
     if (!props.paper.proponents) {
@@ -194,16 +197,9 @@ const stepDetails = computed(() => {
             statusType: statusType(
                 p.step_ric_review,
                 ['approved'],
-                ['rejected'],
+                ['rejected', 'returned'],
             ),
             info: null,
-        },
-        {
-            key: 'plagiarism_check',
-            icon: FileSearch,
-            status: statusLabel(p.step_plagiarism),
-            statusType: statusType(p.step_plagiarism, ['passed'], ['failed']),
-            info: `Attempts: ${p.plagiarism_attempts ?? 0} / 3${p.plagiarism_score != null ? ` · Score: ${p.plagiarism_score}%` : ''}`,
         },
         {
             key: 'outline_defense',
@@ -217,6 +213,13 @@ const stepDetails = computed(() => {
             info: p.outline_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.outline_defense_schedule)}`
                 : null,
+        },
+        {
+            key: 'data_gathering',
+            icon: FileSearch,
+            status: statusLabel(p.step_data_gathering),
+            statusType: statusType(p.step_data_gathering, ['completed'], []),
+            info: null,
         },
         {
             key: 'rating',
@@ -391,14 +394,14 @@ function stepLabel(step: string): string {
     return props.stepLabels[step] ?? step;
 }
 
-function isCompletedStep(idx: number): boolean {
-    return currentStepIndex.value > idx;
+function isCompletedStepForKey(key: string): boolean {
+    return isWorkflowStepSatisfied(props.paper, key as WorkflowStepKey);
 }
 function isCurrentStep(idx: number): boolean {
-    return currentStepIndex.value === idx;
+    return idx === workflowFocusIndex.value;
 }
 function isFutureStep(idx: number): boolean {
-    return currentStepIndex.value < idx;
+    return idx > workflowFocusIndex.value;
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -454,10 +457,7 @@ defineOptions({
                         <span
                             class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-950/30 dark:text-orange-300"
                         >
-                            {{
-                                paper.step_label ??
-                                stepLabel(paper.current_step)
-                            }}
+                            {{ stepLabel(focusStepKey) }}
                         </span>
                         <span class="text-xs text-muted-foreground"
                             >{{ progressPercent }}% complete</span
@@ -575,7 +575,7 @@ defineOptions({
                                         'relative overflow-hidden rounded-xl border p-4 transition-all',
                                         isCurrentStep(idx)
                                             ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
-                                            : isCompletedStep(idx)
+                                            : isCompletedStepForKey(detail.key)
                                               ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
                                               : 'border-border bg-card',
                                     ]"
@@ -590,7 +590,9 @@ defineOptions({
                                         <div
                                             :class="[
                                                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                                                isCompletedStep(idx)
+                                                isCompletedStepForKey(
+                                                    detail.key,
+                                                )
                                                     ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
                                                     : isCurrentStep(idx)
                                                       ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
@@ -598,7 +600,11 @@ defineOptions({
                                             ]"
                                         >
                                             <Check
-                                                v-if="isCompletedStep(idx)"
+                                                v-if="
+                                                    isCompletedStepForKey(
+                                                        detail.key,
+                                                    )
+                                                "
                                                 class="h-4 w-4"
                                             />
                                             <component
@@ -903,55 +909,98 @@ defineOptions({
                                 <div
                                     v-for="file in paper.files"
                                     :key="file.id"
-                                    class="flex items-center gap-3 rounded-xl bg-muted/50 px-4 py-3 transition hover:bg-muted"
+                                    class="overflow-hidden rounded-xl bg-muted/50 transition hover:bg-muted"
                                 >
-                                    <svg
-                                        class="h-8 w-8 shrink-0 text-red-500"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        stroke-width="1.5"
+                                    <div
+                                        class="flex items-center gap-3 px-4 py-3"
                                     >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
-                                        />
-                                    </svg>
-                                    <div class="min-w-0 flex-1">
-                                        <p
-                                            class="truncate text-sm font-medium text-foreground"
+                                        <svg
+                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            stroke-width="1.5"
                                         >
-                                            {{ file.file_name }}
-                                        </p>
-                                        <p
-                                            class="text-xs text-muted-foreground"
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+                                            />
+                                        </svg>
+                                        <div class="min-w-0 flex-1">
+                                            <p
+                                                class="truncate text-sm font-medium text-foreground"
+                                            >
+                                                {{ file.file_name }}
+                                            </p>
+                                            <p
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                {{
+                                                    formatFileSize(
+                                                        file.file_size,
+                                                    )
+                                                }}
+                                            </p>
+                                        </div>
+                                        <div
+                                            class="flex shrink-0 items-center gap-2"
                                         >
-                                            {{ formatFileSize(file.file_size) }}
-                                        </p>
+                                            <button
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                type="button"
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                                :aria-expanded="
+                                                    previewingFileId === file.id
+                                                "
+                                                :aria-controls="`file-preview-${file.id}`"
+                                                @click="togglePreview(file.id)"
+                                            >
+                                                {{
+                                                    previewingFileId === file.id
+                                                        ? 'Hide preview'
+                                                        : 'Preview'
+                                                }}
+                                            </button>
+                                            <a
+                                                v-if="
+                                                    file.file_type ===
+                                                    'application/pdf'
+                                                "
+                                                :href="fileUrl(file)"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Open
+                                            </a>
+                                            <a
+                                                :href="fileUrl(file)"
+                                                download
+                                                class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
+                                            >
+                                                Download
+                                            </a>
+                                        </div>
                                     </div>
                                     <div
-                                        class="flex shrink-0 items-center gap-2"
+                                        v-if="
+                                            file.file_type ===
+                                                'application/pdf' &&
+                                            previewingFileId === file.id
+                                        "
+                                        :id="`file-preview-${file.id}`"
+                                        class="border-t border-border bg-background"
                                     >
-                                        <a
-                                            v-if="
-                                                file.file_type ===
-                                                'application/pdf'
-                                            "
-                                            :href="fileUrl(file)"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Preview
-                                        </a>
-                                        <a
-                                            :href="fileUrl(file)"
-                                            download
-                                            class="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted"
-                                        >
-                                            Download
-                                        </a>
+                                        <iframe
+                                            :src="fileUrl(file)"
+                                            :title="`Preview of ${file.file_name}`"
+                                            class="block h-[70vh] min-h-[420px] w-full"
+                                            loading="lazy"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -985,15 +1034,6 @@ defineOptions({
                             </span>
                         </TabsTrigger>
                         <TabsTrigger value="paper"> Paper </TabsTrigger>
-                        <TabsTrigger
-                            v-if="
-                                paper.current_step === 'plagiarism_check' &&
-                                (paper.plagiarism_attempts ?? 0) >= 2
-                            "
-                            value="alert"
-                        >
-                            Alert
-                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent
@@ -1308,51 +1348,6 @@ defineOptions({
                                                 paper.final_defense_schedule,
                                             )
                                         }}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-                    </TabsContent>
-
-                    <TabsContent
-                        v-if="
-                            paper.current_step === 'plagiarism_check' &&
-                            (paper.plagiarism_attempts ?? 0) >= 2
-                        "
-                        value="alert"
-                        class="mt-0"
-                    >
-                        <section
-                            id="research-show-plagiarism"
-                            class="scroll-mt-24 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/20"
-                        >
-                            <div class="flex items-start gap-3">
-                                <AlertTriangle
-                                    class="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400"
-                                />
-                                <div>
-                                    <p
-                                        class="text-sm font-bold text-amber-700 dark:text-amber-300"
-                                    >
-                                        Plagiarism Check Warning
-                                    </p>
-                                    <p
-                                        class="mt-1 text-xs text-amber-600 dark:text-amber-400"
-                                    >
-                                        Student has used
-                                        {{ paper.plagiarism_attempts }} of 3
-                                        attempts.
-                                        <template
-                                            v-if="
-                                                (paper.plagiarism_attempts ??
-                                                    0) >= 3
-                                            "
-                                            >No more attempts
-                                            remaining.</template
-                                        >
-                                        <template v-else
-                                            >1 attempt remaining.</template
-                                        >
                                     </p>
                                 </div>
                             </div>

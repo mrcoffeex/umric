@@ -166,7 +166,7 @@ it('updates rating step and logs tracking record for faculty owner', function ()
     ]);
 });
 
-it('approves ric review and advances to plagiarism check', function () {
+it('approves ric review and advances to outline defense', function () {
     $faculty = facultyUser();
     $student = studentUser();
 
@@ -193,8 +193,8 @@ it('approves ric review and advances to plagiarism check', function () {
     $this->assertDatabaseHas('research_papers', [
         'id' => $paper->id,
         'step_ric_review' => 'approved',
-        'current_step' => 'plagiarism_check',
-        'step_plagiarism' => 'pending',
+        'current_step' => 'outline_defense',
+        'step_outline_defense' => 'pending',
     ]);
 
     $this->assertDatabaseHas('tracking_records', [

@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePanelDefenseEvaluationRequest;
 use App\Http\Requests\UpdatePanelDefenseEvaluationRequest;
 use App\Models\EvaluationCriterion;
+use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\PanelDefenseEvaluation;
 use App\Models\User;
+use App\Services\DefenseEvaluationPdfGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,14 +45,13 @@ class PanelDefenseEvaluationController extends Controller
             )),
         );
 
-        $criteria = EvaluationCriterion::query()->orderBy('sort_order')->get();
-        $totalMax = (int) $criteria->sum('max_points');
-        $criteriaReady = $criteria->isNotEmpty() && $totalMax === EvaluationCriterion::MAX_TOTAL;
+        $anyEvaluationFormatReady = EvaluationFormat::query()
+            ->get()
+            ->contains(fn (EvaluationFormat $f) => $f->isReady());
 
         return Inertia::render('Evaluation/Index', [
             'defenses' => $defenses,
-            'criteriaReady' => $criteriaReady,
-            'criteriaTotalMax' => $totalMax,
+            'anyEvaluationFormatReady' => $anyEvaluationFormatReady,
             'context' => $isAdmin ? 'admin' : 'faculty',
             'defenseTypeOptions' => collect(PanelDefense::DEFENSE_TYPES)
                 ->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label])
@@ -71,6 +72,7 @@ class PanelDefenseEvaluationController extends Controller
         if ($panelDefense->schedule === null) {
             abort(404);
         }
+        $panelDefense->loadMissing('evaluationFormat');
 
         $onPanel = $panelDefense->includesPanelMember($user);
         $myEval = PanelDefenseEvaluation::query()
@@ -124,6 +126,7 @@ class PanelDefenseEvaluationController extends Controller
         }
         $panelDefenseEvaluation->loadMissing('evaluator');
         $this->loadDefenseForContext($panelDefense, $isAdmin, $user);
+        $panelDefense->loadMissing('evaluationFormat');
 
         return Inertia::render('Evaluation/Evaluate', $this->evaluatePagePayload(
             $request,
@@ -138,13 +141,14 @@ class PanelDefenseEvaluationController extends Controller
     {
         $data = $request->validated();
         $scores = (array) ($data['scores'] ?? []);
-        $built = $this->buildLineItemsForCreate($scores);
+        $built = $this->buildLineItemsForCreate($panelDefense, $scores);
 
         PanelDefenseEvaluation::query()->create([
             'panel_defense_id' => $panelDefense->id,
             'evaluator_id' => (string) $request->user()->id,
             'line_items' => $built['line_items'],
             'final_score' => $built['final_score'],
+            'comments' => $data['comments'],
         ]);
 
         $isFacultyOnly = $request->user()?->isFaculty() === true;
@@ -171,10 +175,14 @@ class PanelDefenseEvaluationController extends Controller
         if (! is_array($lineItems)) {
             $lineItems = [];
         }
-        $built = $this->applyScoresToLineItemsSnapshot($lineItems, $scores);
+        $panelDefenseEvaluation->loadMissing('panelDefense.evaluationFormat');
+        $defense = $panelDefenseEvaluation->panelDefense;
+        $format = $defense?->evaluationFormat;
+        $built = $this->applyScoresToLineItemsSnapshot($lineItems, $scores, $format);
         $panelDefenseEvaluation->update([
             'line_items' => $built['line_items'],
             'final_score' => $built['final_score'],
+            'comments' => $data['comments'],
         ]);
 
         Inertia::flash('toast', [
@@ -185,36 +193,79 @@ class PanelDefenseEvaluationController extends Controller
         return redirect()->route('admin.evaluation.index', $this->indexRedirectQuery($request));
     }
 
+    public function pdf(Request $request, PanelDefenseEvaluation $panelDefenseEvaluation): \Illuminate\Http\Response
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            abort(401);
+        }
+        $isAdmin = $request->routeIs('admin.*');
+        if (! $isAdmin && (string) $panelDefenseEvaluation->evaluator_id !== (string) $user->id) {
+            abort(403);
+        }
+        if ($isAdmin && ! $user->hasRole('admin', 'staff')) {
+            abort(403);
+        }
+
+        $panelDefenseEvaluation->load(['evaluator', 'panelDefense.evaluationFormat']);
+        $defense = $panelDefenseEvaluation->panelDefense;
+        if ($defense === null || $defense->schedule === null) {
+            abort(404);
+        }
+
+        $format = $defense->evaluationFormat;
+        if (! $format?->isPdfExportEnabled()) {
+            abort(404, __('PDF export is not enabled for this evaluation format.'));
+        }
+
+        try {
+            $binary = app(DefenseEvaluationPdfGenerator::class)->build($panelDefenseEvaluation);
+        } catch (\InvalidArgumentException) {
+            abort(404);
+        }
+
+        $filename = 'defense-evaluation-'.$panelDefenseEvaluation->id.'.pdf';
+
+        return response($binary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
     /**
      * @return array{line_items: list<array<string, mixed>>, final_score: int}
      */
-    private function buildLineItemsForCreate(array $scores): array
+    private function buildLineItemsForCreate(PanelDefense $panelDefense, array $scores): array
     {
         $lineItems = [];
-        $final = 0;
-        $criteria = EvaluationCriterion::query()->orderBy('sort_order')->get();
+        $panelDefense->loadMissing('evaluationFormat');
+        $format = $panelDefense->evaluationFormat;
+        $criteria = EvaluationCriterion::query()
+            ->where('evaluation_format_id', $panelDefense->evaluation_format_id)
+            ->orderBy('sort_order')
+            ->get();
         foreach ($criteria as $c) {
             $id = (string) $c->id;
             $s = (int) ($scores[$id] ?? 0);
             $lineItems[] = [
                 'criterion_id' => $id,
                 'name' => $c->name,
+                'content' => $c->content,
                 'max_points' => (int) $c->max_points,
                 'score' => $s,
             ];
-            $final += $s;
         }
+
+        $final = $this->computeFinalFromLineItems($lineItems, $format);
 
         return ['line_items' => $lineItems, 'final_score' => $final];
     }
 
     /**
-     * @param  list<array<string, mixed>>  $lineItems
      * @return array{line_items: list<array<string, mixed>>, final_score: int}
      */
-    private function applyScoresToLineItemsSnapshot(array $lineItems, array $scores): array
+    private function applyScoresToLineItemsSnapshot(array $lineItems, array $scores, ?EvaluationFormat $format = null): array
     {
-        $final = 0;
         foreach ($lineItems as $i => $row) {
             if (! is_array($row) || ! isset($row['criterion_id'], $row['max_points'])) {
                 continue;
@@ -222,10 +273,66 @@ class PanelDefenseEvaluationController extends Controller
             $id = (string) $row['criterion_id'];
             $s = (int) ($scores[$id] ?? 0);
             $lineItems[$i]['score'] = $s;
-            $final += $s;
         }
 
+        $final = $this->computeFinalFromLineItems($lineItems, $format);
+
         return ['line_items' => $lineItems, 'final_score' => $final];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lineItems
+     */
+    private function computeFinalFromLineItems(array $lineItems, ?EvaluationFormat $format = null): int
+    {
+        if ($format?->isChecklist()) {
+            $total = 0;
+            foreach ($lineItems as $row) {
+                if (is_array($row) && isset($row['score'])) {
+                    $total += (int) $row['score'];
+                }
+            }
+
+            return $total;
+        }
+
+        $scoring = array_values(array_filter($lineItems, function (array $row): bool {
+            return is_array($row) && isset($row['criterion_id'], $row['max_points'], $row['score']);
+        }));
+        if ($scoring === []) {
+            return 0;
+        }
+
+        $allCapsAre100 = ! collect($scoring)->contains(
+            fn (array $r) => (int) ($r['max_points'] ?? 0) !== 100,
+        );
+
+        if ($format !== null && $format->isScoring() && $format->scoringUsesWeights()) {
+            $sum = 0.0;
+            foreach ($scoring as $r) {
+                $w = (int) $r['max_points'];
+                $s = (int) $r['score'];
+                $sum += ($s / 100.0) * $w;
+            }
+
+            return (int) round($sum);
+        }
+
+        if ($allCapsAre100) {
+            $scores = array_map(fn (array $r) => (int) $r['score'], $scoring);
+            $n = count($scores);
+
+            return $n === 0 ? 0 : (int) round(array_sum($scores) / $n);
+        }
+
+        $sum = 0.0;
+        foreach ($scoring as $r) {
+            $w = (int) $r['max_points'];
+            $s = (int) $r['score'];
+            $sum += ($s / 100.0) * $w;
+        }
+
+        return (int) round($sum);
     }
 
     /**
@@ -242,19 +349,36 @@ class PanelDefenseEvaluationController extends Controller
         if (! $user instanceof User) {
             abort(401);
         }
-        $criteria = EvaluationCriterion::query()->orderBy('sort_order')->get();
+        $panelDefense->loadMissing('evaluationFormat');
+        $format = $panelDefense->evaluationFormat;
+        $criteria = $format
+            ? $format->criteria()->orderBy('sort_order')->get()
+            : collect();
         $totalMax = (int) $criteria->sum('max_points');
-        $criteriaReady = $criteria->isNotEmpty() && $totalMax === EvaluationCriterion::MAX_TOTAL;
+        $criteriaReady = false;
+        if ($format !== null && $criteria->isNotEmpty()) {
+            if ($format->isChecklist()) {
+                $criteriaReady = true;
+            } elseif ($format->scoringUsesWeights()) {
+                $criteriaReady = $totalMax === EvaluationCriterion::MAX_TOTAL;
+            } else {
+                $criteriaReady = true;
+            }
+        }
 
         $out = [
             'context' => $isAdmin ? 'admin' : 'faculty',
             'mode' => $mode,
             'defense' => $this->defenseInfo($panelDefense),
             'listFilters' => $this->indexRedirectQuery($request),
+            'evaluation_type' => $format?->evaluation_type ?? EvaluationFormat::TYPE_SCORING,
+            'scoring_uses_weights' => $format?->scoringUsesWeights() ?? false,
             'criteria' => $criteria
                 ->map(fn (EvaluationCriterion $c) => [
                     'id' => (string) $c->id,
                     'name' => $c->name,
+                    'content' => $c->content,
+                    'section_heading' => $c->section_heading,
                     'max_points' => (int) $c->max_points,
                     'sort_order' => (int) $c->sort_order,
                 ])
@@ -263,6 +387,11 @@ class PanelDefenseEvaluationController extends Controller
             'criteriaReady' => $criteriaReady,
             'criteriaTotalMax' => $totalMax,
         ];
+
+        $out['canDownloadEvaluationPdf'] = false;
+        if ($evaluation !== null && $format?->isPdfExportEnabled()) {
+            $out['canDownloadEvaluationPdf'] = $isAdmin || ((string) $evaluation->evaluator_id === (string) $user->id);
+        }
 
         if ($mode === 'create' && $evaluation === null) {
             $out['evaluation'] = null;
@@ -287,6 +416,10 @@ class PanelDefenseEvaluationController extends Controller
             $out['initialScores'] = [];
         }
 
+        $out['initialComment'] = $evaluation !== null
+            ? (string) ($evaluation->comments ?? '')
+            : '';
+
         return $out;
     }
 
@@ -295,6 +428,8 @@ class PanelDefenseEvaluationController extends Controller
      */
     private function defenseInfo(PanelDefense $d): array
     {
+        $d->loadMissing('evaluationFormat');
+
         return [
             'id' => (string) $d->id,
             'schedule' => $d->schedule?->toIso8601String(),
@@ -303,6 +438,12 @@ class PanelDefenseEvaluationController extends Controller
             'paper_title' => $d->researchPaper?->title,
             'tracking_id' => $d->researchPaper?->tracking_id,
             'student_name' => $d->researchPaper?->user?->name,
+            'evaluation_format' => $d->evaluationFormat ? [
+                'id' => (string) $d->evaluationFormat->id,
+                'name' => $d->evaluationFormat->name,
+                'evaluation_type' => $d->evaluationFormat->evaluation_type,
+                'use_weights' => (bool) $d->evaluationFormat->use_weights,
+            ] : null,
         ];
     }
 
@@ -322,7 +463,7 @@ class PanelDefenseEvaluationController extends Controller
                 abort(403);
             }
         }
-        $panelDefense->load(['researchPaper.user']);
+        $panelDefense->load(['researchPaper.user', 'evaluationFormat']);
     }
 
     /**
@@ -334,6 +475,7 @@ class PanelDefenseEvaluationController extends Controller
             'id' => (string) $e->id,
             'line_items' => is_array($e->line_items) ? $e->line_items : [],
             'final_score' => (int) $e->final_score,
+            'comments' => $e->comments,
             'is_mine' => (string) $e->evaluator_id === (string) $user->id,
             'evaluator_name' => $e->evaluator?->name,
         ];
@@ -403,9 +545,9 @@ class PanelDefenseEvaluationController extends Controller
         }
 
         if ($isAdmin) {
-            $query->with(['researchPaper.user', 'evaluations.evaluator']);
+            $query->with(['researchPaper.user', 'evaluations.evaluator', 'evaluationFormat']);
         } else {
-            $query->with(['researchPaper.user', 'evaluations' => function ($q) use ($user): void {
+            $query->with(['researchPaper.user', 'evaluationFormat', 'evaluations' => function ($q) use ($user): void {
                 $q->where('evaluator_id', (string) $user->id);
             }]);
         }
@@ -444,8 +586,10 @@ class PanelDefenseEvaluationController extends Controller
      */
     private function mapDefenseRow(PanelDefense $d, User $user, bool $isAdmin): array
     {
+        $d->loadMissing('evaluationFormat');
         $onPanel = $d->includesPanelMember($user);
         $myEval = $d->evaluations->first(fn (PanelDefenseEvaluation $e) => (string) $e->evaluator_id === (string) $user->id);
+        $formatReady = $d->evaluationFormat?->isReady() ?? false;
 
         $panelMembers = [];
         foreach ($d->panel_members ?? [] as $member) {
@@ -468,7 +612,14 @@ class PanelDefenseEvaluationController extends Controller
             'student_name' => $d->researchPaper?->user?->name,
             'panel_members' => $panelMembers,
             'is_on_panel' => $onPanel,
-            'can_evaluate' => $onPanel && $myEval === null,
+            'evaluation_format' => $d->evaluationFormat ? [
+                'id' => (string) $d->evaluationFormat->id,
+                'name' => $d->evaluationFormat->name,
+                'evaluation_type' => $d->evaluationFormat->evaluation_type,
+                'use_weights' => (bool) $d->evaluationFormat->use_weights,
+            ] : null,
+            'evaluation_format_ready' => $formatReady,
+            'can_evaluate' => $onPanel && $myEval === null && $formatReady,
             'my_evaluation' => $myEval ? $this->mapMyEvaluation($myEval) : null,
         ];
 
@@ -479,6 +630,7 @@ class PanelDefenseEvaluationController extends Controller
                 'evaluator_name' => $e->evaluator?->name ?? 'Unknown',
                 'line_items' => is_array($e->line_items) ? $e->line_items : [],
                 'final_score' => (int) $e->final_score,
+                'comments' => $e->comments,
                 'is_mine' => (string) $e->evaluator_id === (string) $user->id,
             ])->values()->all();
             $row['average_score'] = $d->evaluations->isEmpty()
@@ -500,6 +652,7 @@ class PanelDefenseEvaluationController extends Controller
             'id' => (string) $e->id,
             'line_items' => is_array($e->line_items) ? $e->line_items : [],
             'final_score' => (int) $e->final_score,
+            'comments' => $e->comments,
         ];
     }
 }

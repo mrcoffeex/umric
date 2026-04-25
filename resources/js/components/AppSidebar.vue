@@ -64,34 +64,53 @@ const roleBadge = computed(() => {
     return map[role.value] ?? { label: role.value, dot: 'bg-muted-foreground' };
 });
 
-const adminNavItems: NavItem[] = [
-    {
-        title: 'Research Papers',
-        href: ResearchController.index(),
-        icon: ScrollText,
-    },
-    {
-        title: 'Announcements',
-        href: AnnouncementController.index(),
-        icon: Megaphone,
-    },
-    {
-        title: 'Defense Calendar',
-        href: admin.defenseCalendar.index.url(),
-        icon: CalendarDays,
-    },
-    {
-        title: 'Evaluation',
-        href: admin.evaluation.index.url(),
-        icon: ListChecks,
-    },
-    { title: 'Classes', href: admin.classes.index(), icon: GraduationCap },
-    {
-        title: 'Handoffs',
-        href: documentTransmissions.index.url(),
-        icon: ClipboardList,
-    },
-];
+const handoffPendingCount = computed(
+    () => page.props.documentHandoffs?.incomingPending ?? 0,
+);
+
+function withHandoffBadge(base: readonly NavItem[], count: number): NavItem[] {
+    return base.map((item) =>
+        item.title === 'Handoffs' ? { ...item, badgeCount: count } : item,
+    );
+}
+
+const adminNavItems = computed(() =>
+    withHandoffBadge(
+        [
+            {
+                title: 'Research Papers',
+                href: ResearchController.index(),
+                icon: ScrollText,
+            },
+            {
+                title: 'Announcements',
+                href: AnnouncementController.index(),
+                icon: Megaphone,
+            },
+            {
+                title: 'Defense Calendar',
+                href: admin.defenseCalendar.index.url(),
+                icon: CalendarDays,
+            },
+            {
+                title: 'Evaluation',
+                href: admin.evaluation.index.url(),
+                icon: ListChecks,
+            },
+            {
+                title: 'Classes',
+                href: admin.classes.index(),
+                icon: GraduationCap,
+            },
+            {
+                title: 'Handoffs',
+                href: documentTransmissions.index.url(),
+                icon: ClipboardList,
+            },
+        ],
+        handoffPendingCount.value,
+    ),
+);
 
 const AdminSettingsItems: NavItem[] = [
     {
@@ -103,8 +122,8 @@ const AdminSettingsItems: NavItem[] = [
     { title: 'SDGs', href: admin.sdgs.index.url(), icon: Target },
     { title: 'Agendas', href: admin.agendas.index.url(), icon: BookMarked },
     {
-        title: 'Evaluation criteria',
-        href: admin.evaluationCriteria.index.url(),
+        title: 'Evaluation Formats',
+        href: admin.evaluationFormats.index.url(),
         icon: SlidersHorizontal,
     },
 ];
@@ -118,45 +137,67 @@ const adminOnlyItems: NavItem[] = [
     },
 ];
 
-const facultyNavItems: NavItem[] = [
-    {
-        title: 'Research Papers',
-        href: facultyResearchIndex(),
-        icon: ScrollText,
-    },
-    {
-        title: 'Defense Calendar',
-        href: facultyDefenseCalendarIndex(),
-        icon: CalendarDays,
-    },
-    {
-        title: 'Evaluation',
-        href: faculty.evaluation.index.url(),
-        icon: ListChecks,
-    },
-    { title: 'My Classes', href: facultyClassesIndex(), icon: GraduationCap },
-    {
-        title: 'Handoffs',
-        href: documentTransmissions.index.url(),
-        icon: ClipboardList,
-    },
-];
+const facultyNavItems = computed(() =>
+    withHandoffBadge(
+        [
+            {
+                title: 'Research Papers',
+                href: facultyResearchIndex(),
+                icon: ScrollText,
+            },
+            {
+                title: 'Defense Calendar',
+                href: facultyDefenseCalendarIndex(),
+                icon: CalendarDays,
+            },
+            {
+                title: 'Evaluation',
+                href: faculty.evaluation.index.url(),
+                icon: ListChecks,
+            },
+            {
+                title: 'My Classes',
+                href: facultyClassesIndex(),
+                icon: GraduationCap,
+            },
+            {
+                title: 'Handoffs',
+                href: documentTransmissions.index.url(),
+                icon: ClipboardList,
+            },
+        ],
+        handoffPendingCount.value,
+    ),
+);
 
-const studentNavItems: NavItem[] = [
-    { title: 'Home', href: student.home(), icon: LayoutGrid },
-    { title: 'My Research', href: student.research.index(), icon: ScrollText },
-    {
-        title: 'Defense Calendar',
-        href: student.defenseCalendar.index(),
-        icon: CalendarDays,
-    },
-    { title: 'My Classes', href: student.classes.index(), icon: GraduationCap },
-    {
-        title: 'Handoffs',
-        href: documentTransmissions.index.url(),
-        icon: ClipboardList,
-    },
-];
+const studentNavItems = computed(() =>
+    withHandoffBadge(
+        [
+            { title: 'Home', href: student.home(), icon: LayoutGrid },
+            {
+                title: 'My Research',
+                href: student.research.index(),
+                icon: ScrollText,
+            },
+            {
+                title: 'Defense Calendar',
+                href: student.defenseCalendar.index(),
+                icon: CalendarDays,
+            },
+            {
+                title: 'My Classes',
+                href: student.classes.index(),
+                icon: GraduationCap,
+            },
+            {
+                title: 'Handoffs',
+                href: documentTransmissions.index.url(),
+                icon: ClipboardList,
+            },
+        ],
+        handoffPendingCount.value,
+    ),
+);
 </script>
 
 <template>

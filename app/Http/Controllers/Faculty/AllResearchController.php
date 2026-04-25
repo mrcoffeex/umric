@@ -252,6 +252,7 @@ class AllResearchController extends Controller
                 'plagiarism_score' => $paper->plagiarism_score,
                 'step_outline_defense' => $paper->step_outline_defense,
                 'outline_defense_schedule' => $paper->outline_defense_schedule?->toISOString(),
+                'step_data_gathering' => $paper->step_data_gathering,
                 'step_rating' => $paper->step_rating,
                 'grade' => $paper->grade,
                 'step_final_manuscript' => $paper->step_final_manuscript,

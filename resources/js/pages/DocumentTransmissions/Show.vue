@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref, watch } from 'vue';
+import EsignaturePad from '@/components/EsignaturePad.vue';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -89,6 +90,16 @@ interface HandoffHistoryEntry {
     actor: Pick<UserRef, 'id' | 'name'> | null;
 }
 
+const page = usePage<{
+    errors: Record<string, string | string[] | undefined>;
+    auth: {
+        user: {
+            hasAccountEsignature?: boolean;
+            accountEsignatureUrl?: string | null;
+        } | null;
+    };
+}>();
+
 const props = defineProps<{
     transmission: Transmission;
     handoffHistory: HandoffHistoryEntry[];
@@ -96,7 +107,23 @@ const props = defineProps<{
     isSender: boolean;
     isReceiver: boolean;
     canForward: boolean;
+    hasAccountEsignature?: boolean;
+    accountEsignatureUrl?: string | null;
 }>();
+
+/** Prefer page props; fall back to shared auth (all accounts / fresh session). */
+const hasAccountEsignature = computed(
+    () =>
+        props.hasAccountEsignature ??
+        page.props.auth.user?.hasAccountEsignature ??
+        false,
+);
+const accountEsignatureUrl = computed(
+    () =>
+        props.accountEsignatureUrl ??
+        page.props.auth.user?.accountEsignatureUrl ??
+        null,
+);
 
 defineOptions({
     layout: {
@@ -116,12 +143,20 @@ const documentActivityModalOpen = ref(false);
 const copied = ref(false);
 const pendingReceiptIds = ref<Set<string>>(new Set());
 const confirming = ref(false);
+const esignPad = ref<InstanceType<typeof EsignaturePad> | null>(null);
+const signatureEmpty = ref(true);
+/** When true, PDFs get an e-signature card and a drawn/saved signature is required (unless account already has one). */
+const embedEsignatureInPdf = ref(true);
 
 const checkedCount = computed(
     () => props.transmission.items.filter((i) => i.received_at !== null).length,
 );
 const totalCount = computed(() => props.transmission.items.length);
 const isComplete = computed(() => props.transmission.status === 'completed');
+/** Receiver can still add receipts until the handoff is complete; not after, and not after final completion. */
+const canUseReceiveChecklist = computed(
+    () => props.isReceiver && !isComplete.value,
+);
 const selectedToReceiveCount = computed(() => pendingReceiptIds.value.size);
 
 const documentActivityEventCount = computed(() =>
@@ -155,6 +190,12 @@ function onTogglePending(id: string, value: boolean | 'indeterminate') {
         return;
     }
 
+    const row = props.transmission.items.find((i) => i.id === id);
+
+    if (row?.received_at && !value) {
+        return;
+    }
+
     const next = new Set(pendingReceiptIds.value);
 
     if (value) {
@@ -167,7 +208,11 @@ function onTogglePending(id: string, value: boolean | 'indeterminate') {
 }
 
 function toggleRowPending(item: Item) {
-    if (!props.isReceiver) {
+    if (!canUseReceiveChecklist.value) {
+        return;
+    }
+
+    if (item.received_at) {
         return;
     }
 
@@ -175,12 +220,39 @@ function toggleRowPending(item: Item) {
 }
 
 function confirmReceipt() {
+    if (!canUseReceiveChecklist.value) {
+        return;
+    }
+
+    const drawn = esignPad.value?.getPngDataUrl() ?? '';
+    const hasDrawn = drawn !== '' && !esignPad.value?.isEmpty();
+
+    if (embedEsignatureInPdf.value) {
+        if (!hasAccountEsignature.value && !hasDrawn) {
+            return;
+        }
+    }
+
     confirming.value = true;
+
+    const body: {
+        item_ids: string[];
+        embed_esignature: boolean;
+        signature?: string;
+    } = {
+        item_ids: [...pendingReceiptIds.value],
+        embed_esignature: embedEsignatureInPdf.value,
+    };
+
+    if (embedEsignatureInPdf.value && hasDrawn) {
+        body.signature = drawn;
+    }
+
     router.post(
         documentTransmissions.receive.url({
             transmission: props.transmission.id,
         }),
-        { item_ids: [...pendingReceiptIds.value] },
+        body,
         {
             preserveScroll: true,
             onFinish: () => {
@@ -534,15 +606,23 @@ function itemActivityDescription(act: ItemActivity): string {
                                 Receiving checklist
                             </CardTitle>
                             <p
-                                v-if="isReceiver"
+                                v-if="canUseReceiveChecklist"
                                 class="text-xs text-muted-foreground"
                             >
                                 Tick the documents you are accepting, then press
                                 <span class="font-medium text-foreground"
                                     >Confirm receipt</span
-                                >
-                                once. Unchecked rows stay pending. Download any
+                                >. A line you mark as received stays
+                                accepted—you cannot undo it. When every line is
+                                received, the handoff is final. Download any
                                 PDFs first.
+                            </p>
+                            <p
+                                v-else-if="isReceiver && isComplete"
+                                class="text-xs text-muted-foreground"
+                            >
+                                This handoff is complete. The receipt checklist
+                                cannot be changed.
                             </p>
                             <p v-else class="text-xs text-muted-foreground">
                                 Only
@@ -576,26 +656,33 @@ function itemActivityDescription(act: ItemActivity): string {
                         :key="item.id"
                         :class="[
                             'flex min-w-0 items-start gap-3 rounded-lg border border-border bg-card px-3 py-2.5',
-                            isReceiver &&
+                            canUseReceiveChecklist &&
+                                !item.received_at &&
                                 'cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
                         ]"
-                        :tabindex="isReceiver ? 0 : undefined"
+                        :tabindex="
+                            canUseReceiveChecklist && !item.received_at
+                                ? 0
+                                : undefined
+                        "
                         :aria-label="
-                            isReceiver
+                            canUseReceiveChecklist
                                 ? `Toggle receive: ${item.label}`
                                 : undefined
                         "
-                        @click="isReceiver && toggleRowPending(item)"
+                        @click="
+                            canUseReceiveChecklist && toggleRowPending(item)
+                        "
                         @keydown.enter.prevent="
-                            isReceiver && toggleRowPending(item)
+                            canUseReceiveChecklist && toggleRowPending(item)
                         "
                         @keydown.space.prevent="
-                            isReceiver && toggleRowPending(item)
+                            canUseReceiveChecklist && toggleRowPending(item)
                         "
                     >
                         <div class="shrink-0 pt-0.5">
                             <div
-                                v-if="isReceiver"
+                                v-if="canUseReceiveChecklist"
                                 class="flex items-start gap-2"
                                 @click.stop
                             >
@@ -605,6 +692,7 @@ function itemActivityDescription(act: ItemActivity): string {
                                         pendingReceiptIds.has(item.id)
                                     "
                                     class="mt-0.5"
+                                    :disabled="!!item.received_at"
                                     :aria-label="`Receive document: ${item.label}`"
                                     @update:model-value="
                                         (v) => onTogglePending(item.id, v)
@@ -692,13 +780,94 @@ function itemActivityDescription(act: ItemActivity): string {
                         </div>
                     </div>
                     <div
-                        v-if="isReceiver"
+                        v-if="canUseReceiveChecklist"
                         class="mt-4 space-y-2 border-t border-border pt-4"
                     >
+                        <div class="flex items-start gap-2">
+                            <Checkbox
+                                id="embed-esignature-pdf"
+                                :model-value="embedEsignatureInPdf"
+                                class="mt-0.5"
+                                :aria-label="'Embed e-signature on PDF documents'"
+                                @update:model-value="
+                                    (v) => (embedEsignatureInPdf = v === true)
+                                "
+                            />
+                            <label
+                                for="embed-esignature-pdf"
+                                class="cursor-pointer text-xs leading-snug text-foreground"
+                            >
+                                Embed e-signature on the last page of each PDF
+                                you mark received
+                            </label>
+                        </div>
+                        <template v-if="embedEsignatureInPdf">
+                            <div class="space-y-1.5">
+                                <p class="text-xs font-medium text-foreground">
+                                    Your signature
+                                </p>
+                                <p
+                                    v-if="hasAccountEsignature"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    Your saved account signature is used for
+                                    this action. Draw below to replace it and
+                                    update your account. For each PDF you mark
+                                    received, it is also embedded on the last
+                                    page of that file.
+                                </p>
+                                <p v-else class="text-xs text-muted-foreground">
+                                    Sign below once to save it to your account;
+                                    the next time you can confirm with your
+                                    saved signature only. For each PDF you mark
+                                    received now, your signature is also
+                                    embedded on the last page of that file.
+                                </p>
+                            </div>
+                            <div
+                                v-if="
+                                    hasAccountEsignature && accountEsignatureUrl
+                                "
+                                class="mb-2 rounded-md border border-border bg-muted/30 p-2"
+                            >
+                                <p
+                                    class="mb-1 text-[10px] font-medium text-muted-foreground"
+                                >
+                                    Current saved signature
+                                </p>
+                                <img
+                                    :src="accountEsignatureUrl"
+                                    alt="Saved signature"
+                                    class="max-h-16 max-w-full object-contain dark:invert-0"
+                                />
+                            </div>
+                            <EsignaturePad
+                                ref="esignPad"
+                                @change="(empty) => (signatureEmpty = empty)"
+                            />
+                            <p
+                                v-if="
+                                    typeof page.props.errors?.signature ===
+                                    'string'
+                                "
+                                class="text-xs text-destructive"
+                            >
+                                {{ page.props.errors.signature }}
+                            </p>
+                        </template>
+                        <p v-else class="text-xs text-muted-foreground">
+                            PDF attachments will not be modified. You can
+                            confirm receipt without signing.
+                        </p>
                         <Button
                             type="button"
                             class="w-full gap-1.5 bg-orange-500 text-white hover:bg-orange-600 sm:w-auto"
-                            :disabled="confirming"
+                            :disabled="
+                                confirming ||
+                                (embedEsignatureInPdf &&
+                                    !hasAccountEsignature &&
+                                    signatureEmpty)
+                            "
                             @click="confirmReceipt"
                         >
                             <CheckCircle2 class="h-4 w-4" />

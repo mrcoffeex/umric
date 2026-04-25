@@ -14,6 +14,10 @@ import {
 import { computed } from 'vue';
 import TrackingTimeline from '@/components/TrackingTimeline.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import {
+    workflowFocusStepKey,
+    workflowProgressPercent,
+} from '@/lib/research-workflow-ui';
 
 interface Author {
     id: string;
@@ -73,6 +77,13 @@ interface Paper {
     publication?: Publication[];
     citations?: Citation[];
     tracking_records?: TrackingRecord[];
+    step_ric_review?: string | null;
+    step_outline_defense?: string | null;
+    step_data_gathering?: string | null;
+    step_rating?: string | null;
+    step_final_manuscript?: string | null;
+    step_final_defense?: string | null;
+    step_hard_bound?: string | null;
 }
 
 interface Props {
@@ -112,18 +123,9 @@ const proponents = computed(() => {
         .filter(Boolean);
 });
 
-const currentStepIndex = computed(() =>
-    props.steps.indexOf(props.paper.current_step),
-);
-const progressPercent = computed(() => {
-    if (props.steps.length <= 1) {
-        return 0;
-    }
+const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
 
-    return Math.round(
-        (currentStepIndex.value / (props.steps.length - 1)) * 100,
-    );
-});
+const progressPercent = computed(() => workflowProgressPercent(props.paper));
 
 const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -194,10 +196,7 @@ const formatDate = (date: string) => {
                         <span
                             class="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
                         >
-                            {{
-                                stepLabels[paper.current_step] ??
-                                paper.current_step
-                            }}
+                            {{ stepLabels[focusStepKey] ?? focusStepKey }}
                         </span>
                         <span
                             v-if="paper.category"
@@ -258,7 +257,7 @@ const formatDate = (date: string) => {
                             Timeline
                         </h2>
                         <TrackingTimeline
-                            :current-step="paper.current_step"
+                            :current-step="focusStepKey"
                             :steps="steps"
                             :step-labels="stepLabels"
                             :tracking="paper.tracking_records || []"

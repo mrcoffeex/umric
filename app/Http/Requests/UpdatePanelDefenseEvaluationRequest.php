@@ -8,6 +8,13 @@ use Illuminate\Validation\Validator;
 
 class UpdatePanelDefenseEvaluationRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('comments') && is_string($this->input('comments'))) {
+            $this->merge(['comments' => trim($this->input('comments'))]);
+        }
+    }
+
     public function panelDefenseEvaluation(): PanelDefenseEvaluation
     {
         $model = $this->route('panelDefenseEvaluation');
@@ -33,6 +40,7 @@ class UpdatePanelDefenseEvaluationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'comments' => ['required', 'string', 'min:1', 'max:20000'],
             'scores' => ['required', 'array', 'min:1'],
             'scores.*' => ['required', 'integer', 'min:0'],
             'q' => ['nullable', 'string', 'max:200'],
@@ -55,8 +63,18 @@ class UpdatePanelDefenseEvaluationRequest extends FormRequest
                 return;
             }
 
+            $defense = $model->panelDefense;
+            if (! $defense) {
+                $validator->errors()->add('scores', __('Invalid evaluation.'));
+
+                return;
+            }
+            $defense->loadMissing('evaluationFormat');
+            $format = $defense->evaluationFormat;
+            $isChecklist = $format?->isChecklist() ?? false;
+
             $scores = (array) $this->input('scores', []);
-            foreach ($lineItems as $i => $row) {
+            foreach ($lineItems as $row) {
                 if (! is_array($row) || ! isset($row['criterion_id'], $row['max_points'])) {
                     $validator->errors()->add('scores', __('Invalid evaluation snapshot.'));
 
@@ -69,9 +87,14 @@ class UpdatePanelDefenseEvaluationRequest extends FormRequest
                     continue;
                 }
                 $v = (int) $scores[$id];
-                $max = (int) $row['max_points'];
-                if ($v < 0 || $v > $max) {
-                    $validator->errors()->add("scores.{$id}", __('Each score must be between 0 and the recorded maximum for that line.'));
+                if ($isChecklist) {
+                    if ($v !== 0 && $v !== 1) {
+                        $validator->errors()->add("scores.{$id}", __('Each item must be Yes (1) or No (0).'));
+                    }
+                } else {
+                    if ($v < 0 || $v > 100) {
+                        $validator->errors()->add("scores.{$id}", __('Each score must be between 0 and 100.'));
+                    }
                 }
             }
         });

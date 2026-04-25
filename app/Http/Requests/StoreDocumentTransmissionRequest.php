@@ -47,9 +47,8 @@ class StoreDocumentTransmissionRequest extends FormRequest
             ],
             'purpose' => ['required', 'string', 'max:5000'],
             'items' => ['required', 'array', 'min:1', 'max:100'],
-            'items.*.label' => ['required', 'string', 'max:500'],
             'items.*.file' => [
-                'nullable',
+                'required',
                 'file',
                 'mimes:pdf',
                 'max:'.config('uploads.max_size_kb'),
@@ -58,21 +57,36 @@ class StoreDocumentTransmissionRequest extends FormRequest
     }
 
     /**
-     * @return array{receiver_id: string, purpose: string, items: list<array{label: string, file: ?UploadedFile}>}
+     * @return array{receiver_id: string, purpose: string, items: list<array{label: string, file: UploadedFile}>}
      */
     public function normalized(): array
     {
         $validated = $this->validated();
-        /** @var array<int, array{label: string, file?: UploadedFile|null}> $raw */
+        /** @var array<int, array{file: UploadedFile}> $raw */
         $raw = $validated['items'];
         $items = collect($raw)
             ->map(function (array $row) {
+                $file = $row['file'] ?? null;
+                if (! $file instanceof UploadedFile) {
+                    return null;
+                }
+
+                $name = (string) $file->getClientOriginalName();
+                $name = basename(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $name));
+                $name = trim($name);
+                if ($name === '') {
+                    return null;
+                }
+                if (mb_strlen($name) > 500) {
+                    $name = mb_substr($name, 0, 500);
+                }
+
                 return [
-                    'label' => trim($row['label']),
-                    'file' => $row['file'] ?? null,
+                    'label' => $name,
+                    'file' => $file,
                 ];
             })
-            ->filter(fn (array $row) => $row['label'] !== '')
+            ->filter()
             ->values()
             ->all();
 

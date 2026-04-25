@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
+use App\Models\PanelDefenseEvaluation;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
@@ -136,6 +138,7 @@ it('stores a panel defense with required date and fixed time slot', function () 
     $this->actingAs($admin)
         ->post(route('admin.research.panel-defenses.store', $paper), [
             'defense_type' => 'outline',
+            'evaluation_format_id' => (string) EvaluationFormat::query()->value('id'),
             'panel_members' => [$faculty->name],
             'schedule_date' => $date,
             'schedule_time' => '10:00',
@@ -175,6 +178,7 @@ it('rejects duplicate panel schedule for another paper', function () {
     $this->actingAs($admin)
         ->post(route('admin.research.panel-defenses.store', $paper2), [
             'defense_type' => 'final',
+            'evaluation_format_id' => (string) EvaluationFormat::query()->value('id'),
             'panel_members' => [$faculty->name],
             'schedule_date' => $date,
             'schedule_time' => '09:00',
@@ -206,6 +210,7 @@ it('allows panel defense at duplicate slot when conflict is acknowledged', funct
     $this->actingAs($admin)
         ->post(route('admin.research.panel-defenses.store', $paper2), [
             'defense_type' => 'final',
+            'evaluation_format_id' => (string) EvaluationFormat::query()->value('id'),
             'panel_members' => [$faculty->name],
             'schedule_date' => $date,
             'schedule_time' => '10:00',
@@ -229,6 +234,7 @@ it('rejects panel defense when schedule time is not an allowed slot', function (
     $this->actingAs($admin)
         ->post(route('admin.research.panel-defenses.store', $paper), [
             'defense_type' => 'title',
+            'evaluation_format_id' => (string) EvaluationFormat::query()->value('id'),
             'panel_members' => [$faculty->name],
             'schedule_date' => '2031-07-10',
             'schedule_time' => '09:15',
@@ -251,4 +257,111 @@ it('requires schedule date and time for panel defense', function () {
             'panel_members' => [$faculty->name],
         ])
         ->assertSessionHasErrors(['schedule_date', 'schedule_time']);
+});
+
+it('updates a panel defense when no evaluation records exist', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Edit Target']);
+
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    $formatId = (string) EvaluationFormat::query()->value('id');
+
+    $pd = PanelDefense::factory()->create([
+        'research_paper_id' => $paper->id,
+        'defense_type' => 'title',
+        'evaluation_format_id' => $formatId,
+        'panel_members' => ['Dr. Edit Target'],
+        'schedule' => PanelDefenseSchedule::combineToCarbon('2032-03-01', '09:00'),
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.research.panel-defenses.update', [$paper, $pd]), [
+            'defense_type' => 'title',
+            'evaluation_format_id' => $formatId,
+            'panel_members' => ['Dr. Edit Target'],
+            'schedule_date' => '2032-03-10',
+            'schedule_time' => '16:00',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $pd->refresh();
+    expect($pd->schedule->timezone(config('app.timezone'))->format('Y-m-d H:i'))->toBe('2032-03-10 16:00');
+});
+
+it('does not update a panel defense when evaluation records exist', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Locked']);
+
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    $formatId = (string) EvaluationFormat::query()->value('id');
+
+    $pd = PanelDefense::factory()->create([
+        'research_paper_id' => $paper->id,
+        'defense_type' => 'title',
+        'evaluation_format_id' => $formatId,
+        'panel_members' => ['Dr. Locked'],
+        'schedule' => PanelDefenseSchedule::combineToCarbon('2032-04-01', '10:00'),
+        'created_by' => $admin->id,
+    ]);
+
+    PanelDefenseEvaluation::factory()->create([
+        'panel_defense_id' => $pd->id,
+        'evaluator_id' => $faculty->id,
+    ]);
+
+    $expected = $pd->schedule?->copy();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.research.panel-defenses.update', [$paper, $pd]), [
+            'defense_type' => 'title',
+            'evaluation_format_id' => $formatId,
+            'panel_members' => ['Dr. Locked'],
+            'schedule_date' => '2032-12-12',
+            'schedule_time' => '12:00',
+        ])
+        ->assertRedirect();
+
+    $pd->refresh();
+    expect($pd->schedule?->equalTo($expected))->toBeTrue();
+});
+
+it('does not remove a panel defense when evaluation records exist', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+    $faculty = User::factory()
+        ->has(UserProfile::factory()->faculty(), 'profile')
+        ->create(['name' => 'Dr. Has Eval']);
+
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+    $formatId = (string) EvaluationFormat::query()->value('id');
+
+    $pd = PanelDefense::factory()->create([
+        'research_paper_id' => $paper->id,
+        'defense_type' => 'title',
+        'evaluation_format_id' => $formatId,
+        'panel_members' => ['Dr. Has Eval'],
+        'schedule' => PanelDefenseSchedule::combineToCarbon('2032-05-01', '11:00'),
+        'created_by' => $admin->id,
+    ]);
+
+    PanelDefenseEvaluation::factory()->create([
+        'panel_defense_id' => $pd->id,
+        'evaluator_id' => $faculty->id,
+    ]);
+
+    $id = $pd->id;
+
+    $this->actingAs($admin)
+        ->delete(route('admin.research.panel-defenses.destroy', [$paper, $pd]))
+        ->assertRedirect();
+
+    expect(PanelDefense::query()->whereKey($id)->exists())->toBeTrue();
 });

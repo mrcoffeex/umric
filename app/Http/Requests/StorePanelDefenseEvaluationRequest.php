@@ -10,6 +10,13 @@ use Illuminate\Validation\Validator;
 
 class StorePanelDefenseEvaluationRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('comments') && is_string($this->input('comments'))) {
+            $this->merge(['comments' => trim($this->input('comments'))]);
+        }
+    }
+
     public function panelDefense(): PanelDefense
     {
         $defense = $this->route('panelDefense');
@@ -35,6 +42,7 @@ class StorePanelDefenseEvaluationRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'comments' => ['required', 'string', 'min:1', 'max:20000'],
             'scores' => ['required', 'array', 'min:1'],
             'scores.*' => ['required', 'integer', 'min:0'],
             'q' => ['nullable', 'string', 'max:200'],
@@ -60,19 +68,64 @@ class StorePanelDefenseEvaluationRequest extends FormRequest
                 return;
             }
 
-            $totalMax = (int) EvaluationCriterion::query()->sum('max_points');
-            if (EvaluationCriterion::query()->count() < 1 || $totalMax !== EvaluationCriterion::MAX_TOTAL) {
-                $validator->errors()->add('scores', __('Scoring is unavailable until the criteria are configured to total 100 points. Contact an admin.'));
+            $defense = $this->panelDefense();
+            $defense->loadMissing('evaluationFormat');
+            $format = $defense->evaluationFormat;
+            if (! $format) {
+                $validator->errors()->add('scores', __('This defense is missing an evaluation format. Contact an admin.'));
 
                 return;
             }
 
-            $criteria = EvaluationCriterion::query()->orderBy('sort_order')->get();
+            $totalMax = (int) EvaluationCriterion::query()
+                ->where('evaluation_format_id', $format->id)
+                ->sum('max_points');
+            $criterionCount = EvaluationCriterion::query()
+                ->where('evaluation_format_id', $format->id)
+                ->count();
+
+            if ($format->isChecklist()) {
+                if ($criterionCount < 1) {
+                    $validator->errors()->add('scores', __('This checklist has no items yet. Contact an admin.'));
+
+                    return;
+                }
+            } elseif ($criterionCount < 1) {
+                $validator->errors()->add('scores', __('Scoring is unavailable until this defense has at least one criterion. Contact an admin.'));
+
+                return;
+            } elseif ($format->scoringUsesWeights() && $totalMax !== EvaluationCriterion::MAX_TOTAL) {
+                $validator->errors()->add('scores', __('Scoring (weighted) is unavailable until criterion weights total 100%. Contact an admin.'));
+
+                return;
+            }
+
+            $criteria = EvaluationCriterion::query()
+                ->where('evaluation_format_id', $format->id)
+                ->orderBy('sort_order')
+                ->get();
             $scores = (array) $this->input('scores', []);
             $keys = $criteria->pluck('id')->map(fn (string $id) => (string) $id)->all();
 
             if (array_diff($keys, array_keys($scores)) || array_diff(array_keys($scores), $keys)) {
-                $validator->errors()->add('scores', __('Submit a score for every criterion.'));
+                $validator->errors()->add('scores', __('Submit a response for every criterion.'));
+
+                return;
+            }
+
+            if ($format->isChecklist()) {
+                foreach ($criteria as $c) {
+                    $id = (string) $c->id;
+                    if (! array_key_exists($id, $scores)) {
+                        $validator->errors()->add("scores.{$id}", __('This item is required.'));
+
+                        continue;
+                    }
+                    $v = (int) $scores[$id];
+                    if ($v !== 0 && $v !== 1) {
+                        $validator->errors()->add("scores.{$id}", __('Each item must be Yes (1) or No (0).'));
+                    }
+                }
 
                 return;
             }
@@ -85,10 +138,9 @@ class StorePanelDefenseEvaluationRequest extends FormRequest
                     continue;
                 }
                 $v = (int) $scores[$id];
-                if ($v < 0 || $v > (int) $c->max_points) {
-                    $validator->errors()->add("scores.{$id}", __('The score for :name must be between 0 and :max points.', [
+                if ($v < 0 || $v > 100) {
+                    $validator->errors()->add("scores.{$id}", __('The score for :name must be between 0 and 100.', [
                         'name' => $c->name,
-                        'max' => (int) $c->max_points,
                     ]));
                 }
             }

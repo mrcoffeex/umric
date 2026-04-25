@@ -15,11 +15,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
-#[Fillable(['name', 'email', 'password', 'google_id', 'blocked_at'])]
+#[Fillable(['name', 'email', 'password', 'google_id', 'blocked_at', 'esignature_path'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -121,6 +122,24 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+    }
+
+    public function hasAccountEsignature(): bool
+    {
+        if (! is_string($this->esignature_path) || $this->esignature_path === '') {
+            return false;
+        }
+
+        return Storage::disk('public')->exists($this->esignature_path);
+    }
+
+    public function accountEsignaturePublicUrl(): ?string
+    {
+        if (! $this->hasAccountEsignature()) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->esignature_path);
     }
 
     protected function casts(): array

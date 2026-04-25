@@ -206,8 +206,8 @@ const submissionsChartOptions = computed(() => ({
 const stepChartRgb: Record<string, string> = {
     title_proposal: 'rgb(249, 115, 22)',
     ric_review: 'rgb(20, 184, 166)',
-    plagiarism_check: 'rgb(168, 85, 247)',
     outline_defense: 'rgb(59, 130, 246)',
+    data_gathering: 'rgb(139, 92, 246)',
     rating: 'rgb(245, 158, 11)',
     final_manuscript: 'rgb(99, 102, 241)',
     final_defense: 'rgb(6, 182, 212)',
