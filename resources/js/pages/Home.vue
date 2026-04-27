@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed, ref, onMounted } from 'vue';
 import NeuButton from '@/components/NeuButton.vue';
 import NeuCard from '@/components/NeuCard.vue';
 import StatusBadge from '@/components/StatusBadge.vue';
+import { useBranding } from '@/composables/useBranding';
 import { login, register, dashboard } from '@/routes';
+import contact from '@/routes/contact';
 import { create as papersCreate } from '@/routes/papers';
+
+const branding = useBranding();
+const homeHeadTitle = computed(
+    () => `${branding.value.name} - Research Paper Tracking & Management`,
+);
 
 interface Props {
     canRegister: boolean;
@@ -29,8 +36,13 @@ const trackingId = ref('');
 const trackingError = ref('');
 const isSearching = ref(false);
 const mobileMenuOpen = ref(false);
-const contactForm = ref({ name: '', email: '', message: '' });
 const contactSuccess = ref(false);
+
+const contactForm = useForm({
+    name: '',
+    email: '',
+    message: '',
+});
 
 onMounted(() => {
     const saved = localStorage.getItem('darkMode');
@@ -96,11 +108,14 @@ const handleKeyPress = (e: KeyboardEvent) => {
 };
 
 const submitContact = () => {
-    contactSuccess.value = true;
-    contactForm.value = { name: '', email: '', message: '' };
-    setTimeout(() => {
-        contactSuccess.value = false;
-    }, 4000);
+    contactForm.clearErrors();
+    contactForm.post(contact.store.url(), {
+        preserveScroll: true,
+        onSuccess: () => {
+            contactSuccess.value = true;
+            contactForm.reset();
+        },
+    });
 };
 
 const scrollTo = (id: string) => {
@@ -110,7 +125,7 @@ const scrollTo = (id: string) => {
 </script>
 
 <template>
-    <Head title="UMRIC - Research Paper Tracking & Management">
+    <Head :title="homeHeadTitle">
         <meta
             name="description"
             content="Track, manage, and collaborate on research papers with real-time status updates."
@@ -144,7 +159,7 @@ const scrollTo = (id: string) => {
                         <span class="text-orange-500">🔬</span>
                         <span
                             class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent"
-                            >UMRIC</span
+                            >{{ branding.name }}</span
                         >
                     </Link>
 
@@ -604,7 +619,7 @@ const scrollTo = (id: string) => {
                     <h2 class="mb-3 text-4xl font-black">
                         <span
                             class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent"
-                            >Why UMRIC?</span
+                            >Why {{ branding.name }}?</span
                         >
                     </h2>
                     <p
@@ -859,6 +874,12 @@ const scrollTo = (id: string) => {
                                             : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'
                                     "
                                 />
+                                <p
+                                    v-if="contactForm.errors.name"
+                                    class="mt-1 text-sm text-red-600 dark:text-red-400"
+                                >
+                                    {{ contactForm.errors.name }}
+                                </p>
                             </div>
                             <div>
                                 <label class="mb-1 block text-sm font-medium"
@@ -876,6 +897,12 @@ const scrollTo = (id: string) => {
                                             : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'
                                     "
                                 />
+                                <p
+                                    v-if="contactForm.errors.email"
+                                    class="mt-1 text-sm text-red-600 dark:text-red-400"
+                                >
+                                    {{ contactForm.errors.email }}
+                                </p>
                             </div>
                         </div>
                         <div>
@@ -894,10 +921,24 @@ const scrollTo = (id: string) => {
                                         : 'bg-white text-gray-900 placeholder-gray-400 shadow-inner'
                                 "
                             ></textarea>
+                            <p
+                                v-if="contactForm.errors.message"
+                                class="mt-1 text-sm text-red-600 dark:text-red-400"
+                            >
+                                {{ contactForm.errors.message }}
+                            </p>
                         </div>
                         <div class="text-right">
-                            <NeuButton :is-dark="isDark" variant="success"
-                                >Send Message</NeuButton
+                            <NeuButton
+                                type="submit"
+                                :is-dark="isDark"
+                                variant="success"
+                                :disabled="contactForm.processing"
+                                >{{
+                                    contactForm.processing
+                                        ? 'Sending…'
+                                        : 'Send Message'
+                                }}</NeuButton
                             >
                         </div>
                     </form>
@@ -921,7 +962,7 @@ const scrollTo = (id: string) => {
                         :class="isDark ? 'text-gray-400' : 'text-gray-500'"
                     >
                         Join researchers across 150+ universities managing their
-                        work with UMRIC.
+                        work with {{ branding.name }}.
                     </p>
                     <div class="flex flex-col justify-center gap-4 sm:flex-row">
                         <Link
@@ -970,7 +1011,7 @@ const scrollTo = (id: string) => {
                         <h3 class="mb-3 text-lg font-extrabold">
                             <span
                                 class="bg-gradient-to-r from-orange-500 to-teal-500 bg-clip-text text-transparent"
-                                >UMRIC</span
+                                >{{ branding.name }}</span
                             >
                         </h3>
                         <p
@@ -1068,7 +1109,8 @@ const scrollTo = (id: string) => {
                         class="text-xs"
                         :class="isDark ? 'text-gray-500' : 'text-gray-400'"
                     >
-                        &copy; 2026 UMRIC. All rights reserved.
+                        &copy; {{ new Date().getFullYear() }}
+                        {{ branding.name }}. All rights reserved.
                     </p>
                     <div
                         class="flex gap-4 text-xs"

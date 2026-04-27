@@ -7,6 +7,7 @@ use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\PanelDefenseEvaluation;
 use App\Models\ResearchPaper;
+use App\Models\Sdg;
 use App\Support\EvaluationPdfSettings;
 use TCPDF;
 
@@ -36,8 +37,8 @@ class DefenseEvaluationPdfGenerator
         $pdf->SetFont('dejavusans', '', 9);
 
         $pdf->AddPage();
-        $this->writeHeader($pdf, $settings);
-        $this->writeTitleBlock($pdf, $format, $settings, $paper, $defense);
+        $this->writeBrandedHeader($pdf, $format, $settings, $defense, $paper);
+        $this->writeOptionalContext($pdf, $format, $settings, $paper);
         if (! empty($settings['show_rating_scale'])) {
             $this->writeRatingScale($pdf, $settings);
         }
@@ -66,75 +67,148 @@ class DefenseEvaluationPdfGenerator
     }
 
     /**
+     * 20% bordered logo cell (upper left) + 80% bordered heading (form title, institution, branches, defense type).
+     *
      * @param  array<string, mixed>  $settings
      */
-    private function writeHeader(TCPDF $pdf, array $settings): void
-    {
-        $logo = (string) config('evaluation_pdf.logo_path', '');
-        if ($logo !== '' && is_file($logo)) {
-            $pdf->Image($logo, 12, 12, 32, 0, '', '', '', true, 300, '', false, false, 0, false, false, false);
-            $pdf->setY(12);
-        } else {
-            $pdf->SetFont('dejavusans', 'B', 10);
-            $pdf->Cell(0, 4, 'University of Mindanao', 0, 1, 'C');
-        }
-
-        $pdf->SetFont('dejavusans', 'B', 10);
+    private function writeBrandedHeader(
+        TCPDF $pdf,
+        ?EvaluationFormat $format,
+        array $settings,
+        PanelDefense $defense,
+        ?ResearchPaper $paper,
+    ): void {
+        $title = (string) ($settings['form_title'] ?? 'DEFENSE EVALUATION');
+        $sub = (string) ($settings['form_subtitle'] ?? '');
+        $defLabel = (string) ($defense->defense_type_label ?? '');
         $inst = (string) ($settings['header_institution'] ?? 'RESEARCH AND INNOVATION CENTER');
-        $pdf->Cell(0, 4, $inst, 0, 1, 'C');
-        $pdf->SetFont('dejavusans', '', 7.5);
+
         $branches = (array) ($settings['branches'] ?? []);
-        $line = [];
+        $branchLine = [];
         foreach ($branches as $b) {
             if (! is_array($b) || ! isset($b['label'])) {
                 continue;
             }
             $mark = ! empty($b['default']) ? '☑' : '☐';
-            $line[] = $mark.' '.htmlspecialchars((string) $b['label'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $branchLine[] = $mark.' '.htmlspecialchars((string) $b['label'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         }
-        if ($line !== []) {
-            $pdf->Cell(0, 3, implode('   ', $line), 0, 1, 'C');
+        $branchHtml = $branchLine !== [] ? '<span style="font-size:7.5pt">'.implode('   ', $branchLine).'</span><br/>' : '';
+
+        $logoPath = (string) config('evaluation_pdf.logo_path', '');
+        $realLogo = $logoPath !== '' && is_file($logoPath) ? realpath($logoPath) : false;
+        $logoCell = '<span style="font-size:7.5pt;color:#666"> </span>';
+        if (is_string($realLogo) && $realLogo !== '') {
+            $src = 'file://'.str_replace(DIRECTORY_SEPARATOR, '/', $realLogo);
+            $logoCell = '<img src="'.htmlspecialchars($src, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                .'" style="max-width:32mm;max-height:28mm" />';
         }
-        $pdf->Ln(1);
-    }
 
-    /**
-     * @param  array<string, mixed>  $settings
-     */
-    private function writeTitleBlock(
-        TCPDF $pdf,
-        ?EvaluationFormat $format,
-        array $settings,
-        ?ResearchPaper $paper,
-        PanelDefense $defense,
-    ): void {
-        $title = (string) ($settings['form_title'] ?? 'DEFENSE EVALUATION');
-        $sub = (string) ($settings['form_subtitle'] ?? '');
-        $defLabel = (string) ($defense->defense_type_label ?? '');
+        $rightStack = '<b>'.htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b><br/>'
+            .'<span style="font-size:8.5pt">'.htmlspecialchars($sub, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span><br/>'
+            .'<span style="font-size:9pt">'.htmlspecialchars($inst, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span><br/>'
+            .$branchHtml
+            .($defLabel !== '' ? '<span style="font-size:7.5pt">'.htmlspecialchars($defLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>' : '');
 
-        $html = '<table width="100%" border="1" cellpadding="3"><tr><td align="center"><b>'
-            .htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b><br><span style="font-size:8.5pt">'
-            .htmlspecialchars($sub, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-            .($defLabel !== '' ? '<br>'.htmlspecialchars($defLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : '')
-            .'</span></td></tr></table>';
+        $html = '<table width="100%" border="0" cellpadding="4" cellspacing="0"><tr>'
+            .'<td width="20%" style="border:0.2mm solid #000" align="center" valign="middle">'.$logoCell.'</td>'
+            .'<td width="80%" style="border:0.2mm solid #000" align="center" valign="middle">'.$rightStack.'</td>'
+            .'</tr></table>';
+
+        $pdf->SetFont('dejavusans', '', 8.5);
         $pdf->writeHTML($html, true, false, true, false, '');
-
-        $paperTitle = $paper?->title !== null && $paper?->title !== '' ? (string) $paper->title : '—';
-        $props = $this->formatProponents($paper);
-        $pdf->Ln(2);
-        $pdf->SetFont('dejavusans', 'B', 8);
-        $pdf->writeHTML('Title:', true, false, true, false, '');
-        $pdf->SetFont('dejavusans', '', 8.5);
-        $pdf->writeHTML('<div style="min-height:12mm;border-bottom:0.1mm solid #000">'.htmlspecialchars($paperTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>', true, false, true, false, '');
-
-        $pdf->SetFont('dejavusans', 'B', 8);
-        $pdf->writeHTML('Proponent(s):', true, false, true, false, '');
-        $pdf->SetFont('dejavusans', '', 8.5);
-        $pdf->writeHTML('<div style="min-height:10mm;border-bottom:0.1mm solid #000">'.htmlspecialchars($props, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>', true, false, true, false, '');
 
         if ($format?->name) {
             $pdf->SetFont('dejavusans', '', 7.5);
             $pdf->Cell(0, 3, 'Rubric: '.htmlspecialchars($format->name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), 0, 1, 'L');
+        }
+    }
+
+    /**
+     * Optional instruction, research title, proponents, and SDG lines (toggled per format).
+     *
+     * @param  array<string, mixed>  $settings
+     */
+    private function writeOptionalContext(
+        TCPDF $pdf,
+        ?EvaluationFormat $format,
+        array $settings,
+        ?ResearchPaper $paper,
+    ): void {
+        if (! empty($settings['show_instruction'])) {
+            $raw = (string) ($settings['instruction_text'] ?? '');
+            if ($this->plainTextFromHtml($raw) !== '') {
+                $pdf->Ln(1);
+                $pdf->SetFont('dejavusans', 'B', 8);
+                $pdf->Cell(0, 4, 'Instruction:', 0, 1, 'L');
+                $pdf->SetFont('dejavusans', '', 7.5);
+                $html = '<div style="border:0.2mm solid #000;padding:2mm">'
+                    .nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false).'</div>';
+                $pdf->writeHTML($html, true, false, true, false, '');
+            }
+        }
+
+        if (! empty($settings['show_research_title'])) {
+            $paperTitle = $paper?->title !== null && $paper?->title !== '' ? (string) $paper->title : '—';
+            $pdf->Ln(2);
+            $pdf->SetFont('dejavusans', 'B', 8);
+            $pdf->writeHTML('Research title:', true, false, true, false, '');
+            $pdf->SetFont('dejavusans', '', 8.5);
+            $pdf->writeHTML(
+                '<div style="min-height:12mm;border-bottom:0.1mm solid #000">'
+                    .htmlspecialchars($paperTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>',
+                true,
+                false,
+                true,
+                false,
+                '',
+            );
+        }
+
+        if (! empty($settings['show_proponents'])) {
+            $props = $this->formatProponents($paper);
+            $pdf->SetFont('dejavusans', 'B', 8);
+            $pdf->writeHTML('Proponent(s):', true, false, true, false, '');
+            $pdf->SetFont('dejavusans', '', 8.5);
+            $pdf->writeHTML(
+                '<div style="min-height:10mm;border-bottom:0.1mm solid #000">'
+                    .htmlspecialchars($props, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>',
+                true,
+                false,
+                true,
+                false,
+                '',
+            );
+        }
+
+        if (! empty($settings['show_sdg']) && $paper) {
+            $ids = (array) ($paper->sdg_ids ?? []);
+            if ($ids !== []) {
+                $rows = Sdg::query()
+                    ->whereIn('id', $ids)
+                    ->orderBy('number')
+                    ->get(['id', 'number', 'name']);
+                if ($rows->isNotEmpty()) {
+                    $pdf->Ln(1);
+                    $pdf->SetFont('dejavusans', 'B', 8);
+                    $pdf->Cell(0, 4, 'SDG(s) applied in this research:', 0, 1, 'L');
+                    $pdf->SetFont('dejavusans', '', 7.5);
+                    $list = $rows->map(function (Sdg $s) {
+                        $n = (int) $s->number;
+                        $label = $n > 0 ? 'SDG '.$n.': ' : '';
+                        $label .= (string) $s->name;
+
+                        return '• '.htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    })->implode('<br/>');
+                    $pdf->writeHTML(
+                        '<div style="border:0.2mm solid #000;padding:2mm">'.$list.'</div>',
+                        true,
+                        false,
+                        true,
+                        false,
+                        '',
+                    );
+                }
+            }
         }
     }
 
@@ -152,7 +226,7 @@ class DefenseEvaluationPdfGenerator
         $pdf->Cell(0, 4, 'Rating scale:', 0, 1, 'L');
 
         $h = '<table width="100%" border="1" cellpadding="2" cellspacing="0"><thead><tr style="background-color:#eee">'
-            .'<th width="20%"><b>Score / range</b></th><th width="20%"><b>Equivalent</b></th><th width="60%"><b>Narrative description</b></th></tr></thead><tbody>';
+            .'<th width="20%"><b>Score</b></th><th width="20%"><b>Equivalent</b></th><th width="60%"><b>Narrative description</b></th></tr></thead><tbody>';
         foreach ($rows as $row) {
             if (! is_array($row)) {
                 continue;

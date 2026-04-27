@@ -10,6 +10,7 @@ import {
     SlidersHorizontal,
     ExternalLink,
     GraduationCap,
+    Image,
     LayoutGrid,
     Megaphone,
     ScrollText,
@@ -125,6 +126,11 @@ const AdminSettingsItems: NavItem[] = [
         title: 'Evaluation Formats',
         href: admin.evaluationFormats.index.url(),
         icon: SlidersHorizontal,
+    },
+    {
+        title: 'Site branding',
+        href: admin.branding.index.url(),
+        icon: Image,
     },
 ];
 

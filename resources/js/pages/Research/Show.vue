@@ -314,10 +314,10 @@ const copyToClipboard = async (text: string) => {
                                     class="overflow-hidden rounded-lg bg-muted/50 transition hover:bg-muted"
                                 >
                                     <div
-                                        class="flex items-center gap-3 px-4 py-3"
+                                        class="flex items-start gap-3 px-4 py-3"
                                     >
                                         <svg
-                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            class="mt-0.5 h-8 w-8 shrink-0 text-red-500"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -331,7 +331,7 @@ const copyToClipboard = async (text: string) => {
                                         </svg>
                                         <div class="min-w-0 flex-1">
                                             <p
-                                                class="truncate text-sm font-medium text-foreground"
+                                                class="min-w-0 text-sm leading-snug font-medium [overflow-wrap:anywhere] break-words text-foreground"
                                             >
                                                 {{ file.file_name }}
                                             </p>
@@ -346,7 +346,7 @@ const copyToClipboard = async (text: string) => {
                                             </p>
                                         </div>
                                         <div
-                                            class="flex shrink-0 items-center gap-2"
+                                            class="flex shrink-0 items-center gap-2 self-center"
                                         >
                                             <button
                                                 v-if="

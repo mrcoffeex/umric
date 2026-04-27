@@ -1,4 +1,4 @@
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { initializeTheme } from '@/composables/useAppearance';
 import AppLayout from '@/layouts/AppLayout.vue';
 import AuthLayout from '@/layouts/AuthLayout.vue';
@@ -9,7 +9,31 @@ import { initializeFlashToast } from '@/lib/flashToast';
 
 applyBrandColorVariables();
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+function readAppNameFromDocument(): string {
+    if (typeof document === 'undefined') {
+        return import.meta.env.VITE_APP_NAME || 'Laravel';
+    }
+
+    return (
+        document.querySelector<HTMLMetaElement>('meta[name="application-name"]')
+            ?.content ||
+        import.meta.env.VITE_APP_NAME ||
+        'Laravel'
+    );
+}
+
+let appName = readAppNameFromDocument();
+
+if (typeof window !== 'undefined') {
+    router.on('navigate', (event) => {
+        const name = event.detail.page.props.name;
+
+        if (typeof name === 'string' && name.length > 0) {
+            appName = name;
+        }
+    });
+}
+
 const inertiaProgressColor =
     import.meta.env.VITE_BRAND_RING ||
     import.meta.env.VITE_BRAND_PRIMARY ||
@@ -24,6 +48,8 @@ createInertiaApp({
                 return null;
             case name === 'Documentation':
             case name === 'Faq':
+            case name === 'Terms':
+            case name === 'PrivacyPolicy':
                 return PublicInfoLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;

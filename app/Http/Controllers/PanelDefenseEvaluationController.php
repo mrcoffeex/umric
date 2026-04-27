@@ -8,6 +8,7 @@ use App\Models\EvaluationCriterion;
 use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\PanelDefenseEvaluation;
+use App\Models\Sdg;
 use App\Models\User;
 use App\Services\DefenseEvaluationPdfGenerator;
 use Illuminate\Database\Eloquent\Builder;
@@ -57,6 +58,17 @@ class PanelDefenseEvaluationController extends Controller
                 ->map(fn (string $label, string $key) => ['value' => $key, 'label' => $label])
                 ->values(),
             'filters' => $this->currentFilters($request, $isAdmin, $perPage),
+            'sdgCatalog' => Sdg::query()
+                ->where('is_active', true)
+                ->orderBy('number')
+                ->get()
+                ->map(fn (Sdg $s) => [
+                    'id' => (string) $s->id,
+                    'name' => $s->name,
+                    'number' => $s->number,
+                ])
+                ->values()
+                ->all(),
         ]);
     }
 
@@ -142,6 +154,10 @@ class PanelDefenseEvaluationController extends Controller
         $data = $request->validated();
         $scores = (array) ($data['scores'] ?? []);
         $built = $this->buildLineItemsForCreate($panelDefense, $scores);
+        $isTitle = $panelDefense->defense_type === 'title';
+        $sdgIds = $isTitle
+            ? array_values(array_map('strval', (array) ($data['sdg_ids'] ?? [])))
+            : null;
 
         PanelDefenseEvaluation::query()->create([
             'panel_defense_id' => $panelDefense->id,
@@ -149,6 +165,7 @@ class PanelDefenseEvaluationController extends Controller
             'line_items' => $built['line_items'],
             'final_score' => $built['final_score'],
             'comments' => $data['comments'],
+            'sdg_ids' => $sdgIds,
         ]);
 
         $isFacultyOnly = $request->user()?->isFaculty() === true;
@@ -179,11 +196,17 @@ class PanelDefenseEvaluationController extends Controller
         $defense = $panelDefenseEvaluation->panelDefense;
         $format = $defense?->evaluationFormat;
         $built = $this->applyScoresToLineItemsSnapshot($lineItems, $scores, $format);
-        $panelDefenseEvaluation->update([
+        $defense = $panelDefenseEvaluation->panelDefense;
+        $isTitle = $defense?->defense_type === 'title';
+        $update = [
             'line_items' => $built['line_items'],
             'final_score' => $built['final_score'],
             'comments' => $data['comments'],
-        ]);
+        ];
+        if ($isTitle) {
+            $update['sdg_ids'] = array_values(array_map('strval', (array) ($data['sdg_ids'] ?? [])));
+        }
+        $panelDefenseEvaluation->update($update);
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -393,11 +416,25 @@ class PanelDefenseEvaluationController extends Controller
             $out['canDownloadEvaluationPdf'] = $isAdmin || ((string) $evaluation->evaluator_id === (string) $user->id);
         }
 
+        $out['sdgs'] = Sdg::query()
+            ->where('is_active', true)
+            ->orderBy('number')
+            ->get()
+            ->map(fn (Sdg $s) => [
+                'id' => (string) $s->id,
+                'name' => $s->name,
+                'number' => $s->number,
+            ])
+            ->values()
+            ->all();
+        $out['titleSdgChecklist'] = $panelDefense->defense_type === 'title';
+
         if ($mode === 'create' && $evaluation === null) {
             $out['evaluation'] = null;
             $out['initialScores'] = $criteria
                 ->mapWithKeys(fn (EvaluationCriterion $c) => [(string) $c->id => 0])
                 ->all();
+            $out['initialSdgIds'] = [];
         } elseif (in_array($mode, ['view', 'admin_edit'], true) && $evaluation !== null) {
             $out['evaluation'] = $this->mapSingleEvaluation($evaluation, $user);
             $lineItems = $evaluation->line_items;
@@ -411,9 +448,12 @@ class PanelDefenseEvaluationController extends Controller
                 }
             }
             $out['initialScores'] = $initial;
+            $rawSdg = $evaluation->sdg_ids;
+            $out['initialSdgIds'] = is_array($rawSdg) ? array_values(array_map('strval', $rawSdg)) : [];
         } else {
             $out['evaluation'] = null;
             $out['initialScores'] = [];
+            $out['initialSdgIds'] = [];
         }
 
         $out['initialComment'] = $evaluation !== null
@@ -471,11 +511,14 @@ class PanelDefenseEvaluationController extends Controller
      */
     private function mapSingleEvaluation(PanelDefenseEvaluation $e, User $user): array
     {
+        $sdg = $e->sdg_ids;
+
         return [
             'id' => (string) $e->id,
             'line_items' => is_array($e->line_items) ? $e->line_items : [],
             'final_score' => (int) $e->final_score,
             'comments' => $e->comments,
+            'sdg_ids' => is_array($sdg) ? array_values(array_map('strval', $sdg)) : [],
             'is_mine' => (string) $e->evaluator_id === (string) $user->id,
             'evaluator_name' => $e->evaluator?->name,
         ];
@@ -620,19 +663,26 @@ class PanelDefenseEvaluationController extends Controller
             ] : null,
             'evaluation_format_ready' => $formatReady,
             'can_evaluate' => $onPanel && $myEval === null && $formatReady,
-            'my_evaluation' => $myEval ? $this->mapMyEvaluation($myEval) : null,
+            'my_evaluation' => $myEval ? $this->mapMyEvaluation($myEval, $d) : null,
         ];
 
         if ($isAdmin) {
-            $row['evaluations'] = $d->evaluations->map(fn (PanelDefenseEvaluation $e) => [
-                'id' => (string) $e->id,
-                'evaluator_id' => (string) $e->evaluator_id,
-                'evaluator_name' => $e->evaluator?->name ?? 'Unknown',
-                'line_items' => is_array($e->line_items) ? $e->line_items : [],
-                'final_score' => (int) $e->final_score,
-                'comments' => $e->comments,
-                'is_mine' => (string) $e->evaluator_id === (string) $user->id,
-            ])->values()->all();
+            $row['evaluations'] = $d->evaluations->map(function (PanelDefenseEvaluation $e) use ($d, $user) {
+                $rawSdg = $e->sdg_ids;
+
+                return [
+                    'id' => (string) $e->id,
+                    'evaluator_id' => (string) $e->evaluator_id,
+                    'evaluator_name' => $e->evaluator?->name ?? 'Unknown',
+                    'line_items' => is_array($e->line_items) ? $e->line_items : [],
+                    'final_score' => (int) $e->final_score,
+                    'comments' => $e->comments,
+                    'sdg_ids' => $d->defense_type === 'title' && is_array($rawSdg)
+                        ? array_values(array_map('strval', $rawSdg))
+                        : [],
+                    'is_mine' => (string) $e->evaluator_id === (string) $user->id,
+                ];
+            })->values()->all();
             $row['average_score'] = $d->evaluations->isEmpty()
                 ? null
                 : round((float) $d->evaluations->avg('final_score'), 1);
@@ -646,13 +696,17 @@ class PanelDefenseEvaluationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function mapMyEvaluation(PanelDefenseEvaluation $e): array
+    private function mapMyEvaluation(PanelDefenseEvaluation $e, PanelDefense $defense): array
     {
+        $isTitle = $defense->defense_type === 'title';
+        $rawSdg = $e->sdg_ids;
+
         return [
             'id' => (string) $e->id,
             'line_items' => is_array($e->line_items) ? $e->line_items : [],
             'final_score' => (int) $e->final_score,
             'comments' => $e->comments,
+            'sdg_ids' => $isTitle && is_array($rawSdg) ? array_values(array_map('strval', $rawSdg)) : [],
         ];
     }
 }

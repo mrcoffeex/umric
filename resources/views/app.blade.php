@@ -37,9 +37,12 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700" rel="stylesheet" />
 
+        @php($inertiaTitle = $page['props']['name'] ?? config('app.name', 'Laravel'))
+        <meta name="application-name" content="{{ $inertiaTitle }}">
+
         @vite(['resources/css/app.css', 'resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            <title>{{ $inertiaTitle }}</title>
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

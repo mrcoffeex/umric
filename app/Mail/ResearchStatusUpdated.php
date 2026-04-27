@@ -40,11 +40,10 @@ class ResearchStatusUpdated extends Mailable
     }
 
     /**
-     * Send status update email to the research paper's student and proponents.
-     * - To:  main proponent (first in the proponents JSON, i.e. the lead student)
-     *        Falls back to paper->user_id if proponents list is empty.
-     * - CC:  remaining proponents + paper->user_id (if not already included).
-     * The admin/faculty triggering the action is never emailed.
+     * Queue a status update email to every active proponent and the lead (paper owner).
+     * Proponent ids are string ULIDs: never cast to int.
+     * Each recipient gets their own queued message (independent To:).
+     * The person triggering the change is not excluded (faculty/staff are rarely proponents).
      */
     public static function dispatch(
         ResearchPaper $paper,
@@ -53,70 +52,56 @@ class ResearchStatusUpdated extends Mailable
         string $status,
         ?string $notes = null,
     ): void {
-        $proponents = collect($paper->proponents ?? []);
-
-        // Build ordered list of IDs: proponents first, then owner as fallback
-        $orderedIds = $proponents
+        $idOrder = collect($paper->proponents ?? [])
             ->pluck('id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn (mixed $id) => (string) $id)
             ->filter()
+            ->unique()
             ->values();
 
-        // Ensure the paper creator is always included
-        if (! $orderedIds->contains($paper->user_id)) {
-            $orderedIds->push($paper->user_id);
+        $ownerId = (string) $paper->user_id;
+        if (! $idOrder->contains($ownerId)) {
+            $idOrder->push($ownerId);
         }
 
-        if ($orderedIds->isEmpty()) {
+        if ($idOrder->isEmpty()) {
             Log::warning('ResearchStatusUpdated: no recipients found', ['paper_id' => $paper->id]);
 
             return;
         }
 
-        $users = User::whereIn('id', $orderedIds->all())
+        $users = User::query()
+            ->whereIn('id', $idOrder->all())
             ->get(['id', 'email', 'name'])
-            ->keyBy('id');
+            ->keyBy(fn (User $u): string => (string) $u->id);
 
-        $mainUser = $users->get($orderedIds->first());
+        $recipients = $idOrder
+            ->map(fn (string $id) => $users->get($id))
+            ->filter()
+            ->filter(fn (User $u) => filled($u->email))
+            ->unique('id')
+            ->values();
 
-        if (! $mainUser) {
-            Log::warning('ResearchStatusUpdated: main recipient user not found', [
-                'paper_id' => $paper->id,
-                'main_id' => $orderedIds->first(),
-            ]);
+        if ($recipients->isEmpty()) {
+            Log::warning('ResearchStatusUpdated: no recipients with an email', ['paper_id' => $paper->id]);
 
             return;
         }
 
-        $ccUsers = $orderedIds->skip(1)
-            ->map(fn ($id) => $users->get($id))
-            ->filter()
-            ->map(fn (User $u) => new Address($u->email, $u->name))
-            ->values()
-            ->all();
-
-        Log::info('ResearchStatusUpdated: sending', [
+        Log::info('ResearchStatusUpdated: queuing for proponents', [
             'paper_id' => $paper->id,
-            'to' => $mainUser->email,
-            'cc' => array_map(fn ($a) => $a->address, $ccUsers),
+            'emails' => $recipients->pluck('email')->all(),
             'step' => $step,
             'status' => $status,
         ]);
 
         try {
-            $mailable = new self($paper, $step, $stepLabel, $status, $notes);
-
-            $mailer = Mail::to(new Address($mainUser->email, $mainUser->name));
-
-            if (! empty($ccUsers)) {
-                $mailer->cc($ccUsers);
+            foreach ($recipients as $user) {
+                Mail::to(new Address($user->email, $user->name))
+                    ->queue(new self($paper, $step, $stepLabel, $status, $notes));
             }
-
-            $mailer->queue($mailable);
-
-            Log::info('ResearchStatusUpdated: sent successfully to '.$mainUser->email, ['paper_id' => $paper->id]);
         } catch (\Throwable $e) {
-            Log::error('ResearchStatusUpdated: failed to send', [
+            Log::error('ResearchStatusUpdated: failed to queue', [
                 'paper_id' => $paper->id,
                 'error' => $e->getMessage(),
             ]);

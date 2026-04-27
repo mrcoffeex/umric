@@ -7,6 +7,7 @@ import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
+import { useBranding } from '@/composables/useBranding';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
@@ -24,6 +25,8 @@ const props = defineProps<{
     canRegister: boolean;
 }>();
 
+const branding = useBranding();
+
 function redirectToGoogle() {
     window.location.href = '/auth/google';
 }
@@ -38,7 +41,7 @@ function redirectToGoogle() {
             Welcome back
         </h2>
         <p class="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
-            Sign in to your UMRIC account
+            Sign in to your {{ branding.name }} account
         </p>
     </div>
 

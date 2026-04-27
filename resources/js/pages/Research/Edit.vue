@@ -477,10 +477,10 @@ function submit() {
                         <!-- Existing file -->
                         <div
                             v-if="existingFile && !form.file"
-                            class="mb-3 flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3"
+                            class="mb-3 flex items-start gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3"
                         >
                             <svg
-                                class="h-8 w-8 shrink-0 text-red-500"
+                                class="mt-0.5 h-8 w-8 shrink-0 text-red-500"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -494,7 +494,7 @@ function submit() {
                             </svg>
                             <div class="min-w-0 flex-1">
                                 <p
-                                    class="truncate text-sm font-medium text-foreground"
+                                    class="min-w-0 text-sm leading-snug font-medium [overflow-wrap:anywhere] break-words text-foreground"
                                 >
                                     {{ existingFile.file_name }}
                                 </p>
@@ -502,7 +502,8 @@ function submit() {
                                     {{ formatFileSize(existingFile.file_size) }}
                                 </p>
                             </div>
-                            <span class="text-xs text-muted-foreground"
+                            <span
+                                class="shrink-0 self-center text-xs text-muted-foreground"
                                 >Current file</span
                             >
                         </div>

@@ -31,6 +31,8 @@ type MyEvaluation = {
     line_items: LineItem[];
     final_score: number;
     comments?: string | null;
+    /** Title defenses: SDGs the panelist selected on the evaluation. */
+    sdg_ids: string[];
 };
 
 type AdminEvalRow = {
@@ -40,8 +42,11 @@ type AdminEvalRow = {
     line_items: LineItem[];
     final_score: number;
     comments?: string | null;
+    sdg_ids: string[];
     is_mine: boolean;
 };
+
+type SdgCat = { id: string; name: string; number?: number | null };
 
 type DefenseRow = {
     id: string;
@@ -91,14 +96,19 @@ type Paginator<T> = {
     links: { url: string | null; label: string; active: boolean }[];
 };
 
-const props = defineProps<{
-    defenses: Paginator<DefenseRow>;
-    /** At least one rubric has criteria totaling 100 (new schedules can use it) */
-    anyEvaluationFormatReady: boolean;
-    context: 'admin' | 'faculty';
-    defenseTypeOptions: DefenseTypeOption[];
-    filters: FilterProps;
-}>();
+const props = withDefaults(
+    defineProps<{
+        defenses: Paginator<DefenseRow>;
+        /** At least one rubric has criteria totaling 100 (new schedules can use it) */
+        anyEvaluationFormatReady: boolean;
+        context: 'admin' | 'faculty';
+        defenseTypeOptions: DefenseTypeOption[];
+        filters: FilterProps;
+        /** Resolve SDG labels for title evaluations in the admin list. */
+        sdgCatalog: SdgCat[];
+    }>(),
+    { sdgCatalog: () => [] },
+);
 
 const searchInput = ref(props.filters.q ?? '');
 const defenseType = ref(props.filters.defense_type ?? '');
@@ -121,6 +131,22 @@ watch(
 );
 
 const page = usePage();
+
+const sdgLookup = computed(() =>
+    Object.fromEntries(props.sdgCatalog.map((s) => [s.id, s])),
+);
+
+function formatSdgLabel(id: string): string {
+    const s = sdgLookup.value[id];
+
+    if (!s) {
+        return `SDG ${id}`;
+    }
+
+    return s.number != null && s.number > 0
+        ? `SDG ${s.number}: ${s.name}`
+        : s.name;
+}
 const authUserNameNorm = computed((): string => {
     const u = page.props.auth as { user?: { name?: string } } | undefined;
     const n = u?.user?.name;
@@ -797,6 +823,33 @@ function formatAverageScore(n: number): string {
                                             >
                                                 {{ ev.comments }}
                                             </p>
+                                            <div
+                                                v-if="
+                                                    d.defense_type ===
+                                                        'title' &&
+                                                    ev.sdg_ids &&
+                                                    ev.sdg_ids.length
+                                                "
+                                                class="flex flex-wrap content-start gap-1 border-t border-border/50 pt-1.5"
+                                            >
+                                                <span
+                                                    class="w-full text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                                    >SDGs (evaluator)</span
+                                                >
+                                                <Badge
+                                                    v-for="sid in ev.sdg_ids"
+                                                    :key="sid"
+                                                    variant="outline"
+                                                    class="max-w-full border-blue-200/80 bg-blue-50/80 text-[10px] font-medium text-blue-900 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-100"
+                                                >
+                                                    <span
+                                                        class="line-clamp-2 break-words"
+                                                        >{{
+                                                            formatSdgLabel(sid)
+                                                        }}</span
+                                                    >
+                                                </Badge>
+                                            </div>
                                         </div>
                                     </div>
                                     <div

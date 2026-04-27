@@ -27,6 +27,7 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             name: string;
+            branding: { tagline: string | null; logoUrl: string | null };
             auth: Auth;
             documentHandoffs: { incomingPending: number };
             sidebarOpen: boolean;

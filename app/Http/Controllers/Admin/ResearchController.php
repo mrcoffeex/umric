@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\LogsAdminActions;
+use App\Http\Requests\Admin\UpdateResearchProponentsRequest;
 use App\Mail\ResearchStatusUpdated;
 use App\Models\Agenda;
 use App\Models\EvaluationFormat;
@@ -344,6 +345,72 @@ class ResearchController extends Controller
         return back();
     }
 
+    public function updateClassifications(Request $request, ResearchPaper $paper): RedirectResponse
+    {
+        $validated = $request->validate([
+            'sdg_ids' => ['nullable', 'array'],
+            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
+            'agenda_ids' => ['nullable', 'array'],
+            'agenda_ids.*' => ['string', 'exists:agendas,id'],
+        ]);
+
+        $paper->update([
+            'sdg_ids' => $validated['sdg_ids'] ?? [],
+            'agenda_ids' => $validated['agenda_ids'] ?? [],
+        ]);
+
+        $this->logAdminAction()
+            ->on($paper)
+            ->withProperties([
+                'sdg_ids' => $paper->sdg_ids,
+                'agenda_ids' => $paper->agenda_ids,
+            ])
+            ->withDescription("Updated SDG and research agenda tags for paper {$paper->tracking_id}")
+            ->action('updated');
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'SDG and research agenda tags updated.']);
+
+        return back();
+    }
+
+    public function updateProponents(UpdateResearchProponentsRequest $request, ResearchPaper $paper): RedirectResponse
+    {
+        $validated = $request->validated();
+        $ids = collect($validated['proponents'])->pluck('id')->all();
+        $users = User::query()->whereIn('id', $ids)->get()->keyBy(fn (User $u): string => (string) $u->id);
+
+        $proponents = collect($validated['proponents'])->map(function (array $row) use ($users) {
+            $u = $users->get((string) $row['id']);
+
+            return [
+                'id' => (string) $u->id,
+                'name' => $u->name,
+            ];
+        })->values()->all();
+
+        $newLeadId = $proponents[0]['id'];
+        $oldUserId = (string) $paper->user_id;
+
+        $paper->update([
+            'user_id' => $newLeadId,
+            'proponents' => $proponents,
+        ]);
+
+        $this->logAdminAction()
+            ->on($paper)
+            ->withProperties([
+                'proponents_count' => count($proponents),
+                'user_id' => $newLeadId,
+                'previous_user_id' => $oldUserId,
+            ])
+            ->withDescription("Updated proponents for paper {$paper->tracking_id}")
+            ->action('updated');
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Proponents updated.']);
+
+        return back();
+    }
+
     public function updateStep(Request $request, ResearchPaper $paper): RedirectResponse
     {
         $step = $request->input('step');
@@ -500,8 +567,8 @@ class ResearchController extends Controller
             return back();
         }
 
-        $currentStep = $paper->current_step;
         $paper->advanceToNextStep();
+        $paper = $paper->fresh();
 
         TrackingRecord::log(
             $paper->id,
@@ -510,6 +577,14 @@ class ResearchController extends Controller
             'pending',
             null,
             $request->user()->id,
+        );
+
+        ResearchStatusUpdated::dispatch(
+            $paper,
+            $paper->current_step,
+            ResearchPaper::STEP_LABELS[$paper->current_step] ?? $paper->current_step,
+            (string) ($paper->current_step_status ?? 'pending'),
+            null,
         );
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Moved to next step.']);
@@ -689,6 +764,26 @@ class ResearchController extends Controller
             $actorUserId,
             $panelNotes,
             ['schedule' => $schedule->toIso8601String()],
+        );
+
+        $paper->refresh();
+        $dispatchStatus = (string) (
+            $defenseType === 'outline'
+                ? ($paper->step_outline_defense ?? 'pending')
+                : ($paper->step_final_defense ?? 'pending')
+        );
+        $scheduleNote = 'Defense date & time: '.$schedule->format('F j, Y \a\t g:i A')
+            ."\n".'Panel: '.implode(', ', $panelMemberNames);
+        $emailNotes = $notes !== null && $notes !== ''
+            ? $scheduleNote."\n".'Remarks: '.$notes
+            : $scheduleNote;
+
+        ResearchStatusUpdated::dispatch(
+            $paper,
+            $stepKey,
+            ResearchPaper::STEP_LABELS[$stepKey] ?? $stepKey,
+            $dispatchStatus,
+            $emailNotes,
         );
     }
 

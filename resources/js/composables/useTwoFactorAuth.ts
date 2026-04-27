@@ -9,6 +9,8 @@ export type UseTwoFactorAuthReturn = {
     recoveryCodesList: Ref<string[]>;
     errors: Ref<string[]>;
     hasSetupData: ComputedRef<boolean>;
+    isSetupLoading: Ref<boolean>;
+    isRecoveryLoading: Ref<boolean>;
     clearSetupData: () => void;
     clearErrors: () => void;
     clearTwoFactorAuthData: () => void;
@@ -22,6 +24,8 @@ const errors = ref<string[]>([]);
 const manualSetupKey = ref<string | null>(null);
 const qrCodeSvg = ref<string | null>(null);
 const recoveryCodesList = ref<string[]>([]);
+const isSetupLoading = ref(false);
+const isRecoveryLoading = ref(false);
 
 const hasSetupData = computed<boolean>(
     () => qrCodeSvg.value !== null && manualSetupKey.value !== null,
@@ -74,6 +78,8 @@ export const useTwoFactorAuth = (): UseTwoFactorAuthReturn => {
     };
 
     const fetchRecoveryCodes = async (): Promise<void> => {
+        isRecoveryLoading.value = true;
+
         try {
             clearErrors();
             recoveryCodesList.value = (await http.submit(
@@ -82,16 +88,22 @@ export const useTwoFactorAuth = (): UseTwoFactorAuthReturn => {
         } catch {
             errors.value.push('Failed to fetch recovery codes');
             recoveryCodesList.value = [];
+        } finally {
+            isRecoveryLoading.value = false;
         }
     };
 
     const fetchSetupData = async (): Promise<void> => {
+        isSetupLoading.value = true;
+
         try {
             clearErrors();
             await Promise.all([fetchQrCode(), fetchSetupKey()]);
         } catch {
             qrCodeSvg.value = null;
             manualSetupKey.value = null;
+        } finally {
+            isSetupLoading.value = false;
         }
     };
 
@@ -101,6 +113,8 @@ export const useTwoFactorAuth = (): UseTwoFactorAuthReturn => {
         recoveryCodesList,
         errors,
         hasSetupData,
+        isSetupLoading,
+        isRecoveryLoading,
         clearSetupData,
         clearErrors,
         clearTwoFactorAuthData,

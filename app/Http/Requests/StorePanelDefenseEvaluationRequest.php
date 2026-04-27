@@ -45,6 +45,8 @@ class StorePanelDefenseEvaluationRequest extends FormRequest
             'comments' => ['required', 'string', 'min:1', 'max:20000'],
             'scores' => ['required', 'array', 'min:1'],
             'scores.*' => ['required', 'integer', 'min:0'],
+            'sdg_ids' => ['nullable', 'array'],
+            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
             'q' => ['nullable', 'string', 'max:200'],
             'defense_type' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:100'],
@@ -69,6 +71,15 @@ class StorePanelDefenseEvaluationRequest extends FormRequest
             }
 
             $defense = $this->panelDefense();
+            if ($defense->defense_type === 'title') {
+                $s = $this->input('sdg_ids');
+                if (! is_array($s) || $s === []) {
+                    $validator->errors()->add('sdg_ids', __('Select at least one SDG for a title evaluation.'));
+
+                    return;
+                }
+            }
+
             $defense->loadMissing('evaluationFormat');
             $format = $defense->evaluationFormat;
             if (! $format) {

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import AppLogoIcon from '@/components/AppLogoIcon.vue';
+import { useBranding } from '@/composables/useBranding';
 import { home } from '@/routes';
 
 defineProps<{
     title?: string;
     description?: string;
 }>();
+
+const branding = useBranding();
 </script>
 
 <template>
@@ -45,9 +48,9 @@ defineProps<{
                     >
                         <AppLogoIcon class="size-5 text-white" />
                     </div>
-                    <span class="text-xl font-bold tracking-tight text-white"
-                        >UMRIC</span
-                    >
+                    <span class="text-xl font-bold tracking-tight text-white">{{
+                        branding.name
+                    }}</span>
                 </Link>
 
                 <!-- Center content -->
@@ -160,9 +163,9 @@ defineProps<{
                 >
                     <AppLogoIcon class="size-4 text-white" />
                 </div>
-                <span class="text-lg font-bold text-gray-900 dark:text-white"
-                    >UMRIC</span
-                >
+                <span class="text-lg font-bold text-gray-900 dark:text-white">{{
+                    branding.name
+                }}</span>
             </Link>
 
             <div class="w-full max-w-sm">

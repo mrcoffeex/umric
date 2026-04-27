@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\DocumentTransmission;
+use App\Services\BrandingService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -37,10 +38,15 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $branding = app(BrandingService::class)->inertiaProps();
 
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
+            'name' => $branding['name'],
+            'branding' => [
+                'tagline' => $branding['tagline'],
+                'logoUrl' => $branding['logoUrl'],
+            ],
             'auth' => [
                 'user' => $user ? array_merge($user->toArray(), [
                     'role' => $user->role(),

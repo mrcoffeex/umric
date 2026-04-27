@@ -3,19 +3,16 @@ import { Link, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     FileText,
-    Globe,
     Loader2,
     Plus,
     Sparkles,
     Tag,
-    Target,
     Users,
     X,
 } from 'lucide-vue-next';
 import { computed, nextTick, ref } from 'vue';
 import { extractMetadata } from '@/actions/App/Http/Controllers/Student/ResearchController';
 import FilePreview from '@/components/FilePreview.vue';
-import MultiSelect from '@/components/MultiSelect.vue';
 import TagsInput from '@/components/TagsInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,23 +21,10 @@ import { useDocumentExtractor } from '@/composables/useDocumentExtractor';
 import { search as searchProponents } from '@/routes/papers/proponents';
 import student from '@/routes/student';
 
-interface Props {
-    sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
-    agendas: Array<{ id: string; name: string }>;
+const props = defineProps<{
     auth_user: { id: string; name: string };
-}
-
-const props = defineProps<Props>();
+}>();
 const uploadMaxSizeMb = Number(import.meta.env.VITE_UPLOAD_MAX_SIZE_MB ?? 25);
-const sdgOptions = computed(() =>
-    props.sdgs.map((s) => ({
-        value: s.id,
-        label: s.number ? `SDG ${s.number}: ${s.name}` : s.name,
-    })),
-);
-const agendaOptions = computed(() =>
-    props.agendas.map((a) => ({ value: a.id, label: a.name })),
-);
 
 defineOptions({
     layout: {
@@ -54,8 +38,6 @@ defineOptions({
 const form = useForm({
     title: '',
     abstract: '',
-    sdg_ids: [] as string[],
-    agenda_ids: [] as string[],
     proponents: [
         { id: props.auth_user.id, name: props.auth_user.name },
     ] as Array<{ id: string; name: string }>,
@@ -614,88 +596,6 @@ function submit() {
                         </button>
                     </div>
                 </section>
-
-                <!-- SDG + Agenda -->
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <section
-                        class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-                    >
-                        <div
-                            class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
-                        >
-                            <div
-                                class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-100 dark:bg-green-500/20"
-                            >
-                                <Globe
-                                    class="h-3.5 w-3.5 text-green-600 dark:text-green-400"
-                                />
-                            </div>
-                            <h2 class="text-sm font-semibold text-foreground">
-                                SDGs
-                            </h2>
-                            <span
-                                v-if="form.sdg_ids.length"
-                                class="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-500/20 dark:text-green-400"
-                            >
-                                {{ form.sdg_ids.length }} selected
-                            </span>
-                        </div>
-                        <div class="p-5">
-                            <MultiSelect
-                                v-model="form.sdg_ids"
-                                :options="sdgOptions"
-                                search-placeholder="Search SDGs…"
-                                checkbox-accent-class="accent-orange-500"
-                            />
-                            <p
-                                v-if="form.errors.sdg_ids"
-                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
-                            >
-                                <X class="h-3 w-3" /> {{ form.errors.sdg_ids }}
-                            </p>
-                        </div>
-                    </section>
-
-                    <section
-                        class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-                    >
-                        <div
-                            class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
-                        >
-                            <div
-                                class="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-500/20"
-                            >
-                                <Target
-                                    class="h-3.5 w-3.5 text-teal-600 dark:text-teal-400"
-                                />
-                            </div>
-                            <h2 class="text-sm font-semibold text-foreground">
-                                Agenda
-                            </h2>
-                            <span
-                                v-if="form.agenda_ids.length"
-                                class="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400"
-                            >
-                                {{ form.agenda_ids.length }} selected
-                            </span>
-                        </div>
-                        <div class="p-5">
-                            <MultiSelect
-                                v-model="form.agenda_ids"
-                                :options="agendaOptions"
-                                search-placeholder="Search agendas…"
-                                checkbox-accent-class="accent-orange-500"
-                            />
-                            <p
-                                v-if="form.errors.agenda_ids"
-                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
-                            >
-                                <X class="h-3 w-3" />
-                                {{ form.errors.agenda_ids }}
-                            </p>
-                        </div>
-                    </section>
-                </div>
             </form>
         </div>
 

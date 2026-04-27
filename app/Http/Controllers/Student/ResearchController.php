@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ResearchStatusUpdated;
 use App\Models\Agenda;
 use App\Models\PaperFile;
 use App\Models\ResearchPaper;
@@ -141,8 +142,6 @@ class ResearchController extends Controller
         }
 
         return Inertia::render('student/Research/Create', [
-            'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
-            'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
             'auth_user' => [
                 'id' => $request->user()->id,
                 'name' => $request->user()->name,
@@ -161,10 +160,6 @@ class ResearchController extends Controller
                 'title' => ['required', 'string', 'max:255'],
                 'abstract' => ['nullable', 'string'],
                 'proponents' => ['nullable', 'array'],
-                'sdg_ids' => ['nullable', 'array'],
-                'sdg_ids.*' => ['string', 'exists:sdgs,id'],
-                'agenda_ids' => ['nullable', 'array'],
-                'agenda_ids.*' => ['string', 'exists:agendas,id'],
                 'keywords' => ['nullable', 'string', 'max:500'],
                 'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
             ],
@@ -187,8 +182,6 @@ class ResearchController extends Controller
             'title' => $validated['title'],
             'abstract' => $validated['abstract'] ?? null,
             'proponents' => $validated['proponents'] ?? null,
-            'sdg_ids' => $validated['sdg_ids'] ?? null,
-            'agenda_ids' => $validated['agenda_ids'] ?? null,
             'keywords' => $validated['keywords'] ?? null,
             'school_class_id' => $schoolClass->id,
             'tracking_id' => 'RP-'.strtoupper(Str::random(8)),
@@ -219,6 +212,14 @@ class ResearchController extends Controller
             $request->user()->id,
         );
 
+        ResearchStatusUpdated::dispatch(
+            $paper->fresh(),
+            'title_proposal',
+            ResearchPaper::STEP_LABELS['title_proposal'] ?? 'Title Evaluation',
+            'submitted',
+            null,
+        );
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Research paper submitted.']);
 
         return redirect()->route('student.research.show', $paper);
@@ -239,8 +240,6 @@ class ResearchController extends Controller
 
         return Inertia::render('student/Research/Edit', [
             'paper' => $paper,
-            'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
-            'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
             'auth_user' => [
                 'id' => $request->user()->id,
                 'name' => $request->user()->name,
@@ -263,10 +262,6 @@ class ResearchController extends Controller
                 'title' => ['required', 'string', 'max:255'],
                 'abstract' => ['nullable', 'string'],
                 'proponents' => ['nullable', 'array'],
-                'sdg_ids' => ['nullable', 'array'],
-                'sdg_ids.*' => ['string', 'exists:sdgs,id'],
-                'agenda_ids' => ['nullable', 'array'],
-                'agenda_ids.*' => ['string', 'exists:agendas,id'],
                 'keywords' => ['nullable', 'string', 'max:500'],
                 'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('uploads.max_size_kb')],
             ],
@@ -280,8 +275,6 @@ class ResearchController extends Controller
             'title' => $validated['title'],
             'abstract' => $validated['abstract'] ?? $paper->abstract,
             'proponents' => $validated['proponents'] ?? $paper->proponents,
-            'sdg_ids' => array_key_exists('sdg_ids', $validated) ? $validated['sdg_ids'] : $paper->sdg_ids,
-            'agenda_ids' => array_key_exists('agenda_ids', $validated) ? $validated['agenda_ids'] : $paper->agenda_ids,
             'keywords' => array_key_exists('keywords', $validated) ? $validated['keywords'] : $paper->keywords,
         ]);
 
@@ -298,6 +291,15 @@ class ResearchController extends Controller
                 'submitted',
                 'returned',
                 $request->user()->id,
+            );
+
+            $paper = $paper->fresh();
+            ResearchStatusUpdated::dispatch(
+                $paper,
+                'ric_review',
+                ResearchPaper::STEP_LABELS['ric_review'] ?? 'RIC/Admin Review',
+                (string) ($paper->step_ric_review ?? 'pending'),
+                null,
             );
         }
 

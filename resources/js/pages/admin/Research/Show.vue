@@ -9,23 +9,29 @@ import {
     Clock3,
     FileBarChart2,
     FileSearch,
+    Globe,
     GraduationCap,
+    Layers,
     Maximize2,
     MessageSquare,
     Pencil,
+    Plus,
     ScrollText,
     Send,
     Shield,
     ShieldCheck,
+    Target,
     Trophy,
     UserPlus,
     Users,
     X,
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
+import InputError from '@/components/InputError.vue';
 import MultiSelect from '@/components/MultiSelect.vue';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/composables/useConfirm';
 import {
@@ -40,9 +46,12 @@ import {
     index as researchIndex,
     updateStep as updateStepRoute,
     assign as assignRoute,
+    updateClassifications as updateClassificationsRoute,
+    updateProponents as updateProponentsRoute,
     storeComment as storeCommentRoute,
 } from '@/routes/admin/research';
 import panelDefensesRoutes from '@/routes/admin/research/panel-defenses';
+import { search as searchProponentsRoute } from '@/routes/papers/proponents';
 
 interface StepRecord {
     id: string;
@@ -146,13 +155,6 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const sdgMap = computed(() =>
-    Object.fromEntries(props.sdgs.map((s) => [s.id, s])),
-);
-const agendaMap = computed(() =>
-    Object.fromEntries(props.agendas.map((a) => [a.id, a])),
-);
-
 const copied = ref(false);
 const qrModalOpen = ref(false);
 const previewingFileId = ref<string | null>(null);
@@ -173,22 +175,163 @@ const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
 
 const progressPercent = computed(() => workflowProgressPercent(props.paper));
 
-const proponents = computed(() => {
-    if (!props.paper.proponents) {
-        return [];
+interface ProponentSlot {
+    id: string;
+    name: string;
+}
+
+function initialProponentsFromPaper(p: Paper): ProponentSlot[] {
+    if (
+        p.proponents &&
+        Array.isArray(p.proponents) &&
+        p.proponents.length > 0
+    ) {
+        return p.proponents.map((x) => {
+            if (typeof x === 'string') {
+                return {
+                    id: p.student ? String(p.student.id) : '',
+                    name: x,
+                };
+            }
+
+            return { id: String(x.id), name: x.name };
+        });
     }
 
-    if (Array.isArray(props.paper.proponents)) {
-        return props.paper.proponents.map((p) =>
-            typeof p === 'string' ? p : p.name,
-        );
+    if (p.student) {
+        return [{ id: String(p.student.id), name: p.student.name }];
     }
 
-    return props.paper.proponents
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean);
+    return [];
+}
+
+const proponentsForm = useForm({
+    proponents: initialProponentsFromPaper(props.paper),
 });
+
+const activeProponentSearchSlot = ref<number | null>(null);
+const proponentSearchQuery = ref('');
+const proponentSearchResults = ref<ProponentSlot[]>([]);
+const proponentSearchInput = ref<HTMLInputElement[]>([]);
+let proponentSearchDebounce: ReturnType<typeof setTimeout>;
+
+const canAddProponentSlot = computed(
+    () => proponentsForm.proponents.length < 3,
+);
+
+function openProponentSearch(slotIndex: number) {
+    activeProponentSearchSlot.value = slotIndex;
+    proponentSearchQuery.value = '';
+    proponentSearchResults.value = [];
+    void nextTick(() => proponentSearchInput.value[0]?.focus());
+}
+
+function closeProponentSearch() {
+    activeProponentSearchSlot.value = null;
+    proponentSearchQuery.value = '';
+    proponentSearchResults.value = [];
+}
+
+async function onProponentSearchInput(value: string) {
+    proponentSearchQuery.value = value;
+    clearTimeout(proponentSearchDebounce);
+
+    if (value.trim().length < 2) {
+        proponentSearchResults.value = [];
+
+        return;
+    }
+
+    proponentSearchDebounce = setTimeout(async () => {
+        try {
+            const res = await fetch(
+                searchProponentsRoute.url({ query: { q: value.trim() } }),
+                {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                },
+            );
+
+            if (!res.ok) {
+                proponentSearchResults.value = [];
+
+                return;
+            }
+
+            const data: ProponentSlot[] = await res.json();
+            const active = activeProponentSearchSlot.value;
+            proponentSearchResults.value = data.filter((u) => {
+                for (let i = 0; i < proponentsForm.proponents.length; i++) {
+                    if (i === active) {
+                        continue;
+                    }
+
+                    if (proponentsForm.proponents[i]?.id === u.id) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+        } catch {
+            proponentSearchResults.value = [];
+        }
+    }, 300);
+}
+
+function selectProponent(slot: number, result: ProponentSlot) {
+    proponentsForm.proponents[slot] = {
+        id: result.id,
+        name: result.name,
+    };
+    closeProponentSearch();
+}
+
+function addProponentSlot() {
+    if (proponentsForm.proponents.length >= 3) {
+        return;
+    }
+
+    proponentsForm.proponents.push({ id: '', name: '' });
+    openProponentSearch(proponentsForm.proponents.length - 1);
+}
+
+function removeProponent(index: number) {
+    if (index === 0) {
+        return;
+    }
+
+    proponentsForm.proponents.splice(index, 1);
+    closeProponentSearch();
+}
+
+function submitProponents() {
+    proponentsForm
+        .transform((data) => ({
+            proponents: data.proponents.filter((p) => p.id !== ''),
+        }))
+        .patch(updateProponentsRoute.url({ paper: props.paper.id }), {
+            preserveScroll: true,
+            onSuccess: () => {
+                proponentsForm.clearErrors();
+                const p = (usePage().props as unknown as { paper: Paper })
+                    .paper;
+                proponentsForm.proponents = initialProponentsFromPaper(p);
+            },
+        });
+}
+
+watch(
+    () => props.paper.id,
+    () => {
+        proponentsForm.proponents = initialProponentsFromPaper(props.paper);
+        proponentsForm.clearErrors();
+        closeProponentSearch();
+    },
+);
 
 const timeline = computed(() => {
     return [...(props.trackingRecords ?? [])].sort((a, b) => {
@@ -429,6 +572,46 @@ const assignmentForm = useForm({
 });
 
 const commentForm = useForm({ body: '' });
+
+const classificationsForm = useForm({
+    sdg_ids: [...(props.paper.sdg_ids ?? [])],
+    agenda_ids: [...(props.paper.agenda_ids ?? [])],
+});
+
+const sdgSelectOptions = computed(() =>
+    props.sdgs.map((s) => ({
+        value: s.id,
+        label: s.number ? `SDG ${s.number}: ${s.name}` : s.name,
+    })),
+);
+
+const agendaSelectOptions = computed(() =>
+    props.agendas.map((a) => ({ value: a.id, label: a.name })),
+);
+
+function submitClassifications(): void {
+    classificationsForm.patch(
+        updateClassificationsRoute.url({ paper: props.paper.id }),
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                const p = (usePage().props as unknown as { paper: Paper })
+                    .paper;
+                classificationsForm.sdg_ids = [...(p.sdg_ids ?? [])];
+                classificationsForm.agenda_ids = [...(p.agenda_ids ?? [])];
+            },
+        },
+    );
+}
+
+watch(
+    () => props.paper.id,
+    () => {
+        classificationsForm.sdg_ids = [...(props.paper.sdg_ids ?? [])];
+        classificationsForm.agenda_ids = [...(props.paper.agenda_ids ?? [])];
+        classificationsForm.clearErrors();
+    },
+);
 
 const { confirm } = useConfirm();
 
@@ -934,33 +1117,21 @@ defineOptions({
         </section>
 
         <!-- Body Grid -->
-        <div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
-            <div>
+        <div
+            class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]"
+        >
+            <div class="min-w-0">
                 <Tabs
                     default-value="steps"
                     class="w-full"
                     :unmount-on-hide="false"
                 >
-                    <TabsList class="mb-3" aria-label="Admin research workflow">
+                    <TabsList
+                        class="mb-3 flex flex-wrap gap-1"
+                        aria-label="Admin research"
+                    >
                         <TabsTrigger value="steps">Step management</TabsTrigger>
-                        <TabsTrigger value="history">
-                            History
-                            <span
-                                v-if="timeline.length"
-                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
-                            >
-                                {{ timeline.length }}
-                            </span>
-                        </TabsTrigger>
-                        <TabsTrigger value="comments">
-                            Comments
-                            <span
-                                v-if="(comments ?? []).length"
-                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
-                            >
-                                {{ (comments ?? []).length }}
-                            </span>
-                        </TabsTrigger>
+                        <TabsTrigger value="paper"> Paper details </TabsTrigger>
                         <TabsTrigger
                             v-if="paper.files && paper.files.length"
                             value="files"
@@ -970,6 +1141,30 @@ defineOptions({
                                 class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
                             >
                                 {{ paper.files.length }}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="classifications">
+                            SDG &amp; Agenda
+                        </TabsTrigger>
+                        <TabsTrigger value="team">
+                            Adviser &amp; Statistician
+                        </TabsTrigger>
+                        <TabsTrigger value="panels">
+                            Panels
+                            <span
+                                v-if="(panelDefenses ?? []).length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ (panelDefenses ?? []).length }}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="comments">
+                            Comments
+                            <span
+                                v-if="(comments ?? []).length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ (comments ?? []).length }}
                             </span>
                         </TabsTrigger>
                     </TabsList>
@@ -1202,122 +1397,6 @@ defineOptions({
                         </section>
                     </TabsContent>
 
-                    <TabsContent value="history" class="mt-0">
-                        <section
-                            id="research-show-history"
-                            class="scroll-mt-24 rounded-2xl border border-border bg-card p-5"
-                        >
-                            <div class="mb-4 flex items-center gap-2">
-                                <Clock3 class="h-4 w-4 text-orange-500" />
-                                <h2 class="text-base font-bold text-foreground">
-                                    Tracking History
-                                </h2>
-                                <span
-                                    v-if="timeline.length"
-                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
-                                >
-                                    {{ timeline.length }}
-                                </span>
-                            </div>
-
-                            <div
-                                v-if="timeline.length === 0"
-                                class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
-                            >
-                                No tracking records yet.
-                            </div>
-
-                            <div
-                                v-else
-                                class="relative ml-3 space-y-0 border-l-2 border-border pl-6"
-                            >
-                                <div
-                                    v-for="(record, idx) in timeline"
-                                    :key="record.id"
-                                    class="relative pb-6 last:pb-0"
-                                >
-                                    <div
-                                        :class="[
-                                            'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
-                                            idx === 0
-                                                ? 'bg-orange-500'
-                                                : 'bg-green-500',
-                                        ]"
-                                    >
-                                        <div
-                                            class="h-1.5 w-1.5 rounded-full bg-white"
-                                        />
-                                    </div>
-                                    <div
-                                        class="rounded-xl border border-border bg-card p-3.5 shadow-xs"
-                                    >
-                                        <div
-                                            class="flex flex-wrap items-center gap-2"
-                                        >
-                                            <p
-                                                class="text-sm font-semibold text-foreground"
-                                            >
-                                                {{ record.action }}
-                                            </p>
-                                            <span
-                                                v-if="record.step"
-                                                :class="[
-                                                    'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                    getStepBadgeClass(
-                                                        record.step,
-                                                    ),
-                                                ]"
-                                            >
-                                                {{
-                                                    record.step
-                                                        ? stepLabel(record.step)
-                                                        : ''
-                                                }}
-                                            </span>
-                                        </div>
-                                        <div
-                                            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
-                                        >
-                                            <span
-                                                v-if="record.status"
-                                                class="inline-flex items-center gap-1"
-                                            >
-                                                <span
-                                                    class="font-medium text-foreground"
-                                                    >Status:</span
-                                                >
-                                                {{ record.status }}
-                                            </span>
-                                            <span
-                                                class="inline-flex items-center gap-1"
-                                            >
-                                                <span
-                                                    class="font-medium text-foreground"
-                                                    >By:</span
-                                                >
-                                                {{
-                                                    record.updated_by?.name ??
-                                                    'System'
-                                                }}
-                                            </span>
-                                            <span>{{
-                                                formatDateTime(
-                                                    record.created_at,
-                                                )
-                                            }}</span>
-                                        </div>
-                                        <p
-                                            v-if="record.notes"
-                                            class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
-                                        >
-                                            {{ record.notes }}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </TabsContent>
-
                     <TabsContent value="comments" class="mt-0">
                         <section
                             id="research-show-comments"
@@ -1456,10 +1535,10 @@ defineOptions({
                                     class="overflow-hidden rounded-xl bg-muted/50 transition hover:bg-muted"
                                 >
                                     <div
-                                        class="flex items-center gap-3 px-4 py-3"
+                                        class="flex items-start gap-3 px-4 py-3"
                                     >
                                         <svg
-                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            class="mt-0.5 h-8 w-8 shrink-0 text-red-500"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -1473,7 +1552,7 @@ defineOptions({
                                         </svg>
                                         <div class="min-w-0 flex-1">
                                             <p
-                                                class="truncate text-sm font-medium text-foreground"
+                                                class="min-w-0 text-sm leading-snug font-medium [overflow-wrap:anywhere] break-words text-foreground"
                                             >
                                                 {{ file.file_name }}
                                             </p>
@@ -1488,7 +1567,7 @@ defineOptions({
                                             </p>
                                         </div>
                                         <div
-                                            class="flex shrink-0 items-center gap-2"
+                                            class="flex shrink-0 items-center gap-2 self-center"
                                         >
                                             <button
                                                 v-if="
@@ -1550,31 +1629,6 @@ defineOptions({
                             </div>
                         </section>
                     </TabsContent>
-                </Tabs>
-            </div>
-
-            <!-- Right Sidebar -->
-            <div>
-                <Tabs
-                    class="w-full"
-                    :unmount-on-hide="false"
-                    default-value="paper"
-                >
-                    <TabsList class="mb-3" aria-label="Admin paper sidebar">
-                        <TabsTrigger value="paper"> Paper </TabsTrigger>
-                        <TabsTrigger value="team">
-                            Adviser & Statistician
-                        </TabsTrigger>
-                        <TabsTrigger value="panels">
-                            Panels
-                            <span
-                                v-if="(panelDefenses ?? []).length"
-                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
-                            >
-                                {{ (panelDefenses ?? []).length }}
-                            </span>
-                        </TabsTrigger>
-                    </TabsList>
 
                     <TabsContent value="team" class="mt-0">
                         <section
@@ -2000,7 +2054,7 @@ defineOptions({
                                 class="mb-4 flex items-center gap-2 text-base font-bold text-foreground"
                             >
                                 <FileSearch class="h-5 w-5 text-orange-500" />
-                                Paper Info
+                                Paper details
                             </h3>
 
                             <!-- Rationale — separate visual block -->
@@ -2023,21 +2077,189 @@ defineOptions({
                             <!-- Key details in a definition-list style grid -->
                             <div class="divide-y divide-border">
                                 <div
-                                    v-if="proponents.length"
-                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
+                                    v-if="
+                                        paper.student ||
+                                        proponentsForm.proponents.length
+                                    "
+                                    class="flex flex-col gap-2 py-3 first:pt-0 last:pb-0"
                                 >
-                                    <p
-                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
+                                    <div
+                                        class="flex flex-wrap items-center justify-between gap-2"
                                     >
-                                        Proponents
-                                    </p>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        <span
-                                            v-for="name in proponents"
-                                            :key="name"
-                                            class="inline-flex items-center rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-foreground"
-                                            >{{ name }}</span
+                                        <p
+                                            class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
                                         >
+                                            Proponents
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            class="shrink-0"
+                                            :disabled="
+                                                proponentsForm.processing
+                                            "
+                                            @click="submitProponents"
+                                        >
+                                            Save proponents
+                                        </Button>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <div
+                                            v-for="(
+                                                proponent, idx
+                                            ) in proponentsForm.proponents"
+                                            :key="idx"
+                                            class="flex items-center gap-2"
+                                        >
+                                            <span
+                                                :class="[
+                                                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                                                    idx === 0
+                                                        ? 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400'
+                                                        : 'bg-muted text-muted-foreground',
+                                                ]"
+                                                >{{ idx + 1 }}</span
+                                            >
+
+                                            <template
+                                                v-if="
+                                                    activeProponentSearchSlot !==
+                                                    idx
+                                                "
+                                            >
+                                                <div
+                                                    :class="[
+                                                        'flex h-10 min-w-0 flex-1 cursor-pointer items-center rounded-lg border px-3 py-2 text-sm transition',
+                                                        proponent.id
+                                                            ? 'border-input bg-background text-foreground hover:border-orange-400'
+                                                            : 'border-dashed border-orange-300 bg-orange-50/50 text-muted-foreground hover:border-orange-400 hover:bg-orange-50 dark:border-orange-800 dark:bg-orange-950/10 dark:hover:bg-orange-950/20',
+                                                    ]"
+                                                    @click="
+                                                        openProponentSearch(idx)
+                                                    "
+                                                >
+                                                    <span
+                                                        v-if="
+                                                            idx === 0 &&
+                                                            proponent.id
+                                                        "
+                                                        class="mr-2 shrink-0 rounded bg-orange-100 px-1.5 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-500/20 dark:text-orange-400"
+                                                        >Lead</span
+                                                    >
+                                                    <span
+                                                        v-if="proponent.id"
+                                                        class="min-w-0 truncate text-foreground"
+                                                        >{{
+                                                            proponent.name
+                                                        }}</span
+                                                    >
+                                                    <span
+                                                        v-else
+                                                        class="flex items-center gap-1.5 text-orange-600 dark:text-orange-400"
+                                                    >
+                                                        <Plus
+                                                            class="h-3.5 w-3.5 shrink-0"
+                                                        />
+                                                        {{
+                                                            idx === 0
+                                                                ? 'Search lead student'
+                                                                : 'Search co-researcher'
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </template>
+
+                                            <template v-else>
+                                                <div
+                                                    class="relative min-w-0 flex-1"
+                                                >
+                                                    <input
+                                                        ref="proponentSearchInput"
+                                                        :value="
+                                                            proponentSearchQuery
+                                                        "
+                                                        type="text"
+                                                        placeholder="Name or email…"
+                                                        class="h-10 w-full rounded-lg border border-orange-400 bg-background px-3 py-2 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-500/20"
+                                                        @input="
+                                                            onProponentSearchInput(
+                                                                (
+                                                                    $event.target as HTMLInputElement
+                                                                ).value,
+                                                            )
+                                                        "
+                                                        @keydown.escape="
+                                                            closeProponentSearch
+                                                        "
+                                                    />
+                                                    <ul
+                                                        v-if="
+                                                            proponentSearchResults.length
+                                                        "
+                                                        class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-card shadow-lg"
+                                                    >
+                                                        <li
+                                                            v-for="result in proponentSearchResults"
+                                                            :key="result.id"
+                                                            class="cursor-pointer px-3 py-2.5 text-sm text-foreground hover:bg-muted"
+                                                            @mousedown.prevent="
+                                                                selectProponent(
+                                                                    idx,
+                                                                    result,
+                                                                )
+                                                            "
+                                                        >
+                                                            {{ result.name }}
+                                                        </li>
+                                                    </ul>
+                                                    <div
+                                                        v-else-if="
+                                                            proponentSearchQuery.trim()
+                                                                .length >= 2
+                                                        "
+                                                        class="absolute z-20 mt-1 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-xs text-muted-foreground shadow-lg"
+                                                    >
+                                                        No students found.
+                                                    </div>
+                                                </div>
+                                            </template>
+
+                                            <button
+                                                v-if="idx > 0"
+                                                type="button"
+                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/20"
+                                                title="Remove proponent"
+                                                @click="removeProponent(idx)"
+                                            >
+                                                <X class="h-4 w-4" />
+                                            </button>
+                                            <span
+                                                v-else
+                                                class="h-8 w-8 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                        </div>
+
+                                        <button
+                                            v-if="canAddProponentSlot"
+                                            type="button"
+                                            class="mt-1 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-orange-600 transition hover:bg-orange-50 hover:text-orange-700 dark:hover:bg-orange-950/20"
+                                            @click="addProponentSlot"
+                                        >
+                                            <Plus class="h-4 w-4" />
+                                            Add co-researcher
+                                        </button>
+
+                                        <InputError
+                                            v-if="
+                                                proponentsForm.errors.proponents
+                                            "
+                                            :message="
+                                                proponentsForm.errors
+                                                    .proponents as string
+                                            "
+                                        />
                                     </div>
                                 </div>
 
@@ -2143,55 +2365,6 @@ defineOptions({
                                         </span>
                                     </div>
                                 </div>
-
-                                <div
-                                    v-if="paper.sdg_ids?.length"
-                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                                >
-                                    <p
-                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                                    >
-                                        SDGs
-                                    </p>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        <span
-                                            v-for="id in paper.sdg_ids"
-                                            :key="id"
-                                            class="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
-                                        >
-                                            {{
-                                                sdgMap[id]
-                                                    ? sdgMap[id].number
-                                                        ? `SDG ${sdgMap[id].number}: ${sdgMap[id].name}`
-                                                        : sdgMap[id].name
-                                                    : `SDG ${id}`
-                                            }}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div
-                                    v-if="paper.agenda_ids?.length"
-                                    class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0"
-                                >
-                                    <p
-                                        class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase"
-                                    >
-                                        Research Agendas
-                                    </p>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        <span
-                                            v-for="id in paper.agenda_ids"
-                                            :key="id"
-                                            class="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-400"
-                                        >
-                                            {{
-                                                agendaMap[id]?.name ??
-                                                `Agenda ${id}`
-                                            }}
-                                        </span>
-                                    </div>
-                                </div>
                             </div>
 
                             <!-- Schedules — visually distinct callout -->
@@ -2240,6 +2413,239 @@ defineOptions({
                                             )
                                         }}
                                     </p>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+
+                    <TabsContent value="classifications" class="mt-0">
+                        <section
+                            id="research-show-classifications"
+                            class="scroll-mt-24 rounded-2xl border border-border bg-card p-5"
+                        >
+                            <h3
+                                class="mb-1 flex items-center gap-2 text-base font-bold text-foreground"
+                            >
+                                <Layers
+                                    class="h-5 w-5 text-emerald-600 dark:text-emerald-400"
+                                />
+                                SDG &amp; research agendas
+                            </h3>
+                            <p
+                                class="mb-4 text-xs leading-relaxed text-muted-foreground"
+                            >
+                                Set official tags on the research record.
+                                Students do not change these on the title
+                                proposal.
+                            </p>
+                            <div
+                                class="space-y-4 rounded-xl border border-border bg-muted/20 p-4 sm:p-5"
+                            >
+                                <div class="min-w-0 space-y-4">
+                                    <div class="space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <Globe
+                                                class="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400"
+                                            />
+                                            <span
+                                                class="text-sm font-medium text-foreground"
+                                                >SDGs</span
+                                            >
+                                        </div>
+                                        <MultiSelect
+                                            v-model="
+                                                classificationsForm.sdg_ids
+                                            "
+                                            :options="sdgSelectOptions"
+                                            search-placeholder="Search SDGs…"
+                                            checkbox-accent-class="accent-orange-500"
+                                            :disabled="
+                                                classificationsForm.processing
+                                            "
+                                        />
+                                        <InputError
+                                            :message="
+                                                classificationsForm.errors
+                                                    .sdg_ids
+                                            "
+                                        />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <Target
+                                                class="h-3.5 w-3.5 shrink-0 text-teal-600 dark:text-teal-400"
+                                            />
+                                            <span
+                                                class="text-sm font-medium text-foreground"
+                                                >Research agendas</span
+                                            >
+                                        </div>
+                                        <MultiSelect
+                                            v-model="
+                                                classificationsForm.agenda_ids
+                                            "
+                                            :options="agendaSelectOptions"
+                                            search-placeholder="Search agendas…"
+                                            checkbox-accent-class="accent-orange-500"
+                                            :disabled="
+                                                classificationsForm.processing
+                                            "
+                                        />
+                                        <InputError
+                                            :message="
+                                                classificationsForm.errors
+                                                    .agenda_ids
+                                            "
+                                        />
+                                    </div>
+                                    <div class="pt-1">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            class="w-full sm:w-auto"
+                                            :disabled="
+                                                classificationsForm.processing
+                                            "
+                                            @click="submitClassifications"
+                                        >
+                                            Save SDG &amp; agendas
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            <div class="min-w-0 xl:max-w-[22rem]">
+                <Tabs
+                    class="w-full"
+                    default-value="history"
+                    :unmount-on-hide="false"
+                >
+                    <TabsList class="mb-3 w-full" aria-label="Tracking history">
+                        <TabsTrigger class="flex-1" value="history">
+                            History
+                            <span
+                                v-if="timeline.length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ timeline.length }}
+                            </span>
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="history" class="mt-0">
+                        <section
+                            id="research-show-history"
+                            class="scroll-mt-24 rounded-2xl border border-border bg-card p-5"
+                        >
+                            <div class="mb-4 flex items-center gap-2">
+                                <Clock3 class="h-4 w-4 text-orange-500" />
+                                <h2 class="text-base font-bold text-foreground">
+                                    Tracking History
+                                </h2>
+                                <span
+                                    v-if="timeline.length"
+                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                >
+                                    {{ timeline.length }}
+                                </span>
+                            </div>
+
+                            <div
+                                v-if="timeline.length === 0"
+                                class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+                            >
+                                No tracking records yet.
+                            </div>
+
+                            <div
+                                v-else
+                                class="relative ml-3 space-y-0 border-l-2 border-border pl-6"
+                            >
+                                <div
+                                    v-for="(record, idx) in timeline"
+                                    :key="record.id"
+                                    class="relative pb-6 last:pb-0"
+                                >
+                                    <div
+                                        :class="[
+                                            'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
+                                            idx === 0
+                                                ? 'bg-orange-500'
+                                                : 'bg-green-500',
+                                        ]"
+                                    >
+                                        <div
+                                            class="h-1.5 w-1.5 rounded-full bg-white"
+                                        />
+                                    </div>
+                                    <div
+                                        class="rounded-xl border border-border bg-card p-3.5 shadow-xs"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <p
+                                                class="text-sm font-semibold text-foreground"
+                                            >
+                                                {{ record.action }}
+                                            </p>
+                                            <span
+                                                v-if="record.step"
+                                                :class="[
+                                                    'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                    getStepBadgeClass(
+                                                        record.step,
+                                                    ),
+                                                ]"
+                                            >
+                                                {{
+                                                    record.step
+                                                        ? stepLabel(record.step)
+                                                        : ''
+                                                }}
+                                            </span>
+                                        </div>
+                                        <div
+                                            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+                                        >
+                                            <span
+                                                v-if="record.status"
+                                                class="inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >Status:</span
+                                                >
+                                                {{ record.status }}
+                                            </span>
+                                            <span
+                                                class="inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >By:</span
+                                                >
+                                                {{
+                                                    record.updated_by?.name ??
+                                                    'System'
+                                                }}
+                                            </span>
+                                            <span>{{
+                                                formatDateTime(
+                                                    record.created_at,
+                                                )
+                                            }}</span>
+                                        </div>
+                                        <p
+                                            v-if="record.notes"
+                                            class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                                        >
+                                            {{ record.notes }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </section>

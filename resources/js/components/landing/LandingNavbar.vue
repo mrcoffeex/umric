@@ -3,7 +3,10 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { FlaskConical, Sun, Moon, Monitor, Menu, X } from 'lucide-vue-next';
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useBranding } from '@/composables/useBranding';
 import { dashboard, documentation, faq, login, register } from '@/routes';
+
+const branding = useBranding();
 
 defineProps<{ canRegister: boolean }>();
 
@@ -89,14 +92,27 @@ const navLinks = [
             <!-- Logo -->
             <button
                 @click="scrollTo('hero')"
-                class="group flex shrink-0 items-center gap-2"
+                class="group flex min-w-0 shrink-0 items-center gap-2"
             >
                 <div
-                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow-md transition-transform group-hover:scale-105"
+                    v-if="branding.logoUrl"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted shadow-md transition-transform group-hover:scale-105"
+                >
+                    <img
+                        :src="branding.logoUrl"
+                        :alt="branding.name"
+                        class="h-full w-full object-contain"
+                    />
+                </div>
+                <div
+                    v-else
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow-md transition-transform group-hover:scale-105"
                 >
                     <FlaskConical class="h-4 w-4 text-white" />
                 </div>
-                <span class="text-gradient text-xl font-black">UMRIC</span>
+                <span class="text-gradient truncate text-xl font-black">{{
+                    branding.name
+                }}</span>
             </button>
 
             <!-- Desktop nav links -->

@@ -17,7 +17,12 @@ return [
             ['label' => 'Main', 'default' => false],
             ['label' => 'Branch DIGOS', 'default' => true],
         ],
+        'show_research_title' => true,
+        'show_proponents' => true,
+        'show_instruction' => true,
+        'instruction_text' => 'Rate each item according to the scale below. Write your score in the table.',
         'show_rating_scale' => true,
+        'show_sdg' => true,
         'show_pass_fail' => true,
         'show_signature_block' => true,
         'document' => [

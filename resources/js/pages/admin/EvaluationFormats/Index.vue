@@ -22,7 +22,12 @@ type PdfForm = {
     header_institution: string;
     form_title: string;
     form_subtitle: string;
+    show_research_title: boolean;
+    show_proponents: boolean;
+    show_instruction: boolean;
+    instruction_text: string;
     show_rating_scale: boolean;
+    show_sdg: boolean;
     show_pass_fail: boolean;
     show_signature_block: boolean;
     passing_score: number;
@@ -53,7 +58,13 @@ function defaultPdfSettings(): PdfForm {
         header_institution: 'RESEARCH AND INNOVATION CENTER',
         form_title: 'THESIS OUTLINE DEFENSE EVALUATION FORM',
         form_subtitle: '(For Students)',
+        show_research_title: true,
+        show_proponents: true,
+        show_instruction: true,
+        instruction_text:
+            'Rate each item according to the scale below. Write your score in the table.',
         show_rating_scale: true,
+        show_sdg: true,
         show_pass_fail: true,
         show_signature_block: true,
         passing_score: 85,
@@ -498,6 +509,19 @@ async function deleteRow(f: FormatRow) {
                                 :disabled="!form.pdf_settings.enabled"
                             />
                         </div>
+                        <div>
+                            <Label for="pdf-instruction"
+                                >Instruction text (edit anytime; shown on the
+                                PDF when “Show instruction” is on)</Label
+                            >
+                            <textarea
+                                id="pdf-instruction"
+                                v-model="form.pdf_settings.instruction_text"
+                                rows="3"
+                                class="mt-1.5 flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
+                                :disabled="!form.pdf_settings.enabled"
+                            />
+                        </div>
                         <div class="grid gap-2 sm:grid-cols-3">
                             <div>
                                 <Label for="pdf-code">Form code</Label>
@@ -550,6 +574,57 @@ async function deleteRow(f: FormatRow) {
                         >
                             <div class="flex items-center gap-2">
                                 <Checkbox
+                                    id="pdf-rt"
+                                    :model-value="
+                                        form.pdf_settings.show_research_title
+                                    "
+                                    :disabled="!form.pdf_settings.enabled"
+                                    @update:model-value="
+                                        (v) =>
+                                            (form.pdf_settings.show_research_title =
+                                                v === true)
+                                    "
+                                />
+                                <Label for="pdf-rt" class="text-sm"
+                                    >Show research title</Label
+                                >
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Checkbox
+                                    id="pdf-pr"
+                                    :model-value="
+                                        form.pdf_settings.show_proponents
+                                    "
+                                    :disabled="!form.pdf_settings.enabled"
+                                    @update:model-value="
+                                        (v) =>
+                                            (form.pdf_settings.show_proponents =
+                                                v === true)
+                                    "
+                                />
+                                <Label for="pdf-pr" class="text-sm"
+                                    >Show proponent(s)</Label
+                                >
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Checkbox
+                                    id="pdf-in"
+                                    :model-value="
+                                        form.pdf_settings.show_instruction
+                                    "
+                                    :disabled="!form.pdf_settings.enabled"
+                                    @update:model-value="
+                                        (v) =>
+                                            (form.pdf_settings.show_instruction =
+                                                v === true)
+                                    "
+                                />
+                                <Label for="pdf-in" class="text-sm"
+                                    >Show instruction</Label
+                                >
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Checkbox
                                     id="pdf-rs"
                                     :model-value="
                                         form.pdf_settings.show_rating_scale
@@ -562,7 +637,23 @@ async function deleteRow(f: FormatRow) {
                                     "
                                 />
                                 <Label for="pdf-rs" class="text-sm"
-                                    >Show rating scale table</Label
+                                    >Show rating scale (Score, Equivalent,
+                                    Narrative description)</Label
+                                >
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Checkbox
+                                    id="pdf-sdg"
+                                    :model-value="form.pdf_settings.show_sdg"
+                                    :disabled="!form.pdf_settings.enabled"
+                                    @update:model-value="
+                                        (v) =>
+                                            (form.pdf_settings.show_sdg =
+                                                v === true)
+                                    "
+                                />
+                                <Label for="pdf-sdg" class="text-sm"
+                                    >Show SDG(s) for the research paper</Label
                                 >
                             </div>
                             <div class="flex items-center gap-2">

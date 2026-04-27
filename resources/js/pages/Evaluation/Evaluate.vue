@@ -8,6 +8,7 @@ import {
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import InputError from '@/components/InputError.vue';
+import MultiSelect from '@/components/MultiSelect.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -55,9 +56,13 @@ type EvalOut = {
     final_score: number;
     /** Present for submitted evaluations; legacy rows may be null. */
     comments?: string | null;
+    /** Panelist’s SDG picks for title evaluations (separate from paper `sdg_ids`). */
+    sdg_ids: string[];
     is_mine: boolean;
     evaluator_name: string | null;
 };
+
+type SdgItem = { id: string; name: string; number?: number | null };
 
 const props = defineProps<{
     context: 'admin' | 'faculty';
@@ -77,6 +82,10 @@ const props = defineProps<{
     initialComment: string;
     /** PDF download (view mode) when format allows and user may download. */
     canDownloadEvaluationPdf?: boolean;
+    /** Active SDGs (for title evaluation checklist). */
+    sdgs: SdgItem[];
+    titleSdgChecklist: boolean;
+    initialSdgIds: string[];
 }>();
 
 const { confirm } = useConfirm();
@@ -89,6 +98,15 @@ const isEdit = computed(
 const isChecklist = computed(() => props.evaluation_type === 'checklist');
 const scoringUseWeights = computed(
     () => !isChecklist.value && (props.scoring_uses_weights ?? false),
+);
+const isTitleSdg = computed(
+    () => props.titleSdgChecklist && props.sdgs.length > 0,
+);
+const sdgOptions = computed(() =>
+    props.sdgs.map((s) => ({
+        value: s.id,
+        label: s.number ? `SDG ${s.number}: ${s.name}` : s.name,
+    })),
 );
 
 const listUrl = computed(() =>
@@ -114,12 +132,24 @@ const evaluationPdfUrl = computed(() => {
 const form = useForm({
     scores: { ...props.initialScores } as Record<string, number>,
     comments: props.initialComment,
+    sdg_ids: [...props.initialSdgIds],
     q: (props.listFilters.q as string) ?? '',
     defense_type: (props.listFilters.defense_type as string) ?? '',
     status: (props.listFilters.status as string) ?? '',
     schedule_date: (props.listFilters.schedule_date as string) ?? '',
     per_page: (props.listFilters.per_page as number) ?? 15,
     page: (props.listFilters.page as number) ?? 1,
+});
+
+/** Avoid `as string | undefined` in templates — `|` is parsed as a Vue 2 filter. */
+const sdgIdsError = computed((): string | undefined => {
+    const e = form.errors.sdg_ids;
+
+    if (e === undefined || e === null) {
+        return undefined;
+    }
+
+    return Array.isArray(e) ? e.join(' ') : String(e);
 });
 
 const rowsForForm = computed(() => {
@@ -308,6 +338,16 @@ function fieldError(criterionId: string): string | undefined {
     return undefined;
 }
 
+function sdgLabel(id: string): string {
+    const s = props.sdgs.find((x) => x.id === id);
+
+    if (!s) {
+        return id;
+    }
+
+    return s.number ? `SDG ${s.number}: ${s.name}` : s.name;
+}
+
 async function submit() {
     if (isReadonly.value) {
         return;
@@ -466,6 +506,40 @@ defineOptions({
                         </dd>
                     </div>
                 </dl>
+            </div>
+
+            <!-- Title evaluation: SDG picks (per panelist; paper SDGs are admin-only) -->
+            <div
+                v-if="mode === 'view' && evaluation && isTitleSdg"
+                class="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6"
+            >
+                <h2
+                    class="text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                >
+                    SDG checklist (evaluator)
+                </h2>
+                <p class="mt-1 text-xs text-muted-foreground">
+                    SDGs you indicated for this title evaluation. Official paper
+                    SDG tags are set on the research record by an admin.
+                </p>
+                <div
+                    v-if="evaluation.sdg_ids?.length"
+                    class="mt-3 flex flex-wrap gap-1.5"
+                >
+                    <span
+                        v-for="id in evaluation.sdg_ids"
+                        :key="id"
+                        class="inline-flex max-w-full items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-950/50 dark:text-blue-200"
+                    >
+                        <span class="line-clamp-2 break-words">{{
+                            sdgLabel(id)
+                        }}</span>
+                    </span>
+                </div>
+                <p v-else class="mt-2 text-sm text-muted-foreground italic">
+                    No SDG selections on file (older submission or not
+                    required).
+                </p>
             </div>
 
             <div
@@ -707,6 +781,32 @@ defineOptions({
             <!-- Create / admin edit form -->
             <form v-else-if="isEdit" class="space-y-5" @submit.prevent="submit">
                 <div
+                    v-if="isTitleSdg"
+                    class="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6"
+                >
+                    <h2
+                        class="text-sm font-semibold tracking-wide text-muted-foreground uppercase"
+                    >
+                        SDG checklist
+                    </h2>
+                    <p class="mt-1 text-sm text-muted-foreground">
+                        Select all sustainable development goals that apply to
+                        this title proposal (your assessment). The official SDG
+                        list on the research paper is set by an admin
+                        separately.
+                    </p>
+                    <div class="mt-3">
+                        <MultiSelect
+                            v-model="form.sdg_ids"
+                            :options="sdgOptions"
+                            search-placeholder="Search SDGs…"
+                            checkbox-accent-class="accent-primary"
+                        />
+                    </div>
+                    <InputError :message="sdgIdsError" class="mt-2" />
+                </div>
+
+                <div
                     class="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6"
                 >
                     <h2
@@ -845,16 +945,15 @@ defineOptions({
                                         v-html="criterionDisplayHtml(r)"
                                     />
                                 </Label>
-                                <span
-                                    v-if="scoringUseWeights"
-                                    class="text-xs text-muted-foreground"
-                                    >Weight {{ r.max_points }}% · 1 – 100</span
+                                <div
+                                    class="min-w-10 shrink-0 text-xs text-muted-foreground sm:min-w-10"
                                 >
-                                <span
-                                    v-else
-                                    class="text-xs text-muted-foreground"
-                                    >1 – 100</span
-                                >
+                                    <span v-if="scoringUseWeights"
+                                        >Weight {{ r.max_points }}% · 1 –
+                                        100</span
+                                    >
+                                    <span v-else>1 – 100</span>
+                                </div>
                             </div>
                             <Input
                                 :id="`score-${r.id}`"

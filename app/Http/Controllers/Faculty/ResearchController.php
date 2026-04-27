@@ -356,6 +356,14 @@ class ResearchController extends Controller
             $validated['notes'] ?? null,
         );
 
+        ResearchStatusUpdated::dispatch(
+            $paper->fresh(),
+            'ric_review',
+            ResearchPaper::STEP_LABELS['ric_review'] ?? 'RIC/Admin Review',
+            'approved',
+            $validated['notes'] ?? null,
+        );
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Title proposal approved for outline defense.']);
 
         return back();

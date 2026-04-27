@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
+import { useBranding } from '@/composables/useBranding';
 
 defineOptions({
     inheritAttrs: false,
@@ -10,10 +11,20 @@ type Props = {
 };
 
 defineProps<Props>();
+
+const branding = useBranding();
 </script>
 
 <template>
+    <img
+        v-if="branding.logoUrl"
+        :src="branding.logoUrl"
+        :alt="branding.name"
+        :class="className"
+        v-bind="$attrs"
+    />
     <svg
+        v-else
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 40 42"
         :class="className"

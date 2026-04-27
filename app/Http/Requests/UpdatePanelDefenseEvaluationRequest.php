@@ -43,6 +43,8 @@ class UpdatePanelDefenseEvaluationRequest extends FormRequest
             'comments' => ['required', 'string', 'min:1', 'max:20000'],
             'scores' => ['required', 'array', 'min:1'],
             'scores.*' => ['required', 'integer', 'min:0'],
+            'sdg_ids' => ['nullable', 'array'],
+            'sdg_ids.*' => ['string', 'exists:sdgs,id'],
             'q' => ['nullable', 'string', 'max:200'],
             'defense_type' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', 'max:100'],
@@ -56,6 +58,17 @@ class UpdatePanelDefenseEvaluationRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $model = $this->panelDefenseEvaluation();
+            $model->loadMissing('panelDefense');
+            $defense = $model->panelDefense;
+            if ($defense?->defense_type === 'title') {
+                $s = $this->input('sdg_ids');
+                if (! is_array($s) || $s === []) {
+                    $validator->errors()->add('sdg_ids', __('Select at least one SDG for a title evaluation.'));
+
+                    return;
+                }
+            }
+
             $lineItems = $model->line_items;
             if (! is_array($lineItems) || $lineItems === []) {
                 $validator->errors()->add('scores', __('This evaluation is missing score lines.'));

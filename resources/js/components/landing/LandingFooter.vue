@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { FlaskConical, Twitter, Github, Mail } from 'lucide-vue-next';
-import { documentation, faq } from '@/routes';
+import { useBranding } from '@/composables/useBranding';
+import { documentation, faq, privacy, terms } from '@/routes';
+
+const branding = useBranding();
 
 function scrollTo(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -20,9 +23,9 @@ const footerLinks = {
         { label: 'FAQ', route: faq() },
     ],
     Legal: [
-        { label: 'Privacy Policy', href: '#' },
-        { label: 'Terms of Service', href: '#' },
-        { label: 'Cookie Policy', href: '#' },
+        { label: 'Terms & Conditions', route: terms() },
+        { label: 'Privacy Policy', route: privacy() },
+        { label: 'Cookies', href: `${privacy.url()}#cookies` },
     ],
 };
 </script>
@@ -40,22 +43,39 @@ const footerLinks = {
                 <div class="lg:col-span-2">
                     <button
                         @click="scrollTo('hero')"
-                        class="group mb-4 flex items-center gap-2"
+                        class="group mb-4 flex min-w-0 items-center gap-2"
                     >
                         <div
-                            class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow-md transition-transform group-hover:scale-105"
+                            v-if="branding.logoUrl"
+                            class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted shadow-md transition-transform group-hover:scale-105"
+                        >
+                            <img
+                                :src="branding.logoUrl"
+                                :alt="branding.name"
+                                class="h-full w-full object-contain"
+                            />
+                        </div>
+                        <div
+                            v-else
+                            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow-md transition-transform group-hover:scale-105"
                         >
                             <FlaskConical class="h-4 w-4 text-white" />
                         </div>
-                        <span class="text-gradient text-xl font-black"
-                            >UMRIC</span
+                        <span
+                            class="text-gradient truncate text-xl font-black"
+                            >{{ branding.name }}</span
                         >
                     </button>
                     <p
                         class="max-w-xs text-sm leading-relaxed text-slate-500 dark:text-slate-500"
                     >
-                        Official research paper tracking system of UM Digos
-                        College &mdash; from title proposal to publication.
+                        <template v-if="branding.tagline">{{
+                            branding.tagline
+                        }}</template>
+                        <template v-else
+                            >Official research paper tracking &mdash; from title
+                            proposal to publication.</template
+                        >
                     </p>
                     <!-- Social -->
                     <div class="mt-6 flex gap-3">
@@ -115,8 +135,8 @@ const footerLinks = {
                 class="flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-8 sm:flex-row dark:border-slate-800/80"
             >
                 <p class="text-xs text-slate-500 dark:text-slate-600">
-                    &copy; {{ new Date().getFullYear() }} UMRIC. All rights
-                    reserved.
+                    &copy; {{ new Date().getFullYear() }} {{ branding.name }}.
+                    All rights reserved.
                 </p>
                 <div
                     class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-600"

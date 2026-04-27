@@ -1,18 +1,34 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
+import { Form, Head, Link, usePage } from '@inertiajs/vue3';
 import { Briefcase, GraduationCap, Mail, User } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import InputError from '@/components/InputError.vue';
 import PasswordInput from '@/components/PasswordInput.vue';
 import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { login } from '@/routes';
+import { useBranding } from '@/composables/useBranding';
+import { login, privacy, terms } from '@/routes';
 import { store } from '@/routes/register';
 
+const page = usePage();
+const branding = useBranding();
+const termsError = computed(
+    () =>
+        (page.props.errors as Record<string, string> | undefined)
+            ?.terms_accepted,
+);
+
+const registerTitle = computed(() => `Register - ${branding.value.name}`);
+
 const roleTab = ref<'student' | 'faculty'>('student');
+const agreedToTerms = ref(false);
 
 function redirectToGoogle() {
+    if (!agreedToTerms.value) {
+        return;
+    }
+
     window.location.href = `/auth/google?role=${roleTab.value}`;
 }
 
@@ -25,7 +41,7 @@ defineOptions({
 </script>
 
 <template>
-    <Head title="Register" />
+    <Head :title="registerTitle" />
 
     <!-- Heading -->
     <div class="mb-7 text-center">
@@ -33,7 +49,7 @@ defineOptions({
             Create your account
         </h2>
         <p class="mt-1.5 text-sm text-gray-500 dark:text-gray-400">
-            Join UMRIC to track and manage research
+            Join {{ branding.name }} to track and manage research
         </p>
     </div>
 
@@ -69,11 +85,54 @@ defineOptions({
         </button>
     </div>
 
+    <!-- Terms: required for email signup and for Google sign-up -->
+    <div
+        class="mb-4 flex gap-2.5 rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 text-left dark:border-gray-700 dark:bg-gray-800/50"
+    >
+        <div class="pt-0.5">
+            <input
+                id="terms-acceptance"
+                v-model="agreedToTerms"
+                type="checkbox"
+                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-orange-600 focus:ring-2 focus:ring-orange-500/30 dark:border-gray-600 dark:bg-gray-800"
+            />
+        </div>
+        <label
+            for="terms-acceptance"
+            class="cursor-pointer text-sm leading-snug text-gray-600 dark:text-gray-300"
+        >
+            I have read and agree to the
+            <Link
+                :href="terms.url()"
+                class="font-medium text-orange-600 underline decoration-orange-200 underline-offset-2 hover:text-orange-700 dark:text-orange-400 dark:decoration-orange-800"
+                target="_blank"
+                rel="noopener noreferrer"
+                @click.stop
+            >
+                Terms &amp; Conditions
+            </Link>
+            and
+            <Link
+                :href="privacy.url()"
+                class="font-medium text-orange-600 underline decoration-orange-200 underline-offset-2 hover:text-orange-700 dark:text-orange-400 dark:decoration-orange-800"
+                target="_blank"
+                rel="noopener noreferrer"
+                @click.stop
+            >
+                Privacy Policy
+            </Link>
+            .
+        </label>
+    </div>
+    <InputError v-if="termsError" :message="termsError" class="-mb-1" />
+
     <!-- Google Sign Up -->
     <button
         type="button"
+        :disabled="!agreedToTerms"
+        :class="!agreedToTerms ? 'cursor-not-allowed opacity-50' : ''"
         @click="redirectToGoogle"
-        class="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm transition-all duration-150 hover:border-gray-300 hover:bg-gray-50 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-600 dark:hover:bg-gray-700"
+        class="flex h-11 min-h-11 w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-700 shadow-sm transition-all duration-150 enabled:hover:border-gray-300 enabled:hover:bg-gray-50 enabled:hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:enabled:hover:border-gray-600 dark:enabled:hover:bg-gray-700"
     >
         <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -113,6 +172,12 @@ defineOptions({
     >
         <!-- Hidden role input -->
         <input type="hidden" name="role" :value="roleTab" />
+        <input
+            v-if="agreedToTerms"
+            type="hidden"
+            name="terms_accepted"
+            value="1"
+        />
 
         <!-- Full Name -->
         <div class="grid gap-1.5">
@@ -205,7 +270,7 @@ defineOptions({
         <Button
             type="submit"
             :tabindex="7"
-            :disabled="processing"
+            :disabled="processing || !agreedToTerms"
             class="h-11 w-full rounded-xl font-semibold text-white shadow-sm transition-all duration-300"
             :style="
                 roleTab === 'faculty'

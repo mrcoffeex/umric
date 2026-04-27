@@ -23,6 +23,7 @@ class CreateNewUser implements CreatesNewUsers
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
             'role' => ['sometimes', 'string', 'in:student,faculty,staff'],
+            'terms_accepted' => ['required', 'accepted'],
         ])->validate();
 
         // Restore a previously rejected (soft-deleted) account with the same email

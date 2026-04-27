@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\Agenda;
 use App\Models\EvaluationFormat;
 use App\Models\PanelDefense;
 use App\Models\PanelDefenseEvaluation;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
+use App\Models\Sdg;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Support\PanelDefenseSchedule;
@@ -364,4 +366,72 @@ it('does not remove a panel defense when evaluation records exist', function () 
         ->assertRedirect();
 
     expect(PanelDefense::query()->whereKey($id)->exists())->toBeTrue();
+});
+
+it('allows admin to update SDG and agenda tags on a paper', function () {
+    $admin = adminResearchUser();
+    $student = studentResearchUser();
+
+    $sdg = Sdg::factory()->create();
+    $agenda = Agenda::factory()->create();
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'sdg_ids' => [],
+        'agenda_ids' => [],
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.research.update-classifications', $paper), [
+            'sdg_ids' => [(string) $sdg->id],
+            'agenda_ids' => [(string) $agenda->id],
+        ])
+        ->assertRedirect();
+
+    $paper->refresh();
+    expect($paper->sdg_ids)->toBe([(string) $sdg->id])
+        ->and($paper->agenda_ids)->toBe([(string) $agenda->id]);
+});
+
+it('allows admin to update paper proponents', function () {
+    $admin = adminResearchUser();
+    $lead = studentResearchUser();
+    $co = studentResearchUser();
+
+    $paper = ResearchPaper::factory()->submittedBy($lead)->create();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.research.update-proponents', $paper), [
+            'proponents' => [
+                ['id' => (string) $lead->id, 'name' => $lead->name],
+                ['id' => (string) $co->id, 'name' => $co->name],
+            ],
+        ])
+        ->assertRedirect();
+
+    $paper->refresh();
+    expect($paper->user_id)->toBe($lead->id)
+        ->and($paper->proponents)->toHaveCount(2)
+        ->and($paper->proponents[1]['id'])->toBe((string) $co->id)
+        ->and($paper->proponents[1]['name'])->toBe($co->name);
+});
+
+it('allows admin to change the lead proponent and updates paper user_id', function () {
+    $admin = adminResearchUser();
+    $oldLead = studentResearchUser();
+    $newLead = studentResearchUser();
+
+    $paper = ResearchPaper::factory()->submittedBy($oldLead)->create();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.research.update-proponents', $paper), [
+            'proponents' => [
+                ['id' => (string) $newLead->id, 'name' => $newLead->name],
+            ],
+        ])
+        ->assertRedirect();
+
+    $paper->refresh();
+    expect($paper->user_id)->toBe($newLead->id)
+        ->and($paper->proponents[0]['id'])->toBe((string) $newLead->id);
 });

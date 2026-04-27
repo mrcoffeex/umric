@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { Form } from '@inertiajs/vue3';
-import { Eye, EyeOff, LockKeyhole, RefreshCw } from 'lucide-vue-next';
-import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
+import { router } from '@inertiajs/vue3';
+import { useClipboard } from '@vueuse/core';
+import {
+    Check,
+    Copy,
+    Eye,
+    EyeOff,
+    ListOrdered,
+    RefreshCw,
+} from 'lucide-vue-next';
+import { computed, nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import AlertError from '@/components/AlertError.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,9 +22,14 @@ import {
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
-const { recoveryCodesList, fetchRecoveryCodes, errors } = useTwoFactorAuth();
+const { copy, copied } = useClipboard();
+const { recoveryCodesList, fetchRecoveryCodes, errors, isRecoveryLoading } =
+    useTwoFactorAuth();
 const isRecoveryCodesVisible = ref<boolean>(false);
+const isRegenerating = ref(false);
 const recoveryCodeSectionRef = useTemplateRef('recoveryCodeSectionRef');
+
+const codesText = computed(() => recoveryCodesList.value.join('\n'));
 
 const toggleRecoveryCodesVisibility = async () => {
     if (!isRecoveryCodesVisible.value && !recoveryCodesList.value.length) {
@@ -31,6 +44,31 @@ const toggleRecoveryCodesVisibility = async () => {
     }
 };
 
+const confirmRegenerate = (): void => {
+    if (
+        !window.confirm(
+            'This will invalidate your current recovery codes. Each old code will stop working. Continue?',
+        )
+    ) {
+        return;
+    }
+
+    isRegenerating.value = true;
+    router.post(
+        regenerateRecoveryCodes.url(),
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isRegenerating.value = false;
+            },
+            onSuccess: () => {
+                fetchRecoveryCodes();
+            },
+        },
+    );
+};
+
 onMounted(async () => {
     if (!recoveryCodesList.value.length) {
         await fetchRecoveryCodes();
@@ -40,82 +78,112 @@ onMounted(async () => {
 
 <template>
     <Card class="w-full">
-        <CardHeader>
-            <CardTitle class="flex gap-3">
-                <LockKeyhole class="size-4" />2FA recovery codes
+        <CardHeader class="space-y-1">
+            <CardTitle class="flex flex-wrap items-center gap-2 text-base">
+                <ListOrdered class="size-4 shrink-0 text-muted-foreground" />
+                Recovery codes
             </CardTitle>
             <CardDescription>
-                Recovery codes let you regain access if you lose your 2FA
-                device. Store them in a secure password manager.
+                If you lose your phone, each of these one-time codes works
+                <span class="font-medium text-foreground">once</span> when you
+                can’t get a TOTP code. Store a copy in a password manager, not a
+                screenshot in plain sight.
             </CardDescription>
         </CardHeader>
         <CardContent>
             <div
-                class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between"
+                class="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between"
             >
-                <Button @click="toggleRecoveryCodesVisibility" class="w-fit">
+                <Button
+                    :disabled="isRecoveryLoading"
+                    class="h-11 min-h-11 w-full sm:w-auto"
+                    @click="toggleRecoveryCodesVisibility"
+                >
                     <component
                         :is="isRecoveryCodesVisible ? EyeOff : Eye"
                         class="size-4"
                     />
-                    {{ isRecoveryCodesVisible ? 'Hide' : 'View' }} recovery
-                    codes
+                    {{ isRecoveryCodesVisible ? 'Hide' : 'Show' }} codes
                 </Button>
 
-                <Form
+                <div
                     v-if="isRecoveryCodesVisible && recoveryCodesList.length"
-                    v-bind="regenerateRecoveryCodes.form()"
-                    method="post"
-                    :options="{ preserveScroll: true }"
-                    @success="fetchRecoveryCodes"
-                    #default="{ processing }"
+                    class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                 >
                     <Button
+                        type="button"
                         variant="secondary"
-                        type="submit"
-                        :disabled="processing"
+                        class="h-11 min-h-11 w-full sm:min-w-[10rem]"
+                        :disabled="!codesText"
+                        @click="copy(codesText)"
                     >
-                        <RefreshCw /> Regenerate codes
+                        <Check v-if="copied" class="size-4 text-emerald-600" />
+                        <Copy v-else class="size-4" />
+                        {{ copied ? 'Copied' : 'Copy all' }}
                     </Button>
-                </Form>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        class="h-11 min-h-11 w-full sm:min-w-[10rem]"
+                        :disabled="isRegenerating"
+                        @click="confirmRegenerate"
+                    >
+                        <RefreshCw
+                            class="size-4"
+                            :class="isRegenerating && 'animate-spin'"
+                        />
+                        Regenerate
+                    </Button>
+                </div>
             </div>
+            <p
+                v-if="isRecoveryCodesVisible"
+                class="mt-2 text-xs text-amber-800 dark:text-amber-200/90"
+            >
+                Regenerating is immediate and cannot be undone; save the new
+                list before closing this page.
+            </p>
             <div
                 :class="[
                     'relative overflow-hidden transition-all duration-300',
                     isRecoveryCodesVisible
-                        ? 'h-auto opacity-100'
-                        : 'h-0 opacity-0',
+                        ? 'mt-3 h-auto max-h-[480px] opacity-100'
+                        : 'mt-0 h-0 max-h-0 opacity-0',
                 ]"
             >
-                <div v-if="errors?.length" class="mt-6">
+                <div v-if="errors?.length" class="pt-1">
                     <AlertError :errors="errors" />
                 </div>
-                <div v-else class="mt-3 space-y-3">
+                <div v-else class="space-y-3 pt-1">
                     <div
                         ref="recoveryCodeSectionRef"
-                        class="grid gap-1 rounded-lg bg-muted p-4 font-mono text-sm"
+                        class="rounded-xl border border-border bg-muted/50 p-4"
                     >
-                        <div v-if="!recoveryCodesList.length" class="space-y-2">
+                        <div
+                            v-if="
+                                !recoveryCodesList.length && isRecoveryLoading
+                            "
+                            class="grid grid-cols-1 gap-2 sm:grid-cols-2"
+                        >
                             <div
                                 v-for="n in 8"
                                 :key="n"
-                                class="h-4 animate-pulse rounded bg-muted-foreground/20"
-                            ></div>
+                                class="h-5 animate-pulse rounded bg-muted-foreground/15"
+                            />
                         </div>
-                        <div
+                        <ol
                             v-else
-                            v-for="(code, index) in recoveryCodesList"
-                            :key="index"
+                            class="grid list-decimal grid-cols-1 gap-x-6 gap-y-1.5 pl-4 font-mono text-sm sm:grid-cols-2"
                         >
-                            {{ code }}
-                        </div>
+                            <li
+                                v-for="(code, index) in recoveryCodesList"
+                                :key="index"
+                                class="pl-1 select-none marker:font-sans marker:text-xs marker:text-muted-foreground"
+                            >
+                                {{ code }}
+                            </li>
+                        </ol>
                     </div>
-                    <p class="text-xs text-muted-foreground select-none">
-                        Each recovery code can be used once to access your
-                        account and will be removed after use. If you need more,
-                        click
-                        <span class="font-bold">Regenerate codes</span> above.
-                    </p>
                 </div>
             </div>
         </CardContent>

@@ -23,6 +23,7 @@ class PanelDefenseEvaluationFactory extends Factory
             'line_items' => [],
             'final_score' => 0,
             'comments' => 'Factory evaluation comment.',
+            'sdg_ids' => null,
         ];
     }
 

@@ -229,10 +229,6 @@ const defenseUploadReason = computed(() => {
 
 const hasPanelDefenses = computed(() => (props.panelDefenses ?? []).length > 0);
 
-const rightSidebarDefaultTab = computed(() =>
-    hasPanelDefenses.value ? 'panels' : 'paper',
-);
-
 const defenseDocForm = useForm<{
     defense: 'outline' | 'final';
     file: File | null;
@@ -676,29 +672,17 @@ setLayoutProps({
         </section>
 
         <!-- Body Grid -->
-        <div class="grid gap-6 xl:grid-cols-[2fr_1fr]">
-            <div>
+        <div
+            class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)]"
+        >
+            <div class="min-w-0">
                 <Tabs default-value="steps" class="w-full">
-                    <TabsList class="mb-3" aria-label="Research content">
-                        <TabsTrigger value="steps">Step details</TabsTrigger>
-                        <TabsTrigger value="history">
-                            History
-                            <span
-                                v-if="timeline.length"
-                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
-                            >
-                                {{ timeline.length }}
-                            </span>
-                        </TabsTrigger>
-                        <TabsTrigger value="comments">
-                            Comments
-                            <span
-                                v-if="(comments ?? []).length"
-                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
-                            >
-                                {{ (comments ?? []).length }}
-                            </span>
-                        </TabsTrigger>
+                    <TabsList
+                        class="mb-3 flex flex-wrap gap-1"
+                        aria-label="Research content"
+                    >
+                        <TabsTrigger value="steps">Step management</TabsTrigger>
+                        <TabsTrigger value="paper"> Paper details </TabsTrigger>
                         <TabsTrigger v-if="filesTabVisible" value="files">
                             Files
                             <span
@@ -714,6 +698,23 @@ setLayoutProps({
                                 Upload
                             </span>
                         </TabsTrigger>
+                        <TabsTrigger v-if="hasPanelDefenses" value="panels">
+                            Panels
+                            <span
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ (panelDefenses ?? []).length }}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="comments">
+                            Comments
+                            <span
+                                v-if="(comments ?? []).length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ (comments ?? []).length }}
+                            </span>
+                        </TabsTrigger>
                     </TabsList>
                     <TabsContent value="steps" class="mt-0">
                         <section
@@ -722,7 +723,7 @@ setLayoutProps({
                             <h2
                                 class="mb-4 text-base font-bold text-foreground"
                             >
-                                Step Details
+                                Step management
                             </h2>
 
                             <div class="space-y-3">
@@ -818,128 +819,6 @@ setLayoutProps({
 
                                             <!-- Defense document uploads live in the Files tab when the rule allows -->
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </TabsContent>
-
-                    <TabsContent value="history" class="mt-0">
-                        <section
-                            class="rounded-2xl border border-border bg-card p-5"
-                            id="tracking-history"
-                        >
-                            <div class="mb-4 flex items-center gap-2">
-                                <Clock3 class="h-4 w-4 text-orange-500" />
-                                <h2 class="text-base font-bold text-foreground">
-                                    Tracking History
-                                </h2>
-                                <span
-                                    v-if="timeline.length"
-                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
-                                >
-                                    {{ timeline.length }}
-                                </span>
-                            </div>
-
-                            <div
-                                v-if="timeline.length === 0"
-                                class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
-                            >
-                                No tracking records yet.
-                            </div>
-
-                            <!-- Timeline -->
-                            <div
-                                v-else
-                                class="relative ml-3 space-y-0 border-l-2 border-border pl-6"
-                            >
-                                <div
-                                    v-for="(record, idx) in timeline"
-                                    :key="record.id"
-                                    class="relative pb-6 last:pb-0"
-                                >
-                                    <!-- Timeline dot -->
-                                    <div
-                                        :class="[
-                                            'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
-                                            idx === 0
-                                                ? 'bg-orange-500'
-                                                : 'bg-green-500',
-                                        ]"
-                                    >
-                                        <div
-                                            class="h-1.5 w-1.5 rounded-full bg-white"
-                                        />
-                                    </div>
-
-                                    <!-- Content card -->
-                                    <div
-                                        class="rounded-xl border border-border bg-card p-3.5 shadow-xs"
-                                    >
-                                        <div
-                                            class="flex flex-wrap items-center gap-2"
-                                        >
-                                            <p
-                                                class="text-sm font-semibold text-foreground"
-                                            >
-                                                {{ record.action }}
-                                            </p>
-                                            <span
-                                                v-if="record.step"
-                                                :class="[
-                                                    'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                    getStepBadgeClass(
-                                                        record.step,
-                                                    ),
-                                                ]"
-                                            >
-                                                {{
-                                                    record.step
-                                                        ? stepLabel(record.step)
-                                                        : ''
-                                                }}
-                                            </span>
-                                        </div>
-
-                                        <div
-                                            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
-                                        >
-                                            <span
-                                                v-if="record.status"
-                                                class="inline-flex items-center gap-1"
-                                            >
-                                                <span
-                                                    class="font-medium text-foreground"
-                                                    >Status:</span
-                                                >
-                                                {{ record.status }}
-                                            </span>
-                                            <span
-                                                class="inline-flex items-center gap-1"
-                                            >
-                                                <span
-                                                    class="font-medium text-foreground"
-                                                    >By:</span
-                                                >
-                                                {{
-                                                    record.updated_by?.name ??
-                                                    'System'
-                                                }}
-                                            </span>
-                                            <span>{{
-                                                formatDateTime(
-                                                    record.created_at,
-                                                )
-                                            }}</span>
-                                        </div>
-
-                                        <p
-                                            v-if="record.notes"
-                                            class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
-                                        >
-                                            {{ record.notes }}
-                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -1226,10 +1105,10 @@ setLayoutProps({
                                     class="overflow-hidden rounded-xl bg-muted/50 transition hover:bg-muted"
                                 >
                                     <div
-                                        class="flex items-center gap-3 px-4 py-3"
+                                        class="flex items-start gap-3 px-4 py-3"
                                     >
                                         <svg
-                                            class="h-8 w-8 shrink-0 text-red-500"
+                                            class="mt-0.5 h-8 w-8 shrink-0 text-red-500"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -1243,7 +1122,7 @@ setLayoutProps({
                                         </svg>
                                         <div class="min-w-0 flex-1">
                                             <p
-                                                class="truncate text-sm font-medium text-foreground"
+                                                class="min-w-0 text-sm leading-snug font-medium [overflow-wrap:anywhere] break-words text-foreground"
                                             >
                                                 {{ file.file_name }}
                                             </p>
@@ -1264,7 +1143,7 @@ setLayoutProps({
                                             </p>
                                         </div>
                                         <div
-                                            class="flex shrink-0 items-center gap-2"
+                                            class="flex shrink-0 items-center gap-2 self-center"
                                         >
                                             <button
                                                 v-if="
@@ -1326,26 +1205,6 @@ setLayoutProps({
                             </div>
                         </section>
                     </TabsContent>
-                </Tabs>
-            </div>
-
-            <!-- Right Sidebar -->
-            <div>
-                <Tabs class="w-full" :default-value="rightSidebarDefaultTab">
-                    <TabsList
-                        class="mb-3"
-                        aria-label="Paper details and panels"
-                    >
-                        <TabsTrigger v-if="hasPanelDefenses" value="panels">
-                            Panel management
-                            <span
-                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
-                            >
-                                {{ (panelDefenses ?? []).length }}
-                            </span>
-                        </TabsTrigger>
-                        <TabsTrigger value="paper"> Paper </TabsTrigger>
-                    </TabsList>
 
                     <TabsContent
                         v-if="hasPanelDefenses"
@@ -1377,7 +1236,7 @@ setLayoutProps({
                                 You can attach multiple outline or final defense
                                 files under
                                 <strong class="text-foreground"
-                                    >Step details</strong
+                                    >Step management</strong
                                 >
                                 when you are on that step; each is kept on this
                                 paper.
@@ -1439,7 +1298,7 @@ setLayoutProps({
                                 class="mb-4 flex items-center gap-2 text-base font-bold text-foreground"
                             >
                                 <FileSearch class="h-5 w-5 text-orange-500" />
-                                Paper Info
+                                Paper details
                             </h3>
 
                             <!-- Rationale (title proposal) — separate visual block -->
@@ -1599,6 +1458,140 @@ setLayoutProps({
                                                 `Agenda ${id}`
                                             }}
                                         </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            <div class="min-w-0 xl:max-w-[22rem]">
+                <Tabs class="w-full" default-value="history">
+                    <TabsList class="mb-3 w-full" aria-label="Tracking history">
+                        <TabsTrigger class="flex-1" value="history">
+                            History
+                            <span
+                                v-if="timeline.length"
+                                class="ml-0.5 rounded-full bg-muted px-1.5 py-0 text-[10px] font-semibold text-muted-foreground"
+                            >
+                                {{ timeline.length }}
+                            </span>
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="history" class="mt-0">
+                        <section
+                            id="tracking-history"
+                            class="rounded-2xl border border-border bg-card p-5"
+                        >
+                            <div class="mb-4 flex items-center gap-2">
+                                <Clock3 class="h-4 w-4 text-orange-500" />
+                                <h2 class="text-base font-bold text-foreground">
+                                    Tracking History
+                                </h2>
+                                <span
+                                    v-if="timeline.length"
+                                    class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                                >
+                                    {{ timeline.length }}
+                                </span>
+                            </div>
+
+                            <div
+                                v-if="timeline.length === 0"
+                                class="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground"
+                            >
+                                No tracking records yet.
+                            </div>
+
+                            <div
+                                v-else
+                                class="relative ml-3 space-y-0 border-l-2 border-border pl-6"
+                            >
+                                <div
+                                    v-for="(record, idx) in timeline"
+                                    :key="record.id"
+                                    class="relative pb-6 last:pb-0"
+                                >
+                                    <div
+                                        :class="[
+                                            'absolute -left-[31px] flex h-4 w-4 items-center justify-center rounded-full border-2 border-background',
+                                            idx === 0
+                                                ? 'bg-orange-500'
+                                                : 'bg-green-500',
+                                        ]"
+                                    >
+                                        <div
+                                            class="h-1.5 w-1.5 rounded-full bg-white"
+                                        />
+                                    </div>
+
+                                    <div
+                                        class="rounded-xl border border-border bg-card p-3.5 shadow-xs"
+                                    >
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                        >
+                                            <p
+                                                class="text-sm font-semibold text-foreground"
+                                            >
+                                                {{ record.action }}
+                                            </p>
+                                            <span
+                                                v-if="record.step"
+                                                :class="[
+                                                    'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                    getStepBadgeClass(
+                                                        record.step,
+                                                    ),
+                                                ]"
+                                            >
+                                                {{
+                                                    record.step
+                                                        ? stepLabel(record.step)
+                                                        : ''
+                                                }}
+                                            </span>
+                                        </div>
+
+                                        <div
+                                            class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground"
+                                        >
+                                            <span
+                                                v-if="record.status"
+                                                class="inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >Status:</span
+                                                >
+                                                {{ record.status }}
+                                            </span>
+                                            <span
+                                                class="inline-flex items-center gap-1"
+                                            >
+                                                <span
+                                                    class="font-medium text-foreground"
+                                                    >By:</span
+                                                >
+                                                {{
+                                                    record.updated_by?.name ??
+                                                    'System'
+                                                }}
+                                            </span>
+                                            <span>{{
+                                                formatDateTime(
+                                                    record.created_at,
+                                                )
+                                            }}</span>
+                                        </div>
+
+                                        <p
+                                            v-if="record.notes"
+                                            class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-xs text-foreground"
+                                        >
+                                            {{ record.notes }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>

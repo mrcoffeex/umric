@@ -50,6 +50,7 @@ test('registration creates user profile with role', function () {
         'password' => 'password',
         'password_confirmation' => 'password',
         'role' => 'faculty',
+        'terms_accepted' => '1',
     ]);
 
     // Faculty users are logged out after registration and sent to the pending page
@@ -67,6 +68,7 @@ test('registration defaults to student role when no role provided', function () 
         'email' => 'student@example.com',
         'password' => 'password',
         'password_confirmation' => 'password',
+        'terms_accepted' => '1',
     ]);
 
     $this->assertAuthenticated();
@@ -83,6 +85,7 @@ test('registration rejects invalid role', function () {
         'password' => 'password',
         'password_confirmation' => 'password',
         'role' => 'admin',
+        'terms_accepted' => '1',
     ]);
 
     $response->assertSessionHasErrors('role');

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AgendaController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ApproveUserController;
+use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\EvaluationCriteriaController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentTransmissionController;
 use App\Http\Controllers\Faculty\AllResearchController;
@@ -58,6 +60,16 @@ Route::get('/documentation', function () {
 Route::get('/faq', function () {
     return Inertia::render('Faq');
 })->name('faq');
+
+Route::get('/terms', function () {
+    return Inertia::render('Terms');
+})->name('terms');
+
+Route::get('/privacy', function () {
+    return Inertia::render('PrivacyPolicy');
+})->name('privacy');
+
+Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
 
 Route::get('/registration-pending', function () {
     return Inertia::render('auth/RegistrationPending');
@@ -103,6 +115,8 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::get('research/{paper}', [ResearchController::class, 'show'])->name('research.show');
         Route::patch('research/{paper}/step', [ResearchController::class, 'updateStep'])->name('research.update-step');
         Route::post('research/{paper}/assign', [ResearchController::class, 'assign'])->name('research.assign');
+        Route::patch('research/{paper}/classifications', [ResearchController::class, 'updateClassifications'])->name('research.update-classifications');
+        Route::patch('research/{paper}/proponents', [ResearchController::class, 'updateProponents'])->name('research.update-proponents');
         Route::post('research/{paper}/comments', [ResearchController::class, 'storeComment'])->name('research.store-comment');
         Route::get('research/{paper}/receive', [ResearchController::class, 'receive'])->name('research.receive');
         Route::post('research/{paper}/panel-defenses', [ResearchController::class, 'storePanelDefense'])->name('research.panel-defenses.store');
@@ -143,6 +157,9 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
 
         // Admin Activity Log
         Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+
+        Route::get('branding', [BrandingController::class, 'index'])->name('branding.index');
+        Route::put('branding', [BrandingController::class, 'update'])->name('branding.update');
     });
 
     // Faculty class management

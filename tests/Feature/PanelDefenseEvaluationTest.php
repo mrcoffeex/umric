@@ -4,6 +4,7 @@ use App\Models\EvaluationCriterion;
 use App\Models\PanelDefense;
 use App\Models\PanelDefenseEvaluation;
 use App\Models\ResearchPaper;
+use App\Models\Sdg;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Support\Str;
@@ -33,6 +34,20 @@ function scheduledDefenseOnPanelFor(User $panelist): PanelDefense
     return PanelDefense::factory()
         ->forPaper($paper)
         ->ofType('final')
+        ->withMembers([$panelist->name, 'Dr. Other Chair'])
+        ->create([
+            'schedule' => now()->addWeek(),
+        ]);
+}
+
+function scheduledTitleDefenseOnPanelFor(User $panelist): PanelDefense
+{
+    $student = makePanelEvalStudent();
+    $paper = ResearchPaper::factory()->create(['user_id' => $student->id]);
+
+    return PanelDefense::factory()
+        ->forPaper($paper)
+        ->ofType('title')
         ->withMembers([$panelist->name, 'Dr. Other Chair'])
         ->create([
             'schedule' => now()->addWeek(),
@@ -212,6 +227,41 @@ it('lets admin list all scheduled defenses and submit when on the panel', functi
         ->assertInertia(fn (Assert $page) => $page
             ->where('defenses.data.0.average_score', $final)
         );
+});
+
+it('requires at least one SDG when submitting a title evaluation', function () {
+    $faculty = makePanelEvalFaculty();
+    $defense = scheduledTitleDefenseOnPanelFor($faculty);
+
+    $this->actingAs($faculty)
+        ->post(route('faculty.evaluation.store', $defense), [
+            'scores' => evalScoresExample(3, $defense),
+            'comments' => 'Title round — need SDG.',
+        ])
+        ->assertSessionHasErrors('sdg_ids');
+});
+
+it('stores SDG choices on a title evaluation', function () {
+    $faculty = makePanelEvalFaculty();
+    $defense = scheduledTitleDefenseOnPanelFor($faculty);
+    $sdg = Sdg::factory()->create();
+
+    $this->actingAs($faculty)
+        ->from(route('faculty.evaluation.index'))
+        ->post(route('faculty.evaluation.store', $defense), [
+            'scores' => evalScoresExample(3, $defense),
+            'comments' => 'Title evaluation with SDG.',
+            'sdg_ids' => [(string) $sdg->id],
+        ])
+        ->assertRedirect(route('faculty.evaluation.index'));
+
+    $eval = PanelDefenseEvaluation::query()
+        ->where('panel_defense_id', (string) $defense->id)
+        ->where('evaluator_id', (string) $faculty->id)
+        ->first();
+
+    expect($eval)->not->toBeNull();
+    expect($eval->sdg_ids)->toBe([(string) $sdg->id]);
 });
 
 it('requires comments when submitting an evaluation', function () {

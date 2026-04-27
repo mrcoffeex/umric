@@ -21,16 +21,18 @@ class PanelDefenseEvaluation extends Model
         'line_items',
         'final_score',
         'comments',
+        'sdg_ids',
     ];
 
     /**
-     * @return array{line_items: 'array<int, array<string, mixed>>', final_score: 'integer'}
+     * @return array{line_items: 'array<int, array<string, mixed>>', final_score: 'integer', sdg_ids: 'array<int, string>|null'}
      */
     protected function casts(): array
     {
         return [
             'line_items' => 'array',
             'final_score' => 'integer',
+            'sdg_ids' => 'array',
         ];
     }
 

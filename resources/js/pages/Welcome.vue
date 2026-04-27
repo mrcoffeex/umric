@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import LandingCta from '@/components/landing/LandingCta.vue';
 import LandingFeatures from '@/components/landing/LandingFeatures.vue';
 import LandingFooter from '@/components/landing/LandingFooter.vue';
@@ -10,6 +10,7 @@ import LandingNavbar from '@/components/landing/LandingNavbar.vue';
 import LandingShowcase from '@/components/landing/LandingShowcase.vue';
 import LandingTestimonials from '@/components/landing/LandingTestimonials.vue';
 import { useAppearance } from '@/composables/useAppearance';
+import { useBranding } from '@/composables/useBranding';
 
 interface Props {
     canRegister: boolean;
@@ -33,6 +34,15 @@ const props = withDefaults(defineProps<Props>(), {
     canRegister: true,
 });
 
+const branding = useBranding();
+const welcomeTitle = computed(
+    () => `${branding.value.name} - Research Paper Tracking & Management`,
+);
+const welcomeDescription = computed(
+    () =>
+        `Submit, track and collaborate on research papers in real-time. ${branding.value.name} — built for academics.`,
+);
+
 // Initialise theme from stored preference on mount
 const { updateAppearance } = useAppearance();
 onMounted(() => {
@@ -49,11 +59,8 @@ onMounted(() => {
 </script>
 
 <template>
-    <Head title="UMRIC - Research Paper Tracking &amp; Management">
-        <meta
-            name="description"
-            content="Submit, track and collaborate on research papers in real-time. UMRIC — built for academics."
-        />
+    <Head :title="welcomeTitle">
+        <meta name="description" :content="welcomeDescription" />
     </Head>
 
     <div

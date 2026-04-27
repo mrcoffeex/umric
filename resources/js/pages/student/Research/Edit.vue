@@ -3,17 +3,14 @@ import { Link, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft,
     FileText,
-    Globe,
     Loader2,
     Plus,
     Tag,
-    Target,
     Users,
     X,
 } from 'lucide-vue-next';
 import { computed, nextTick, ref } from 'vue';
 import FilePreview from '@/components/FilePreview.vue';
-import MultiSelect from '@/components/MultiSelect.vue';
 import TagsInput from '@/components/TagsInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,8 +23,6 @@ interface Props {
         id: string;
         title: string;
         abstract?: string | null;
-        sdg_ids?: string[] | null;
-        agenda_ids?: string[] | null;
         proponents?: Array<{ id: string; name: string }> | null;
         keywords?: string | null;
         files?: Array<{
@@ -37,8 +32,6 @@ interface Props {
             file_path: string;
         }> | null;
     };
-    sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
-    agendas: Array<{ id: string; name: string }>;
     auth_user: { id: string; name: string };
 }
 
@@ -58,8 +51,6 @@ defineOptions({
 const form = useForm({
     title: paper.title,
     abstract: paper.abstract ?? '',
-    sdg_ids: paper.sdg_ids ?? [],
-    agenda_ids: paper.agenda_ids ?? [],
     proponents: paper.proponents?.length
         ? paper.proponents
         : ([{ id: props.auth_user.id, name: props.auth_user.name }] as Array<{
@@ -96,17 +87,6 @@ function formatFileSize(bytes: number): string {
 
     return `${Math.round((bytes / Math.pow(k, i)) * 100) / 100} ${sizes[i]}`;
 }
-
-const sdgOptions = computed(() =>
-    props.sdgs.map((s) => ({
-        value: s.id,
-        label: s.number ? `SDG ${s.number}: ${s.name}` : s.name,
-    })),
-);
-
-const agendaOptions = computed(() =>
-    props.agendas.map((a) => ({ value: a.id, label: a.name })),
-);
 
 function openSearch(slotIndex: number) {
     activeSearchSlot.value = slotIndex;
@@ -465,88 +445,6 @@ function submit() {
                     </div>
                 </section>
 
-                <!-- SDG + Agenda -->
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <section
-                        class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-                    >
-                        <div
-                            class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
-                        >
-                            <div
-                                class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-100 dark:bg-green-500/20"
-                            >
-                                <Globe
-                                    class="h-3.5 w-3.5 text-green-600 dark:text-green-400"
-                                />
-                            </div>
-                            <h2 class="text-sm font-semibold text-foreground">
-                                SDGs
-                            </h2>
-                            <span
-                                v-if="form.sdg_ids.length"
-                                class="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-500/20 dark:text-green-400"
-                            >
-                                {{ form.sdg_ids.length }} selected
-                            </span>
-                        </div>
-                        <div class="p-5">
-                            <MultiSelect
-                                v-model="form.sdg_ids"
-                                :options="sdgOptions"
-                                search-placeholder="Search SDGs…"
-                                checkbox-accent-class="accent-orange-500"
-                            />
-                            <p
-                                v-if="form.errors.sdg_ids"
-                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
-                            >
-                                <X class="h-3 w-3" /> {{ form.errors.sdg_ids }}
-                            </p>
-                        </div>
-                    </section>
-
-                    <section
-                        class="overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-                    >
-                        <div
-                            class="flex items-center gap-2.5 border-b border-border bg-muted/40 px-5 py-3.5"
-                        >
-                            <div
-                                class="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-500/20"
-                            >
-                                <Target
-                                    class="h-3.5 w-3.5 text-teal-600 dark:text-teal-400"
-                                />
-                            </div>
-                            <h2 class="text-sm font-semibold text-foreground">
-                                Agenda
-                            </h2>
-                            <span
-                                v-if="form.agenda_ids.length"
-                                class="ml-auto rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:bg-teal-500/20 dark:text-teal-400"
-                            >
-                                {{ form.agenda_ids.length }} selected
-                            </span>
-                        </div>
-                        <div class="p-5">
-                            <MultiSelect
-                                v-model="form.agenda_ids"
-                                :options="agendaOptions"
-                                search-placeholder="Search agendas…"
-                                checkbox-accent-class="accent-orange-500"
-                            />
-                            <p
-                                v-if="form.errors.agenda_ids"
-                                class="mt-1.5 flex items-center gap-1 text-xs text-red-500"
-                            >
-                                <X class="h-3 w-3" />
-                                {{ form.errors.agenda_ids }}
-                            </p>
-                        </div>
-                    </section>
-                </div>
-
                 <!-- Keywords + File Upload -->
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <section
@@ -608,10 +506,10 @@ function submit() {
                             <!-- Existing file indicator -->
                             <div
                                 v-if="existingFile && !form.file"
-                                class="mb-3 flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3"
+                                class="mb-3 flex items-start gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3"
                             >
                                 <svg
-                                    class="h-8 w-8 shrink-0 text-red-500"
+                                    class="mt-0.5 h-8 w-8 shrink-0 text-red-500"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -625,7 +523,7 @@ function submit() {
                                 </svg>
                                 <div class="min-w-0 flex-1">
                                     <p
-                                        class="truncate text-sm font-medium text-foreground"
+                                        class="min-w-0 text-sm leading-snug font-medium [overflow-wrap:anywhere] break-words text-foreground"
                                     >
                                         {{ existingFile.file_name }}
                                     </p>
@@ -638,7 +536,7 @@ function submit() {
                                     </p>
                                 </div>
                                 <span
-                                    class="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                                    class="shrink-0 self-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                                     >Current</span
                                 >
                             </div>

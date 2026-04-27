@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useForm } from '@inertiajs/vue3';
 import {
     Mail,
     MapPin,
@@ -8,24 +9,37 @@ import {
     CheckCircle,
 } from 'lucide-vue-next';
 import { ref } from 'vue';
+import { useBranding } from '@/composables/useBranding';
 import { useScrollReveal } from '@/composables/useScrollReveal';
+import contact from '@/routes/contact';
+import FormSelect from '../FormSelect.vue';
 
 const { target: sectionRef, isVisible } = useScrollReveal(0.1);
+const branding = useBranding();
 
-const form = ref({ name: '', email: '', role: '', message: '' });
+const form = useForm({
+    name: '',
+    email: '',
+    role: '',
+    message: '',
+});
+
 const submitted = ref(false);
-const submitting = ref(false);
 
-async function handleSubmit() {
-    if (!form.value.name || !form.value.email || !form.value.message) {
-        return;
-    }
+function handleSubmit() {
+    form.clearErrors();
+    form.post(contact.store.url(), {
+        preserveScroll: true,
+        onSuccess: () => {
+            submitted.value = true;
+            form.reset();
+        },
+    });
+}
 
-    submitting.value = true;
-    // Simulate async send
-    await new Promise((r) => setTimeout(r, 900));
-    submitted.value = true;
-    submitting.value = false;
+function sendAnother() {
+    submitted.value = false;
+    form.clearErrors();
 }
 
 const contactInfo = [
@@ -85,7 +99,9 @@ const contactInfo = [
                     <span class="text-slate-900 dark:text-white"
                         >Have a question</span
                     >
-                    <span class="text-gradient"> about UMRIC?</span>
+                    <span class="text-gradient">
+                        about {{ branding.name }}?</span
+                    >
                 </h2>
                 <p
                     class="mx-auto max-w-2xl text-lg leading-relaxed text-slate-500 dark:text-slate-400"
@@ -178,16 +194,9 @@ const contactInfo = [
                                 days.
                             </p>
                             <button
-                                @click="
-                                    submitted = false;
-                                    form = {
-                                        name: '',
-                                        email: '',
-                                        role: '',
-                                        message: '',
-                                    };
-                                "
+                                type="button"
                                 class="mt-2 text-sm text-orange-600 hover:underline dark:text-orange-400"
+                                @click="sendAnother"
                             >
                                 Send another message
                             </button>
@@ -196,8 +205,8 @@ const contactInfo = [
                         <!-- Form -->
                         <form
                             v-else
-                            @submit.prevent="handleSubmit"
                             class="space-y-5"
+                            @submit.prevent="handleSubmit"
                         >
                             <div class="grid gap-5 sm:grid-cols-2">
                                 <div>
@@ -214,6 +223,12 @@ const contactInfo = [
                                         placeholder="e.g. Juan dela Cruz"
                                         class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-600"
                                     />
+                                    <p
+                                        v-if="form.errors.name"
+                                        class="mt-1 text-sm text-red-600 dark:text-red-400"
+                                    >
+                                        {{ form.errors.name }}
+                                    </p>
                                 </div>
                                 <div>
                                     <label
@@ -229,6 +244,12 @@ const contactInfo = [
                                         placeholder="you@umdigos.edu.ph"
                                         class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-600"
                                     />
+                                    <p
+                                        v-if="form.errors.email"
+                                        class="mt-1 text-sm text-red-600 dark:text-red-400"
+                                    >
+                                        {{ form.errors.email }}
+                                    </p>
                                 </div>
                             </div>
 
@@ -237,7 +258,7 @@ const contactInfo = [
                                     class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
                                     >Role</label
                                 >
-                                <select
+                                <FormSelect
                                     v-model="form.role"
                                     class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                                 >
@@ -254,7 +275,13 @@ const contactInfo = [
                                         Department Administrator
                                     </option>
                                     <option value="other">Other</option>
-                                </select>
+                                </FormSelect>
+                                <p
+                                    v-if="form.errors.role"
+                                    class="mt-1 text-sm text-red-600 dark:text-red-400"
+                                >
+                                    {{ form.errors.role }}
+                                </p>
                             </div>
 
                             <div>
@@ -271,12 +298,18 @@ const contactInfo = [
                                     placeholder="Describe your concern or question..."
                                     class="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 transition focus:border-orange-400 focus:ring-2 focus:ring-orange-400/50 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-600"
                                 />
+                                <p
+                                    v-if="form.errors.message"
+                                    class="mt-1 text-sm text-red-600 dark:text-red-400"
+                                >
+                                    {{ form.errors.message }}
+                                </p>
                             </div>
 
                             <button
                                 type="submit"
                                 :disabled="
-                                    submitting ||
+                                    form.processing ||
                                     !form.name ||
                                     !form.email ||
                                     !form.message
@@ -284,7 +317,11 @@ const contactInfo = [
                                 class="flex w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-orange-500/25 transition-all duration-200 hover:scale-[1.01] hover:bg-orange-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Send class="h-4 w-4" />
-                                {{ submitting ? 'Sending…' : 'Send Message' }}
+                                {{
+                                    form.processing
+                                        ? 'Sending…'
+                                        : 'Send Message'
+                                }}
                             </button>
                         </form>
                     </div>
