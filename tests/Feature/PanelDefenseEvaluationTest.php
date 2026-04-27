@@ -116,7 +116,7 @@ it('lets faculty on the panel list only their panel defenses and submit once', f
             'scores' => $scores,
             'comments' => 'Adequate work; see chapter 3 for revisions.',
         ])
-        ->assertRedirect(route('faculty.evaluation.index'));
+        ->assertRedirect(route('faculty.evaluation.evaluate', $defense));
 
     $eval = PanelDefenseEvaluation::query()
         ->where('panel_defense_id', (string) $defense->id)
@@ -215,7 +215,7 @@ it('lets admin list all scheduled defenses and submit when on the panel', functi
             'scores' => $scores,
             'comments' => 'Strong manuscript and defense.',
         ])
-        ->assertRedirect(route('admin.evaluation.index'));
+        ->assertRedirect(route('admin.evaluation.evaluate', $defense));
 
     $final = (int) PanelDefenseEvaluation::query()
         ->where('panel_defense_id', (string) $defense->id)
@@ -253,7 +253,7 @@ it('stores SDG choices on a title evaluation', function () {
             'comments' => 'Title evaluation with SDG.',
             'sdg_ids' => [(string) $sdg->id],
         ])
-        ->assertRedirect(route('faculty.evaluation.index'));
+        ->assertRedirect(route('faculty.evaluation.evaluate', $defense));
 
     $eval = PanelDefenseEvaluation::query()
         ->where('panel_defense_id', (string) $defense->id)

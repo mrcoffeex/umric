@@ -341,6 +341,26 @@ async function deleteRow(c: Criterion) {
                 </h2>
                 <form class="space-y-3" @submit.prevent="submit">
                     <div>
+                        <Label for="c-section"
+                            >PDF section heading (optional)</Label
+                        >
+                        <p class="mt-0.5 text-xs text-muted-foreground">
+                            e.g. &ldquo;I. THE PROBLEM&rdquo; — printed as a
+                            section row before this criterion in the PDF.
+                        </p>
+                        <Input
+                            id="c-section"
+                            v-model="form.section_heading"
+                            class="mt-1.5 bg-background"
+                            placeholder=""
+                            autocomplete="off"
+                        />
+                        <InputError
+                            v-if="form.errors.section_heading"
+                            :message="form.errors.section_heading"
+                        />
+                    </div>
+                    <div>
                         <Label for="c-content-field">Criterion</Label>
                         <p class="mt-0.5 text-xs text-muted-foreground">
                             Use formatting to explain what panelists should look
@@ -356,26 +376,6 @@ async function deleteRow(c: Criterion) {
                         <InputError
                             v-if="form.errors.content"
                             :message="form.errors.content"
-                        />
-                    </div>
-                    <div>
-                        <Label for="c-section"
-                            >PDF section heading (optional)</Label
-                        >
-                        <p class="mt-0.5 text-xs text-muted-foreground">
-                            e.g. &ldquo;I. THE PROBLEM&rdquo; — printed as a
-                            section row before this criterion in the PDF.
-                        </p>
-                        <Input
-                            id="c-section"
-                            v-model="form.section_heading"
-                            class="mt-1.5 bg-background"
-                            placeholder="Leave blank to continue the same section"
-                            autocomplete="off"
-                        />
-                        <InputError
-                            v-if="form.errors.section_heading"
-                            :message="form.errors.section_heading"
                         />
                     </div>
                     <div v-if="!isChecklist && scoringUsesWeights">

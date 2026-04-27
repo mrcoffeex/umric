@@ -10,6 +10,7 @@ return [
 
     'defaults' => [
         'enabled' => true,
+        'logo_path' => null,
         'header_institution' => 'RESEARCH AND INNOVATION CENTER',
         'form_title' => 'THESIS OUTLINE DEFENSE EVALUATION FORM',
         'form_subtitle' => '(For Students)',
@@ -20,7 +21,7 @@ return [
         'show_research_title' => true,
         'show_proponents' => true,
         'show_instruction' => true,
-        'instruction_text' => 'Rate each item according to the scale below. Write your score in the table.',
+        'instruction_text' => 'Enclosed are the criteria-indicators and rating scale to help you evaluate the various components of this thesis work. Please read the criteria carefully and place the corresponding score of each item on the blank provided for. Multiply the score with its corresponding weight and enter it on the last column. Add the points in the last column to compute the final grade. Space is provided for your comments at the bottom of the page. Thank you.',
         'show_rating_scale' => true,
         'show_sdg' => true,
         'show_pass_fail' => true,

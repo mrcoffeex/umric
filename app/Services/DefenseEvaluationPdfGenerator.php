@@ -28,17 +28,40 @@ class DefenseEvaluationPdfGenerator
         $lineItems = is_array($evaluation->line_items) ? $evaluation->line_items : [];
         $paper = $defense->researchPaper;
 
-        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false, false);
+        $pdf = new class('P', 'mm', 'A4', true, 'UTF-8', false, false) extends TCPDF
+        {
+            public string $footerLeft = '';
+
+            public function setFooterLeft(string $footerLeft): void
+            {
+                $this->footerLeft = $footerLeft;
+            }
+
+            public function Footer(): void
+            {
+                $this->SetY(-12);
+                $this->SetX(12);
+                $this->SetFont('times', '', 6.5);
+                $this->Cell(132, 3, $this->footerLeft, 0, 0, 'L');
+                $this->Cell(54, 3, 'Page '.$this->getAliasNumPage().' of '.$this->getAliasNbPages(), 0, 0, 'R');
+            }
+        };
         $pdf->setPrintHeader(false);
-        $pdf->setPrintFooter(false);
+        $pdf->setPrintFooter(true);
         $pdf->SetMargins(12, 12, 12);
         $pdf->SetAutoPageBreak(true, 18);
         $pdf->setFontSubsetting(true);
-        $pdf->SetFont('dejavusans', '', 9);
+        $pdf->SetFont('times', '', 10);
+        $this->writeFooterOnAllPages($pdf, $settings);
 
         $pdf->AddPage();
         $this->writeBrandedHeader($pdf, $format, $settings, $defense, $paper);
-        $this->writeOptionalContext($pdf, $format, $settings, $paper);
+        $bodyStartPage = (int) $pdf->getPage();
+        $bodyStartY = $pdf->getY() + 4;
+        $pdf->SetMargins(17, 12, 17);
+        $pdf->SetX(17);
+        $pdf->SetY($bodyStartY);
+        $this->writeOptionalContext($pdf, $format, $settings, $paper, $evaluation);
         if (! empty($settings['show_rating_scale'])) {
             $this->writeRatingScale($pdf, $settings);
         }
@@ -59,7 +82,7 @@ class DefenseEvaluationPdfGenerator
             $this->writeSignatureBlock($pdf);
         }
 
-        $this->writeFooterOnAllPages($pdf, $settings);
+        $this->writeBodyBorder($pdf, $bodyStartPage, $bodyStartY);
 
         $pdf->lastPage();
 
@@ -67,7 +90,7 @@ class DefenseEvaluationPdfGenerator
     }
 
     /**
-     * 20% bordered logo cell (upper left) + 80% bordered heading (form title, institution, branches, defense type).
+     * 20% bordered logo cell (upper left) + 80% bordered heading.
      *
      * @param  array<string, mixed>  $settings
      */
@@ -80,7 +103,6 @@ class DefenseEvaluationPdfGenerator
     ): void {
         $title = (string) ($settings['form_title'] ?? 'DEFENSE EVALUATION');
         $sub = (string) ($settings['form_subtitle'] ?? '');
-        $defLabel = (string) ($defense->defense_type_label ?? '');
         $inst = (string) ($settings['header_institution'] ?? 'RESEARCH AND INNOVATION CENTER');
 
         $branches = (array) ($settings['branches'] ?? []);
@@ -89,38 +111,45 @@ class DefenseEvaluationPdfGenerator
             if (! is_array($b) || ! isset($b['label'])) {
                 continue;
             }
-            $mark = ! empty($b['default']) ? '☑' : '☐';
+            $mark = $this->checkboxHtml(! empty($b['default']));
             $branchLine[] = $mark.' '.htmlspecialchars((string) $b['label'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         }
-        $branchHtml = $branchLine !== [] ? '<span style="font-size:7.5pt">'.implode('   ', $branchLine).'</span><br/>' : '';
+        $branchHtml = $branchLine !== [] ? '<span style="font-size:8pt">'.implode('   ', $branchLine).'</span><br/>' : '';
 
-        $logoPath = (string) config('evaluation_pdf.logo_path', '');
-        $realLogo = $logoPath !== '' && is_file($logoPath) ? realpath($logoPath) : false;
-        $logoCell = '<span style="font-size:7.5pt;color:#666"> </span>';
-        if (is_string($realLogo) && $realLogo !== '') {
-            $src = 'file://'.str_replace(DIRECTORY_SEPARATOR, '/', $realLogo);
-            $logoCell = '<img src="'.htmlspecialchars($src, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
-                .'" style="max-width:32mm;max-height:28mm" />';
-        }
-
-        $rightStack = '<b>'.htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b><br/>'
-            .'<span style="font-size:8.5pt">'.htmlspecialchars($sub, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span><br/>'
-            .'<span style="font-size:9pt">'.htmlspecialchars($inst, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span><br/>'
+        $rightStack = '<span style="font-size:17pt"><b>'.htmlspecialchars($inst, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b></span><br/>'
             .$branchHtml
-            .($defLabel !== '' ? '<span style="font-size:7.5pt">'.htmlspecialchars($defLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>' : '');
+            .'<span style="font-size:11pt"><b>'.htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b></span><br/>'
+            .'<span style="font-size:9pt">'.htmlspecialchars($sub, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span>';
 
-        $html = '<table width="100%" border="0" cellpadding="4" cellspacing="0"><tr>'
-            .'<td width="20%" style="border:0.2mm solid #000" align="center" valign="middle">'.$logoCell.'</td>'
-            .'<td width="80%" style="border:0.2mm solid #000" align="center" valign="middle">'.$rightStack.'</td>'
-            .'</tr></table>';
+        $x = 12.0;
+        $y = $pdf->getY();
+        $width = $pdf->getPageWidth() - 24.0;
+        $height = 27.0;
+        $logoWidth = $width * 0.2;
+        $textWidth = $width - $logoWidth;
 
-        $pdf->SetFont('dejavusans', '', 8.5);
-        $pdf->writeHTML($html, true, false, true, false, '');
+        $pdf->SetDrawColor(0, 0, 0);
+        $pdf->SetLineWidth(0.2);
+        $pdf->Rect($x, $y, $logoWidth, $height);
+        $pdf->Rect($x + $logoWidth, $y, $textWidth, $height);
 
-        if ($format?->name) {
-            $pdf->SetFont('dejavusans', '', 7.5);
-            $pdf->Cell(0, 3, 'Rubric: '.htmlspecialchars($format->name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), 0, 1, 'L');
-        }
+        $this->drawHeaderLogo($pdf, $settings, $x, $y, $logoWidth, $height);
+
+        $pdf->SetFont('times', '', 9);
+        $pdf->writeHTMLCell(
+            $textWidth - 4,
+            $height,
+            $x + $logoWidth + 2,
+            $y + 4,
+            $rightStack,
+            0,
+            0,
+            false,
+            true,
+            'C',
+            true,
+        );
+        $pdf->SetY($y + $height);
     }
 
     /**
@@ -133,81 +162,97 @@ class DefenseEvaluationPdfGenerator
         ?EvaluationFormat $format,
         array $settings,
         ?ResearchPaper $paper,
+        PanelDefenseEvaluation $evaluation,
     ): void {
-        if (! empty($settings['show_instruction'])) {
-            $raw = (string) ($settings['instruction_text'] ?? '');
-            if ($this->plainTextFromHtml($raw) !== '') {
-                $pdf->Ln(1);
-                $pdf->SetFont('dejavusans', 'B', 8);
-                $pdf->Cell(0, 4, 'Instruction:', 0, 1, 'L');
-                $pdf->SetFont('dejavusans', '', 7.5);
-                $html = '<div style="border:0.2mm solid #000;padding:2mm">'
-                    .nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false).'</div>';
-                $pdf->writeHTML($html, true, false, true, false, '');
-            }
-        }
-
         if (! empty($settings['show_research_title'])) {
             $paperTitle = $paper?->title !== null && $paper?->title !== '' ? (string) $paper->title : '—';
-            $pdf->Ln(2);
-            $pdf->SetFont('dejavusans', 'B', 8);
+            $pdf->Ln(4);
+            $pdf->SetFont('times', 'B', 9);
             $pdf->writeHTML('Research title:', true, false, true, false, '');
-            $pdf->SetFont('dejavusans', '', 8.5);
+            $pdf->Ln(1);
+            $pdf->SetFont('times', '', 9.5);
             $pdf->writeHTML(
-                '<div style="min-height:12mm;border-bottom:0.1mm solid #000">'
-                    .htmlspecialchars($paperTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>',
-                true,
-                false,
-                true,
-                false,
-                '',
+                '<table width="100%" border="0" cellpadding="0" cellspacing="0">'
+                .'<tr>'
+                .'<td style="min-height:8mm;line-height:1.25">'
+                .htmlspecialchars($paperTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                .'</td></tr></table>',
+                true, false, true, false, '',
             );
         }
 
         if (! empty($settings['show_proponents'])) {
-            $props = $this->formatProponents($paper);
-            $pdf->SetFont('dejavusans', 'B', 8);
+            $propLines = $this->proponentNameLines($paper);
+            $pdf->Ln(3);
+            $pdf->SetFont('times', 'B', 9);
             $pdf->writeHTML('Proponent(s):', true, false, true, false, '');
-            $pdf->SetFont('dejavusans', '', 8.5);
+            $pdf->Ln(1);
+            $pdf->SetFont('times', '', 9.5);
+            $propRows = collect($propLines)
+                ->map(function (string $n) {
+                    return '<tr><td width="5mm"></td>'
+                        .'<td style="line-height:1">'.htmlspecialchars($n, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</td></tr>';
+                })->implode('');
             $pdf->writeHTML(
-                '<div style="min-height:10mm;border-bottom:0.1mm solid #000">'
-                    .htmlspecialchars($props, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>',
-                true,
-                false,
-                true,
-                false,
-                '',
+                '<table width="100%" border="0" cellpadding="0" cellspacing="0">'.$propRows.'</table>',
+                true, false, true, false, '',
             );
         }
 
-        if (! empty($settings['show_sdg']) && $paper) {
-            $ids = (array) ($paper->sdg_ids ?? []);
-            if ($ids !== []) {
-                $rows = Sdg::query()
-                    ->whereIn('id', $ids)
-                    ->orderBy('number')
-                    ->get(['id', 'number', 'name']);
-                if ($rows->isNotEmpty()) {
-                    $pdf->Ln(1);
-                    $pdf->SetFont('dejavusans', 'B', 8);
-                    $pdf->Cell(0, 4, 'SDG(s) applied in this research:', 0, 1, 'L');
-                    $pdf->SetFont('dejavusans', '', 7.5);
-                    $list = $rows->map(function (Sdg $s) {
-                        $n = (int) $s->number;
-                        $label = $n > 0 ? 'SDG '.$n.': ' : '';
-                        $label .= (string) $s->name;
+        if (! empty($settings['show_instruction'])) {
+            $raw = (string) ($settings['instruction_text'] ?? '');
+            if ($this->plainTextFromHtml($raw) !== '') {
+                $pdf->Ln(3);
+                $pdf->SetFont('times', 'B', 9);
+                $pdf->Cell(0, 4, 'Instruction:', 0, 1, 'L');
+                $pdf->SetFont('times', '', 8.5);
+                $instructionText = nl2br(htmlspecialchars($raw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
+                $pdf->writeHTML(
+                    '<table width="100%" border="0" cellpadding="0" cellspacing="0">'
+                    .'<tr><td width="5mm"></td>'
+                    .'<td style="line-height:1.25">'.$instructionText.'</td></tr></table>',
+                    true, false, true, false, '',
+                );
+            }
+        }
 
-                        return '• '.htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-                    })->implode('<br/>');
-                    $pdf->writeHTML(
-                        '<div style="border:0.2mm solid #000;padding:2mm">'.$list.'</div>',
-                        true,
-                        false,
-                        true,
-                        false,
-                        '',
-                    );
+        if (! empty($settings['show_sdg'])) {
+            $selected = is_array($evaluation->sdg_ids) && $evaluation->sdg_ids !== []
+                ? $evaluation->sdg_ids
+                : (is_array($paper?->sdg_ids) ? $paper->sdg_ids : []);
+            $selectedIds = array_flip(array_map('strval', $selected));
+
+            $rows = $selected !== []
+                ? Sdg::query()->whereIn('id', $selected)->orderBy('number')->get(['id', 'number', 'name'])
+                : collect();
+
+            if ($rows->isNotEmpty()) {
+                $pdf->Ln(3);
+                $pdf->SetFont('times', 'B', 9);
+                $pdf->Cell(0, 4, 'SDG(s) applied in this research:', 0, 1, 'L');
+                $pdf->SetFont('times', '', 8.5);
+
+                $cells = $rows->map(function (Sdg $s) use ($selectedIds): string {
+                    $n = (int) $s->number;
+                    $label = $n > 0 ? 'SDG '.$n.': ' : '';
+                    $label .= (string) $s->name;
+                    $checked = array_key_exists((string) $s->id, $selectedIds);
+
+                    return $this->checkboxHtml($checked).' '.htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                })->values();
+
+                $table = '<table width="98%" border="0" cellpadding="1" cellspacing="0" align="right">';
+                foreach ($cells->chunk(2) as $pair) {
+                    $left = $pair->get(0, '');
+                    $right = $pair->get(1, '');
+                    $table .= '<tr>'
+                        .'<td width="50%" style="border:none;font-size:8.5pt">'.$left.'</td>'
+                        .'<td width="50%" style="border:none;font-size:8.5pt">'.$right.'</td>'
+                        .'</tr>';
                 }
+                $table .= '</table>';
+
+                $pdf->writeHTML($table, true, false, true, false, '');
             }
         }
     }
@@ -221,23 +266,25 @@ class DefenseEvaluationPdfGenerator
         if ($rows === []) {
             return;
         }
-        $pdf->Ln(2);
-        $pdf->SetFont('dejavusans', 'B', 8.5);
+        $pdf->Ln(4);
+        $pdf->SetFont('times', 'B', 9);
         $pdf->Cell(0, 4, 'Rating scale:', 0, 1, 'L');
 
-        $h = '<table width="100%" border="1" cellpadding="2" cellspacing="0"><thead><tr style="background-color:#eee">'
-            .'<th width="20%"><b>Score</b></th><th width="20%"><b>Equivalent</b></th><th width="60%"><b>Narrative description</b></th></tr></thead><tbody>';
+        $h = '<table width="100%" border="0" cellpadding="2" cellspacing="0" style="border:none">'
+            .'<thead><tr><th width="20%" style="border:none" align="left"><b>Score</b></th>'
+            .'<th width="20%" style="border:none" align="left"><b>Equivalent</b></th>'
+            .'<th width="60%" style="border:none" align="left"><b>Narrative description</b></th></tr></thead><tbody>';
         foreach ($rows as $row) {
             if (! is_array($row)) {
                 continue;
             }
-            $h .= '<tr><td>'.htmlspecialchars((string) ($row['range'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $h .= '</td><td>'.htmlspecialchars((string) ($row['equivalent'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $h .= '</td><td>'.htmlspecialchars((string) ($row['description'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $h .= '<tr><td width="20%" style="border:none">'.htmlspecialchars((string) ($row['range'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $h .= '</td><td width="20%" style="border:none">'.htmlspecialchars((string) ($row['equivalent'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $h .= '</td><td width="60%" style="border:none">'.htmlspecialchars((string) ($row['description'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             $h .= '</td></tr>';
         }
         $h .= '</tbody></table>';
-        $pdf->SetFont('dejavusans', '', 7.5);
+        $pdf->SetFont('times', '', 8.5);
         $pdf->writeHTML($h, true, false, true, false, '');
     }
 
@@ -254,7 +301,7 @@ class DefenseEvaluationPdfGenerator
             return;
         }
         $pdf->Ln(2);
-        $pdf->SetFont('dejavusans', 'B', 8.5);
+        $pdf->SetFont('times', 'B', 9);
         $pdf->Cell(0, 4, 'Evaluation criteria and scores', 0, 1, 'L');
 
         $criterionById = EvaluationCriterion::query()
@@ -270,21 +317,18 @@ class DefenseEvaluationPdfGenerator
             }
         }
 
-        $h = '<table width="100%" border="1" cellpadding="3" cellspacing="0"><thead><tr style="background-color:#f2f2f2">'
-            .'<th width="80%"><b>Indicators</b></th><th width="20%" align="center"><b>'.($format->isChecklist() ? 'Response' : 'Score').'</b></th></tr></thead><tbody>';
+        $scoreHeader = $format->isChecklist() ? 'Response' : 'Score';
+        $h = '<table width="100%" border="1" cellpadding="2" cellspacing="0"><thead><tr style="background-color:#f2f2f2">'
+            .'<th width="78%" align="left" style="padding:1mm"><b>Indicators</b></th>'
+            .'<th width="22%" align="center" style="padding:1mm"><b>'.$scoreHeader.'</b></th></tr></thead><tbody>';
 
         foreach ($criterionById as $cId => $criterion) {
             $row = $lineById[$cId] ?? null;
             $section = $criterion->section_heading;
             if (is_string($section) && $section !== '') {
-                $h .= '<tr><td colspan="2" style="background-color:#fafafa"><b>'.htmlspecialchars($section, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b></td></tr>';
+                $h .= '<tr><td colspan="2" style="background-color:#fafafa;padding:1mm"><b>'.htmlspecialchars($section, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b></td></tr>';
             }
-            $text = (string) ($criterion->content ?? '');
-            if ($text === '' || $this->plainTextFromHtml($text) === '') {
-                $text = htmlspecialchars((string) $criterion->name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            } else {
-                $text = nl2br(htmlspecialchars($this->plainTextFromHtml($text), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false);
-            }
+            $text = $this->criterionContentHtml($criterion);
             $scoreCell = '—';
             if (is_array($row) && array_key_exists('score', $row)) {
                 if ($format->isChecklist()) {
@@ -293,11 +337,11 @@ class DefenseEvaluationPdfGenerator
                     $scoreCell = (string) (int) $row['score'];
                 }
             }
-            $h .= '<tr><td>'.$text.'</td><td align="center"><b>'.htmlspecialchars($scoreCell, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b></td></tr>';
+            $h .= '<tr><td width="78%" style="font-size:8pt;padding:1mm">'.$text.'</td><td width="22%" align="center" style="font-size:8pt;padding:1mm"><b>'.htmlspecialchars($scoreCell, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b></td></tr>';
         }
 
         $h .= '</tbody></table>';
-        $pdf->SetFont('dejavusans', '', 7.5);
+        $pdf->SetFont('times', '', 8);
         $pdf->writeHTML($h, true, false, true, false, '');
     }
 
@@ -308,63 +352,193 @@ class DefenseEvaluationPdfGenerator
     {
         $passing = (int) ($settings['passing_score'] ?? 85);
         $final = (int) $evaluation->final_score;
-        $pdf->SetFont('dejavusans', 'B', 9);
+
+        $scoreLabel = 'Total';
+        $scoreValue = (string) $final;
         if ($format?->isChecklist()) {
             $items = 0;
             if (is_array($evaluation->line_items)) {
                 $items = count($evaluation->line_items);
             }
-            $pdf->Cell(0, 4, 'Total: '.$final.($items > 0 ? ' / '.$items.' items' : ''), 0, 1, 'L');
-        } else {
-            $pdf->Cell(0, 4, 'Average / weighted total score: '.$final.' / 100', 0, 1, 'L');
-            $pdf->SetFont('dejavusans', '', 8);
-            $pdf->Cell(0, 3, '(Passing score: '.$passing.')', 0, 1, 'L');
+            $scoreValue .= $items > 0 ? ' / '.$items.' items' : '';
+        } elseif ($format?->isScoring()) {
+            $scoreLabel = 'Average / weighted total score';
+            $scoreValue = $final.' / 100';
         }
+
+        $passingNote = $format?->isScoring() ? ' <span style="font-size:8pt">(Passing score: '.$passing.')</span>' : '';
+        $summaryRows = '<tr>'
+            .'<td width="100%">'
+            .'<b>'.htmlspecialchars($scoreLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').':</b> '
+            .'<b>'.htmlspecialchars($scoreValue, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</b>'
+            .$passingNote
+            .'</td></tr>';
+
         if (! empty($settings['show_pass_fail']) && $format?->isScoring()) {
             $passed = $final >= $passing;
-            $boxP = $passed ? '☑' : '☐';
-            $boxF = $passed ? '☐' : '☑';
-            $pdf->SetFont('dejavusans', '', 8.5);
-            $pdf->Cell(0, 4, 'Remarks:  '.$boxP.' Passed   '.$boxF.' Failed', 0, 1, 'L');
+            $summaryRows .= '<tr>'
+                .'<td width="100%"><b>Remarks:</b> '
+                .$this->checkboxHtml($passed).' Passed&nbsp;&nbsp;&nbsp;&nbsp;'.$this->checkboxHtml(! $passed).' Failed'
+                .'</td></tr>';
         }
-        $pdf->Ln(1);
-        $pdf->SetFont('dejavusans', 'B', 8.5);
-        $pdf->Cell(0, 4, 'Comments:', 0, 1, 'L');
-        $pdf->SetFont('dejavusans', '', 8.5);
+
+        $pdf->SetFont('times', '', 9.5);
+        $pdf->writeHTML(
+            '<div style="padding-left: 40px; width: 96%;">
+                <table width="100%" align="left" border="0" cellpadding="3" cellspacing="0">'.$summaryRows.'</table>
+            </div>',
+            true,
+            false,
+            true,
+            false,
+            '',
+        );
+
+        $pdf->Ln(2);
         $c = (string) ($evaluation->comments ?? '');
         if ($c === '') {
             $c = '—';
         }
         $pdf->writeHTML(
-            '<div style="min-height:22mm;border:0.2mm solid #000;padding:2mm">'.nl2br(htmlspecialchars($c, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false).'</div>',
+            '<div style="padding-left: 40px; width: 96%;">
+            <table width="100%" align="left" border="0" cellpadding="3" cellspacing="0">'
+            .'<tr><td width="100%"><b>Comments:</b></td></tr>'
+            .'<tr><td width="100%" style="min-height:18mm;padding-left:6mm;padding-right:3mm;text-indent:6mm">'
+            .nl2br(htmlspecialchars($c, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), false)
+            .'</td></tr></table>
+            </div>',
             true,
             false,
             true,
             false,
             '',
         );
-        $evalName = $evaluation->evaluator?->name;
-        if (is_string($evalName) && $evalName !== '') {
-            $pdf->Ln(2);
-            $pdf->SetFont('dejavusans', '', 7.5);
-            $pdf->Cell(0, 3, 'Evaluator: '.htmlspecialchars($evalName, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'), 0, 1, 'L');
-        }
     }
 
     private function writeSignatureBlock(TCPDF $pdf): void
     {
-        $pdf->Ln(3);
-        $pdf->SetFont('dejavusans', '', 8.5);
+        $pdf->Ln(4);
+        $pdf->SetFont('times', '', 9);
         $pdf->writeHTML(
-            '<div style="min-height:12mm;border-bottom:0.2mm solid #000"></div><div style="text-align:center;font-size:7.5pt">Signature above printed name of panel member</div>',
+            '<table width="100%" border="0" cellpadding="2" cellspacing="0">'
+            .'<tr><td width="62%" align="center">________________________________________</td><td width="38%" align="center">____________________</td></tr>'
+            .'<tr><td width="62%" align="center" style="font-size:7.5pt">Signature above printed name of the panel member</td><td width="38%" align="center" style="font-size:7.5pt">Date</td></tr>'
+            .'</table>',
             true,
             false,
             true,
             false,
             '',
         );
-        $pdf->Ln(2);
-        $pdf->Cell(0, 4, 'Date: ___________________________', 0, 1, 'L');
+    }
+
+    private function writeBodyBorder(TCPDF $pdf, int $startPage, float $startY): void
+    {
+        $currentPage = (int) $pdf->getPage();
+        $currentY = $pdf->getY();
+        $bottomY = $pdf->getPageHeight() - 18;
+        $x = 12.0;
+        $width = $pdf->getPageWidth() - 24.0;
+
+        $pdf->SetDrawColor(0, 0, 0);
+        $pdf->SetLineWidth(0.2);
+
+        for ($page = $startPage; $page <= $currentPage; $page++) {
+            $pdf->setPage($page);
+            $top = $page === $startPage ? $startY : 12.0;
+            $bottom = $page === $currentPage
+                ? min(max($currentY + 2, $top + 8), $bottomY)
+                : $bottomY;
+
+            $pdf->Rect($x, $top, $width, $bottom - $top, 'D');
+        }
+
+        $pdf->setPage($currentPage);
+        $pdf->setY($currentY);
+    }
+
+    private function logoPath(array $settings): string
+    {
+        $path = trim((string) ($settings['logo_path'] ?? ''));
+        if ($path === '') {
+            return (string) config('evaluation_pdf.logo_path', '');
+        }
+
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, 'storage/')) {
+            $stored = storage_path('app/public/'.substr($path, strlen('storage/')));
+            if (is_file($stored)) {
+                return $stored;
+            }
+        }
+
+        return public_path(ltrim($path, '/'));
+    }
+
+    private function drawHeaderLogo(TCPDF $pdf, array $settings, float $x, float $y, float $width, float $height): void
+    {
+        $logoPath = $this->logoPath($settings);
+        $realLogo = $logoPath !== '' && is_file($logoPath) ? realpath($logoPath) : false;
+        if (! is_string($realLogo) || $realLogo === '') {
+            return;
+        }
+
+        $padding = 3.0;
+        $imageX = $x + $padding;
+        $imageY = $y + $padding;
+        $imageWidth = $width - ($padding * 2);
+        $imageHeight = $height - ($padding * 2);
+        $extension = strtolower(pathinfo($realLogo, PATHINFO_EXTENSION));
+
+        if ($extension === 'svg') {
+            $pdf->ImageSVG($realLogo, $imageX, $imageY, $imageWidth, $imageHeight, '', '', '', 0, false);
+
+            return;
+        }
+
+        $pdf->Image($realLogo, $imageX, $imageY, $imageWidth, $imageHeight, '', '', '', false, 300, '', false, false, 0, true);
+    }
+
+    private function criterionContentHtml(EvaluationCriterion $criterion): string
+    {
+        $raw = (string) ($criterion->content ?? '');
+        if ($raw === '' || $this->plainTextFromHtml($raw) === '') {
+            return htmlspecialchars((string) $criterion->name, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        }
+
+        return $this->richTextForPdf($raw);
+    }
+
+    private function checkboxHtml(bool $checked): string
+    {
+        $glyph = $checked ? '☑' : '☐';
+
+        return '<span style="font-family:dejavusans;font-size:8pt">'.$glyph.'</span>';
+    }
+
+    private function richTextForPdf(string $html): string
+    {
+        $html = (string) preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $html);
+        $html = (string) preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $html);
+        $html = strip_tags($html, '<p><br><strong><b><em><i><u><ul><ol><li><blockquote><h2><h3>');
+        $html = preg_replace('/<(\/?)(p|strong|b|em|i|u|ul|ol|li|blockquote|h2|h3)\b[^>]*>/i', '<$1$2>', $html) ?? '';
+
+        $html = preg_replace('/<p>/i', '', $html) ?? '';
+        $html = preg_replace('/<\/p>/i', '<br/>', $html) ?? '';
+        $html = preg_replace('/<ul>/i', '<ul style="margin:0;padding-left:1mm">', $html) ?? '';
+        $html = preg_replace('/<ol>/i', '<ol style="margin:0;padding-left:1mm">', $html) ?? '';
+        $html = preg_replace('/<li>/i', '<li style="margin:0;padding:0">', $html) ?? '';
+        $html = preg_replace('/<blockquote>/i', '<blockquote style="margin:0;padding-left:1mm">', $html) ?? '';
+        $html = preg_replace('/<h2>/i', '<b style="font-size:8.5pt">', $html) ?? '';
+        $html = preg_replace('/<\/h2>/i', '</b><br/>', $html) ?? '';
+        $html = preg_replace('/<h3>/i', '<b style="font-size:8pt">', $html) ?? '';
+        $html = preg_replace('/<\/h3>/i', '</b><br/>', $html) ?? '';
+        $html = preg_replace('/(<br\s*\/?>\s*){2,}/i', '<br/>', $html) ?? '';
+
+        return '<span style="font-size:8pt">'.$html.'</span>';
     }
 
     /**
@@ -376,25 +550,30 @@ class DefenseEvaluationPdfGenerator
         $code = (string) ($doc['code'] ?? '');
         $rev = (string) ($doc['revision'] ?? '');
         $eff = (string) ($doc['effectivity'] ?? '');
-        $left = trim($code.($code !== '' && $rev !== '' ? ' / ' : ' ').'Rev. #'.$rev.($eff !== '' ? ' / Effectivity: '.$eff : ''));
-        if ($left === '') {
-            return;
+        $parts = [];
+        if ($code !== '') {
+            $parts[] = 'Form Code: '.$code;
         }
-        $np = (int) $pdf->getNumPages();
-        for ($i = 1; $i <= $np; $i++) {
-            $pdf->setPage($i);
-            $pdf->setY(-12);
-            $pdf->SetFont('dejavusans', '', 6.5);
-            $pdf->Cell(90, 3, $left, 0, 0, 'L');
-            $label = 'Page '.$i.' of '.$np;
-            $pdf->Cell(90, 3, $label, 0, 0, 'R');
+        if ($rev !== '') {
+            $parts[] = 'Revision No.: '.$rev;
+        }
+        if ($eff !== '') {
+            $parts[] = 'Effectivity Date: '.$eff;
+        }
+        $left = implode(' | ', $parts);
+
+        if (method_exists($pdf, 'setFooterLeft')) {
+            call_user_func([$pdf, 'setFooterLeft'], $left);
         }
     }
 
-    private function formatProponents(?ResearchPaper $paper): string
+    /**
+     * @return list<string>
+     */
+    private function proponentNameLines(?ResearchPaper $paper): array
     {
         if (! $paper) {
-            return '—';
+            return ['—'];
         }
         $names = collect();
         if ($paper->user?->name) {
@@ -407,10 +586,10 @@ class DefenseEvaluationPdfGenerator
         }
 
         if ($names->isEmpty()) {
-            return '—';
+            return ['—'];
         }
 
-        return $names->filter()->unique()->implode(', ');
+        return $names->filter()->unique()->values()->all();
     }
 
     private function plainTextFromHtml(string $html): string

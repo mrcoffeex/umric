@@ -36,6 +36,7 @@ final class EvaluationPdfSettings
 
         foreach ([
             'enabled',
+            'logo_path',
             'header_institution',
             'form_title',
             'form_subtitle',

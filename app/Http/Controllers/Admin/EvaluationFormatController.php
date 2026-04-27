@@ -8,6 +8,7 @@ use App\Models\EvaluationFormat;
 use App\Support\EvaluationPdfSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +23,7 @@ class EvaluationFormatController extends Controller
             ->get()
             ->map(function (EvaluationFormat $f) {
                 $total = (int) $f->criteria()->sum('max_points');
+                $pdfSettings = EvaluationPdfSettings::forFormat($f);
 
                 return [
                     'id' => (string) $f->id,
@@ -35,7 +37,8 @@ class EvaluationFormatController extends Controller
                     'total_max' => $total,
                     'target_total' => EvaluationCriterion::MAX_TOTAL,
                     'is_ready' => $f->isReady(),
-                    'pdf_settings' => EvaluationPdfSettings::forFormat($f),
+                    'pdf_settings' => $pdfSettings,
+                    'pdf_logo_url' => $this->pdfLogoUrl($pdfSettings),
                 ];
             });
 
@@ -51,16 +54,18 @@ class EvaluationFormatController extends Controller
             'evaluation_type' => ['required', 'string', Rule::in(EvaluationFormat::TYPES)],
             'use_weights' => ['nullable', 'boolean'],
             'pdf_settings' => ['nullable', 'array'],
+            'pdf_logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
         ]);
 
         $type = $validated['evaluation_type'];
         $useWeights = $type === EvaluationFormat::TYPE_SCORING && $request->boolean('use_weights');
         $pdf = $request->input('pdf_settings');
+        $pdf = is_array($pdf) ? $this->withUploadedPdfLogo($request, $pdf) : null;
         EvaluationFormat::query()->create([
             'name' => $validated['name'],
             'evaluation_type' => $type,
             'use_weights' => $useWeights,
-            'pdf_settings' => is_array($pdf) ? $pdf : null,
+            'pdf_settings' => $pdf,
         ]);
 
         $hint = $type === EvaluationFormat::TYPE_CHECKLIST
@@ -84,12 +89,15 @@ class EvaluationFormatController extends Controller
             'evaluation_type' => ['sometimes', 'string', Rule::in(EvaluationFormat::TYPES)],
             'use_weights' => ['nullable', 'boolean'],
             'pdf_settings' => ['nullable', 'array'],
+            'pdf_logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
         ]);
 
         $data = ['name' => $validated['name']];
         if ($request->has('pdf_settings')) {
             $pdf = $request->input('pdf_settings');
-            $data['pdf_settings'] = is_array($pdf) ? $pdf : null;
+            $data['pdf_settings'] = is_array($pdf)
+                ? $this->withUploadedPdfLogo($request, $pdf, $evaluationFormat)
+                : null;
         }
         if (array_key_exists('evaluation_type', $validated)) {
             if (
@@ -139,5 +147,59 @@ class EvaluationFormatController extends Controller
         ]);
 
         return back();
+    }
+
+    /**
+     * @param  array<string, mixed>  $pdf
+     * @return array<string, mixed>
+     */
+    private function withUploadedPdfLogo(Request $request, array $pdf, ?EvaluationFormat $format = null): array
+    {
+        if (! $request->hasFile('pdf_logo')) {
+            return $pdf;
+        }
+
+        $existingSettings = is_array($format?->pdf_settings ?? null)
+            ? $format?->pdf_settings
+            : [];
+        $oldPath = (string) ($existingSettings['logo_path'] ?? '');
+        $this->deleteStoredPdfLogo($oldPath);
+
+        $file = $request->file('pdf_logo');
+        if ($file === null) {
+            return $pdf;
+        }
+
+        $path = $file->store('evaluation-format-logos', 'public');
+        $pdf['logo_path'] = 'storage/'.$path;
+
+        return $pdf;
+    }
+
+    private function deleteStoredPdfLogo(string $path): void
+    {
+        $prefix = 'storage/evaluation-format-logos/';
+        if (! str_starts_with($path, $prefix)) {
+            return;
+        }
+
+        Storage::disk('public')->delete(substr($path, strlen('storage/')));
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function pdfLogoUrl(array $settings): ?string
+    {
+        $path = trim((string) ($settings['logo_path'] ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return asset(ltrim($path, '/'));
     }
 }

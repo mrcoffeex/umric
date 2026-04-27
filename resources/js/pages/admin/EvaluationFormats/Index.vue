@@ -6,8 +6,9 @@ import {
     Plus,
     SlidersHorizontal,
     Trash2,
+    Upload,
 } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import admin from '@/routes/admin';
 
 type PdfForm = {
     enabled: boolean;
+    logo_path: string;
     header_institution: string;
     form_title: string;
     form_subtitle: string;
@@ -50,11 +52,21 @@ type FormatRow = {
     target_total: number;
     is_ready: boolean;
     pdf_settings: PdfForm;
+    pdf_logo_url: string | null;
+};
+
+type EvaluationFormatForm = {
+    name: string;
+    evaluation_type: 'scoring' | 'checklist';
+    use_weights: boolean;
+    pdf_settings: PdfForm;
+    pdf_logo: File | null;
 };
 
 function defaultPdfSettings(): PdfForm {
     return {
         enabled: true,
+        logo_path: '',
         header_institution: 'RESEARCH AND INNOVATION CENTER',
         form_title: 'THESIS OUTLINE DEFENSE EVALUATION FORM',
         form_subtitle: '(For Students)',
@@ -62,7 +74,7 @@ function defaultPdfSettings(): PdfForm {
         show_proponents: true,
         show_instruction: true,
         instruction_text:
-            'Rate each item according to the scale below. Write your score in the table.',
+            'Enclosed are the criteria-indicators and rating scale to help you evaluate the various components of this thesis work. Please read the criteria carefully and place the corresponding score of each item on the blank provided for. Multiply the score with its corresponding weight and enter it on the last column. Add the points in the last column to compute the final grade. Space is provided for your comments at the bottom of the page. Thank you.',
         show_rating_scale: true,
         show_sdg: true,
         show_pass_fail: true,
@@ -109,12 +121,23 @@ defineOptions({
 
 const showCreate = ref(false);
 const editing = ref<FormatRow | null>(null);
+const logoInput = ref<HTMLInputElement | null>(null);
+const localLogoPreview = ref<string | null>(null);
 
 const form = useForm({
     name: '',
     evaluation_type: 'scoring' as 'scoring' | 'checklist',
     use_weights: false,
     pdf_settings: defaultPdfSettings(),
+    pdf_logo: null as File | null,
+});
+
+const logoPreviewUrl = computed(() => {
+    if (localLogoPreview.value) {
+        return localLogoPreview.value;
+    }
+
+    return editing.value?.pdf_logo_url ?? null;
 });
 
 function openNew() {
@@ -126,6 +149,8 @@ function openNew() {
     form.evaluation_type = 'scoring';
     form.use_weights = false;
     form.pdf_settings = defaultPdfSettings();
+    form.pdf_logo = null;
+    resetLogoPreview();
     form.clearErrors();
     showCreate.value = true;
 }
@@ -136,13 +161,44 @@ function openEdit(f: FormatRow) {
     form.evaluation_type = f.evaluation_type;
     form.use_weights = f.evaluation_type === 'scoring' && f.use_weights;
     form.pdf_settings = mergePdfSettings(f.pdf_settings);
+    form.pdf_logo = null;
+    resetLogoPreview();
     form.clearErrors();
     showCreate.value = true;
 }
 
+function resetLogoPreview() {
+    if (localLogoPreview.value) {
+        URL.revokeObjectURL(localLogoPreview.value);
+        localLogoPreview.value = null;
+    }
+
+    if (logoInput.value) {
+        logoInput.value.value = '';
+    }
+}
+
+function pickLogo() {
+    logoInput.value?.click();
+}
+
+function onLogoChange(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0] ?? null;
+    form.pdf_logo = file;
+
+    if (localLogoPreview.value) {
+        URL.revokeObjectURL(localLogoPreview.value);
+        localLogoPreview.value = null;
+    }
+
+    if (file) {
+        localLogoPreview.value = URL.createObjectURL(file);
+    }
+}
+
 function submit() {
     if (editing.value) {
-        form.transform((data) => {
+        const editPayload = (data: EvaluationFormatForm) => {
             const payload: Record<string, unknown> = { name: data.name };
             const type = data.evaluation_type as string;
 
@@ -161,26 +217,44 @@ function submit() {
 
             payload.pdf_settings = data.pdf_settings;
 
+            if (data.pdf_logo instanceof File) {
+                payload.pdf_logo = data.pdf_logo;
+            }
+
             return payload;
-        }).patch(
-            admin.evaluationFormats.update.url({
-                evaluation_format: editing.value.id,
-            }),
-            {
-                onSuccess: () => {
-                    showCreate.value = false;
-                },
+        };
+
+        const url = admin.evaluationFormats.update.url({
+            evaluation_format: editing.value.id,
+        });
+        const options = {
+            onSuccess: () => {
+                showCreate.value = false;
+                resetLogoPreview();
             },
-        );
+        };
+
+        if (form.pdf_logo instanceof File) {
+            form.transform((data) => ({
+                ...editPayload(data),
+                _method: 'PATCH' as const,
+            })).post(url, { ...options, forceFormData: true });
+        } else {
+            form.transform(editPayload);
+            form.patch(url, options);
+        }
     } else {
         form.transform((data) => data);
         form.post(admin.evaluationFormats.store.url(), {
+            forceFormData: form.pdf_logo instanceof File,
             onSuccess: () => {
                 showCreate.value = false;
                 form.reset();
                 form.evaluation_type = 'scoring';
                 form.use_weights = false;
                 form.pdf_settings = defaultPdfSettings();
+                form.pdf_logo = null;
+                resetLogoPreview();
             },
         });
     }
@@ -488,6 +562,53 @@ async function deleteRow(f: FormatRow) {
                                 class="mt-1.5 bg-background"
                                 :disabled="!form.pdf_settings.enabled"
                             />
+                        </div>
+                        <div class="space-y-2">
+                            <Label>PDF logo</Label>
+                            <p class="text-xs text-muted-foreground">
+                                Upload a PNG, JPEG, WebP, or SVG logo for this
+                                evaluation format. Max 2 MB. If blank, the
+                                default RIC logo is used.
+                            </p>
+                            <div
+                                v-if="logoPreviewUrl"
+                                class="flex max-w-xs items-center gap-3 rounded-lg border border-border bg-background p-3"
+                            >
+                                <img
+                                    :src="logoPreviewUrl"
+                                    alt=""
+                                    class="h-12 w-12 object-contain"
+                                />
+                                <span class="text-xs text-muted-foreground">
+                                    {{
+                                        form.pdf_logo
+                                            ? form.pdf_logo.name
+                                            : 'Current logo'
+                                    }}
+                                </span>
+                            </div>
+                            <input
+                                ref="logoInput"
+                                type="file"
+                                class="sr-only"
+                                accept="image/jpeg,image/png,image/webp,image/svg+xml"
+                                :disabled="!form.pdf_settings.enabled"
+                                @change="onLogoChange"
+                            />
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                :disabled="!form.pdf_settings.enabled"
+                                @click="pickLogo"
+                            >
+                                <Upload class="mr-2 h-4 w-4" />
+                                {{
+                                    logoPreviewUrl
+                                        ? 'Replace logo'
+                                        : 'Upload logo'
+                                }}
+                            </Button>
+                            <InputError :message="form.errors.pdf_logo" />
                         </div>
                         <div>
                             <Label for="pdf-inst"

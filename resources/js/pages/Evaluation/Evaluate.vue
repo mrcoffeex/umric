@@ -32,6 +32,7 @@ type LineItem = {
     content?: string | null;
     max_points: number;
     score: number;
+    section_heading?: string | null;
 };
 
 type DefenseInfo = {
@@ -152,6 +153,16 @@ const sdgIdsError = computed((): string | undefined => {
     return Array.isArray(e) ? e.join(' ') : String(e);
 });
 
+const sectionHeadingByCriterionId = computed(() => {
+    const m = new Map<string, string | null>();
+
+    for (const c of props.criteria) {
+        m.set(c.id, c.section_heading ?? null);
+    }
+
+    return m;
+});
+
 const rowsForForm = computed(() => {
     if (props.mode === 'create') {
         return props.criteria.map((c) => ({
@@ -159,6 +170,7 @@ const rowsForForm = computed(() => {
             name: c.name,
             content: c.content ?? null,
             max_points: c.max_points,
+            section_heading: c.section_heading ?? null,
         }));
     }
 
@@ -168,15 +180,22 @@ const rowsForForm = computed(() => {
             name: l.name,
             content: l.content ?? null,
             max_points: l.max_points,
+            section_heading:
+                sectionHeadingByCriterionId.value.get(l.criterion_id) ?? null,
         }));
     }
 
     return [];
 });
 
-const displayLines = computed(() => {
+const displayLines = computed((): LineItem[] => {
     if (props.mode === 'view' && props.evaluation) {
-        return props.evaluation.line_items ?? [];
+        return (props.evaluation.line_items ?? []).map((line) => ({
+            ...line,
+            section_heading:
+                sectionHeadingByCriterionId.value.get(line.criterion_id) ??
+                null,
+        }));
     }
 
     return [];
@@ -428,7 +447,7 @@ defineOptions({
     <div>
         <Head :title="pageTitle" />
         <div
-            class="mx-auto min-h-[60vh] max-w-2xl space-y-6 p-4 pb-20 md:space-y-8 md:p-6"
+            class="mx-auto min-h-[60vh] max-w-5xl space-y-6 p-4 pb-20 md:space-y-8 md:p-6"
         >
             <div>
                 <Link
@@ -656,87 +675,126 @@ defineOptions({
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr
+                                <template
                                     v-for="(line, idx) in displayLines"
                                     :key="line.criterion_id + String(idx)"
-                                    class="border-b border-border/60 last:border-0"
                                 >
-                                    <td
-                                        class="min-w-0 px-3 py-3 align-top text-foreground"
+                                    <tr
+                                        v-if="
+                                            line.section_heading &&
+                                            (idx === 0 ||
+                                                displayLines[idx - 1]
+                                                    ?.section_heading !==
+                                                    line.section_heading)
+                                        "
+                                        class="border-b border-border bg-muted/40"
                                     >
-                                        <div
-                                            :class="criterionRichTextClass"
-                                            v-html="criterionDisplayHtml(line)"
-                                        />
-                                    </td>
-                                    <td
-                                        class="px-3 py-3 text-center align-middle text-foreground"
+                                        <td
+                                            colspan="3"
+                                            class="px-3 py-2 text-xs font-semibold tracking-wide text-foreground uppercase"
+                                        >
+                                            {{ line.section_heading }}
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        class="border-b border-border/60 last:border-0"
                                     >
-                                        <span
-                                            v-if="line.score >= 1"
-                                            class="font-semibold text-primary"
-                                            aria-label="Yes"
-                                            >✓</span
+                                        <td
+                                            class="min-w-0 px-3 py-3 align-top text-foreground"
                                         >
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground"
-                                            >—</span
+                                            <div
+                                                :class="criterionRichTextClass"
+                                                v-html="
+                                                    criterionDisplayHtml(line)
+                                                "
+                                            />
+                                        </td>
+                                        <td
+                                            class="px-3 py-3 text-center align-middle text-foreground"
                                         >
-                                    </td>
-                                    <td
-                                        class="px-3 py-3 text-center align-middle text-foreground"
-                                    >
-                                        <span
-                                            v-if="line.score < 1"
-                                            class="font-semibold text-muted-foreground"
-                                            aria-label="No"
-                                            >✓</span
+                                            <span
+                                                v-if="line.score >= 1"
+                                                class="font-semibold text-primary"
+                                                aria-label="Yes"
+                                                >✓</span
+                                            >
+                                            <span
+                                                v-else
+                                                class="text-muted-foreground"
+                                                >—</span
+                                            >
+                                        </td>
+                                        <td
+                                            class="px-3 py-3 text-center align-middle text-foreground"
                                         >
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground"
-                                            >—</span
-                                        >
-                                    </td>
-                                </tr>
+                                            <span
+                                                v-if="line.score < 1"
+                                                class="font-semibold text-muted-foreground"
+                                                aria-label="No"
+                                                >✓</span
+                                            >
+                                            <span
+                                                v-else
+                                                class="text-muted-foreground"
+                                                >—</span
+                                            >
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
                     <div v-else class="space-y-3">
-                        <div
+                        <template
                             v-for="(line, idx) in displayLines"
                             :key="line.criterion_id + String(idx)"
-                            class="flex items-start justify-between gap-4 border-b border-border/60 pb-3 last:border-0"
                         >
-                            <div class="min-w-0 text-sm">
-                                <div
-                                    :class="criterionRichTextClass"
-                                    v-html="criterionDisplayHtml(line)"
-                                />
-                                <p class="mt-2 text-xs text-muted-foreground">
-                                    <template
-                                        v-if="
-                                            line.max_points !== 100 &&
-                                            evaluation_type === 'scoring'
-                                        "
-                                        >Weight {{ line.max_points }}% · score
-                                        1–100</template
+                            <p
+                                v-if="
+                                    line.section_heading &&
+                                    (idx === 0 ||
+                                        displayLines[idx - 1]
+                                            ?.section_heading !==
+                                            line.section_heading)
+                                "
+                                class="border-b border-border pb-1 text-xs font-semibold tracking-wide text-foreground uppercase"
+                            >
+                                {{ line.section_heading }}
+                            </p>
+                            <div
+                                class="flex items-start justify-between gap-4 border-b border-border/60 pb-3 last:border-0"
+                            >
+                                <div class="min-w-0 text-sm">
+                                    <div
+                                        :class="criterionRichTextClass"
+                                        v-html="criterionDisplayHtml(line)"
+                                    />
+                                    <p
+                                        class="mt-2 text-xs text-muted-foreground"
                                     >
-                                    <template
-                                        v-else-if="
-                                            evaluation_type === 'scoring'
-                                        "
-                                        >Score 1–100</template
-                                    >
+                                        <template
+                                            v-if="
+                                                line.max_points !== 100 &&
+                                                evaluation_type === 'scoring'
+                                            "
+                                            >Weight {{ line.max_points }}% ·
+                                            score 1–100</template
+                                        >
+                                        <template
+                                            v-else-if="
+                                                evaluation_type === 'scoring'
+                                            "
+                                            >Score 1–100</template
+                                        >
+                                    </p>
+                                </div>
+                                <p
+                                    class="shrink-0 text-sm font-semibold text-foreground tabular-nums"
+                                >
+                                    {{ lineScoreDisplay(line) }}
                                 </p>
                             </div>
-                            <p
-                                class="shrink-0 text-sm font-semibold text-foreground tabular-nums"
-                            >
-                                {{ lineScoreDisplay(line) }}
-                            </p>
-                        </div>
+                        </template>
                     </div>
                     <div
                         class="mt-4 flex items-center justify-between border-t border-border pt-4"
@@ -857,119 +915,159 @@ defineOptions({
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr
-                                    v-for="r in rowsForForm"
+                                <template
+                                    v-for="(r, idx) in rowsForForm"
                                     :key="r.id"
-                                    class="border-b border-border/60 last:border-0"
                                 >
-                                    <td class="min-w-0 px-3 py-3 align-top">
-                                        <div
-                                            :class="criterionRichTextClass"
-                                            v-html="criterionDisplayHtml(r)"
-                                        />
-                                        <InputError
-                                            v-if="fieldError(r.id)"
-                                            :message="fieldError(r.id)!"
-                                            class="mt-1"
-                                        />
-                                    </td>
-                                    <td
-                                        class="px-3 py-3 text-center align-middle"
+                                    <tr
+                                        v-if="
+                                            r.section_heading &&
+                                            (idx === 0 ||
+                                                rowsForForm[idx - 1]
+                                                    ?.section_heading !==
+                                                    r.section_heading)
+                                        "
+                                        class="border-b border-border bg-muted/40"
                                     >
-                                        <div
-                                            class="inline-flex items-center justify-center"
+                                        <td
+                                            colspan="3"
+                                            class="px-3 py-2 text-xs font-semibold tracking-wide text-foreground uppercase"
                                         >
-                                            <Checkbox
-                                                :id="`checklist-yes-${r.id}`"
-                                                :model-value="
-                                                    Number(
-                                                        form.scores[r.id] ?? 0,
-                                                    ) === 1
-                                                "
-                                                :disabled="
-                                                    mode === 'create' &&
-                                                    !criteriaReady
-                                                "
-                                                :aria-label="`Yes — ${r.name}`"
-                                                @update:model-value="
-                                                    (v) =>
-                                                        onChecklistYes(r.id, v)
-                                                "
-                                            />
-                                        </div>
-                                    </td>
-                                    <td
-                                        class="px-3 py-3 text-center align-middle"
+                                            {{ r.section_heading }}
+                                        </td>
+                                    </tr>
+                                    <tr
+                                        class="border-b border-border/60 last:border-0"
                                     >
-                                        <div
-                                            class="inline-flex items-center justify-center"
-                                        >
-                                            <Checkbox
-                                                :id="`checklist-no-${r.id}`"
-                                                :model-value="
-                                                    Number(
-                                                        form.scores[r.id] ?? 0,
-                                                    ) === 0
-                                                "
-                                                :disabled="
-                                                    mode === 'create' &&
-                                                    !criteriaReady
-                                                "
-                                                :aria-label="`No — ${r.name}`"
-                                                @update:model-value="
-                                                    (v) =>
-                                                        onChecklistNo(r.id, v)
-                                                "
+                                        <td class="min-w-0 px-3 py-3 align-top">
+                                            <div
+                                                :class="criterionRichTextClass"
+                                                v-html="criterionDisplayHtml(r)"
                                             />
-                                        </div>
-                                    </td>
-                                </tr>
+                                            <InputError
+                                                v-if="fieldError(r.id)"
+                                                :message="fieldError(r.id)!"
+                                                class="mt-1"
+                                            />
+                                        </td>
+                                        <td
+                                            class="px-3 py-3 text-center align-middle"
+                                        >
+                                            <div
+                                                class="inline-flex items-center justify-center"
+                                            >
+                                                <Checkbox
+                                                    :id="`checklist-yes-${r.id}`"
+                                                    :model-value="
+                                                        Number(
+                                                            form.scores[r.id] ??
+                                                                0,
+                                                        ) === 1
+                                                    "
+                                                    :disabled="
+                                                        mode === 'create' &&
+                                                        !criteriaReady
+                                                    "
+                                                    :aria-label="`Yes — ${r.name}`"
+                                                    @update:model-value="
+                                                        (v) =>
+                                                            onChecklistYes(
+                                                                r.id,
+                                                                v,
+                                                            )
+                                                    "
+                                                />
+                                            </div>
+                                        </td>
+                                        <td
+                                            class="px-3 py-3 text-center align-middle"
+                                        >
+                                            <div
+                                                class="inline-flex items-center justify-center"
+                                            >
+                                                <Checkbox
+                                                    :id="`checklist-no-${r.id}`"
+                                                    :model-value="
+                                                        Number(
+                                                            form.scores[r.id] ??
+                                                                0,
+                                                        ) === 0
+                                                    "
+                                                    :disabled="
+                                                        mode === 'create' &&
+                                                        !criteriaReady
+                                                    "
+                                                    :aria-label="`No — ${r.name}`"
+                                                    @update:model-value="
+                                                        (v) =>
+                                                            onChecklistNo(
+                                                                r.id,
+                                                                v,
+                                                            )
+                                                    "
+                                                />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </template>
                             </tbody>
                         </table>
                     </div>
                     <div v-else class="space-y-5">
-                        <div
-                            v-for="r in rowsForForm"
-                            :key="r.id"
-                            class="space-y-2"
-                        >
-                            <div
-                                class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between"
+                        <template v-for="(r, idx) in rowsForForm" :key="r.id">
+                            <p
+                                v-if="
+                                    r.section_heading &&
+                                    (idx === 0 ||
+                                        rowsForForm[idx - 1]
+                                            ?.section_heading !==
+                                            r.section_heading)
+                                "
+                                class="border-b border-border pb-1 text-xs font-semibold tracking-wide text-foreground uppercase"
                             >
-                                <Label
-                                    :for="`score-${r.id}`"
-                                    class="block w-full max-w-full cursor-default flex-col items-stretch gap-0 text-left font-normal"
-                                >
-                                    <span
-                                        :class="criterionRichTextClass"
-                                        v-html="criterionDisplayHtml(r)"
-                                    />
-                                </Label>
+                                {{ r.section_heading }}
+                            </p>
+                            <div class="space-y-2">
                                 <div
-                                    class="min-w-10 shrink-0 text-xs text-muted-foreground sm:min-w-10"
+                                    class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between"
                                 >
-                                    <span v-if="scoringUseWeights"
-                                        >Weight {{ r.max_points }}% · 1 –
-                                        100</span
+                                    <Label
+                                        :for="`score-${r.id}`"
+                                        class="block w-full max-w-full cursor-default flex-col items-stretch gap-0 text-left font-normal"
                                     >
-                                    <span v-else>1 – 100</span>
+                                        <span
+                                            :class="criterionRichTextClass"
+                                            v-html="criterionDisplayHtml(r)"
+                                        />
+                                    </Label>
+                                    <div
+                                        class="min-w-10 shrink-0 text-xs text-muted-foreground sm:min-w-10"
+                                    >
+                                        <span v-if="scoringUseWeights"
+                                            >Weight {{ r.max_points }}% · 1 –
+                                            100</span
+                                        >
+                                        <span v-else>1 – 100</span>
+                                    </div>
                                 </div>
+                                <Input
+                                    :id="`score-${r.id}`"
+                                    v-model="form.scores[r.id]"
+                                    type="number"
+                                    :min="0"
+                                    :max="100"
+                                    required
+                                    :disabled="
+                                        mode === 'create' && !criteriaReady
+                                    "
+                                    class="h-10 bg-background"
+                                />
+                                <InputError
+                                    v-if="fieldError(r.id)"
+                                    :message="fieldError(r.id)!"
+                                />
                             </div>
-                            <Input
-                                :id="`score-${r.id}`"
-                                v-model="form.scores[r.id]"
-                                type="number"
-                                :min="0"
-                                :max="100"
-                                required
-                                :disabled="mode === 'create' && !criteriaReady"
-                                class="h-10 bg-background"
-                            />
-                            <InputError
-                                v-if="fieldError(r.id)"
-                                :message="fieldError(r.id)!"
-                            />
-                        </div>
+                        </template>
                     </div>
                     <div class="mt-6 space-y-2 border-t border-border pt-4">
                         <Label for="eval-comments" class="text-foreground"

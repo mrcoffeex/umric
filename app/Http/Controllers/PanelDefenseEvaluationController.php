@@ -177,11 +177,14 @@ class PanelDefenseEvaluationController extends Controller
                 : 'Evaluation saved.',
         ]);
 
-        if ($request->routeIs('admin.*')) {
-            return redirect()->route('admin.evaluation.index', $this->indexRedirectQuery($request));
-        }
+        $evaluateRoute = $request->routeIs('admin.*')
+            ? 'admin.evaluation.evaluate'
+            : 'faculty.evaluation.evaluate';
 
-        return redirect()->route('faculty.evaluation.index', $this->indexRedirectQuery($request));
+        return redirect()->route($evaluateRoute, array_merge(
+            ['panelDefense' => $panelDefense],
+            $this->indexRedirectQuery($request),
+        ));
     }
 
     public function update(UpdatePanelDefenseEvaluationRequest $request, PanelDefenseEvaluation $panelDefenseEvaluation): RedirectResponse
