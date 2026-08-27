@@ -63,7 +63,7 @@ defineOptions({
             class="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-medium transition-all duration-200"
             :class="
                 roleTab === 'student'
-                    ? 'bg-white text-orange-600 shadow-sm dark:bg-gray-700 dark:text-orange-400'
+                    ? 'bg-white text-primary shadow-sm dark:bg-gray-700 dark:text-primary'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
             "
         >
@@ -76,7 +76,7 @@ defineOptions({
             class="flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-sm font-medium transition-all duration-200"
             :class="
                 roleTab === 'faculty'
-                    ? 'bg-white text-teal-600 shadow-sm dark:bg-gray-700 dark:text-teal-400'
+                    ? 'bg-white text-um-navy shadow-sm dark:bg-gray-700 dark:text-um-gold'
                     : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
             "
         >
@@ -94,7 +94,7 @@ defineOptions({
                 id="terms-acceptance"
                 v-model="agreedToTerms"
                 type="checkbox"
-                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-orange-600 focus:ring-2 focus:ring-orange-500/30 dark:border-gray-600 dark:bg-gray-800"
+                class="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/30 dark:border-gray-600 dark:bg-gray-800"
             />
         </div>
         <label
@@ -104,7 +104,7 @@ defineOptions({
             I have read and agree to the
             <Link
                 :href="terms.url()"
-                class="font-medium text-orange-600 underline decoration-orange-200 underline-offset-2 hover:text-orange-700 dark:text-orange-400 dark:decoration-orange-800"
+                class="font-medium text-primary underline decoration-primary/30 underline-offset-2 hover:text-primary/80"
                 target="_blank"
                 rel="noopener noreferrer"
                 @click.stop
@@ -114,7 +114,7 @@ defineOptions({
             and
             <Link
                 :href="privacy.url()"
-                class="font-medium text-orange-600 underline decoration-orange-200 underline-offset-2 hover:text-orange-700 dark:text-orange-400 dark:decoration-orange-800"
+                class="font-medium text-primary underline decoration-primary/30 underline-offset-2 hover:text-primary/80"
                 target="_blank"
                 rel="noopener noreferrer"
                 @click.stop
@@ -198,7 +198,7 @@ defineOptions({
                     autofocus
                     autocomplete="name"
                     placeholder="Juan dela Cruz"
-                    class="h-11 w-full rounded-xl border border-gray-200 bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                    class="h-11 w-full rounded-xl border border-gray-200 bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                 />
             </div>
             <InputError :message="errors.name" />
@@ -222,7 +222,7 @@ defineOptions({
                     required
                     autocomplete="email"
                     placeholder="you@umindanao.edu.ph"
-                    class="h-11 w-full rounded-xl border border-gray-200 bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
+                    class="h-11 w-full rounded-xl border border-gray-200 bg-white pr-3 pl-9 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
                 />
             </div>
             <InputError :message="errors.email" />
@@ -271,12 +271,7 @@ defineOptions({
             type="submit"
             :tabindex="7"
             :disabled="processing || !agreedToTerms"
-            class="h-11 w-full rounded-xl font-semibold text-white shadow-sm transition-all duration-300"
-            :style="
-                roleTab === 'faculty'
-                    ? 'background: linear-gradient(135deg, #0d9488, #0f766e)'
-                    : 'background: linear-gradient(135deg, #f97316, #ea580c)'
-            "
+            class="h-11 w-full rounded-[3px] font-semibold"
         >
             <Spinner v-if="processing" />
             Create Account
@@ -286,7 +281,7 @@ defineOptions({
             Already have an account?
             <TextLink
                 :href="login()"
-                class="font-semibold text-orange-600 hover:text-orange-500 dark:text-orange-400"
+                class="font-semibold text-primary hover:text-primary/80"
                 :tabindex="8"
             >
                 Log in

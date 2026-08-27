@@ -35,7 +35,7 @@
         .cta { text-align: center; margin-bottom: 8px; }
         .cta a { display: inline-block; font-size: 14px; font-weight: 600; letter-spacing: 0.5px; padding: 13px 32px; border-radius: 6px; text-decoration: none; }
         .cta-approved { background-color: #1a1a2e; color: #ffffff !important; }
-        .cta-rejected { background-color: #f97316; color: #ffffff !important; }
+        .cta-rejected { background-color: #BE0002; color: #ffffff !important; }
         .divider { height: 1px; background-color: #e5e7eb; margin: 28px 0; }
         .footer { padding: 0 40px 32px; text-align: center; }
         .footer p { font-size: 12px; color: #9ca3af; line-height: 1.7; }

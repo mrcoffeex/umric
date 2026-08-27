@@ -5,3 +5,12 @@ test('returns a successful response', function () {
 
     $response->assertOk();
 });
+
+test('the home page renders the welcome landing', function () {
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Welcome')
+            ->has('canRegister')
+            ->has('stats'));
+});
