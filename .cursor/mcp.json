@@ -1,10 +1,11 @@
 {
     "mcpServers": {
         "laravel-boost": {
-            "type": "stdio",
-            "command": "php",
-            "args": ["${workspaceFolder}/artisan", "boost:mcp"],
-            "envFile": ".env"
+            "command": "C:\\Users\\User\\.config\\herd\\bin\\php84\\php.exe",
+            "args": [
+                "C:\\Projects\\courtrivals\\artisan",
+                "boost:mcp"
+            ]
         }
     }
 }

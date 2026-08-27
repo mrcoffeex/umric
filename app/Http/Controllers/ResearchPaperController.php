@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\ResearchPaper;
 use App\Models\Sdg;
 use App\Models\User;
+use App\Support\JsonContains;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -31,9 +32,13 @@ class ResearchPaperController extends Controller
 
         if ($profile?->role !== 'admin' && $profile?->role !== 'staff') {
             $papersQuery->where(function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                    ->orWhereRaw('proponents::jsonb @> ?', [json_encode([['id' => (string) $user->id]])])
-                    ->orWhereRaw('proponents::jsonb @> ?', [json_encode([['id' => $user->id]])]);
+                $query->where('user_id', $user->id);
+                JsonContains::whereArrayObjectContains(
+                    $query,
+                    'proponents',
+                    ['id' => (string) $user->id],
+                    or: true,
+                );
             });
         }
 
@@ -70,8 +75,8 @@ class ResearchPaperController extends Controller
             })
             ->whereNull('blocked_at')
             ->where(function ($q) use ($query) {
-                $q->where('name', 'ilike', "%{$query}%")
-                    ->orWhere('email', 'ilike', "%{$query}%");
+                $q->whereILike('name', "%{$query}%")
+                    ->orWhereILike('email', "%{$query}%");
             })
             ->where('id', '!=', $request->user()->id)
             ->select('id', 'name')

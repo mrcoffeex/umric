@@ -11,6 +11,7 @@ use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use App\Services\DocumentExtractorService;
+use App\Support\JsonContains;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,8 +34,13 @@ class ResearchController extends Controller
 
         $papers = ResearchPaper::query()
             ->where(function ($query) use ($userId) {
-                $query->where('user_id', $userId)
-                    ->orWhereRaw('"proponents"::jsonb @> ?::jsonb', [json_encode([['id' => (string) $userId]])]);
+                $query->where('user_id', $userId);
+                JsonContains::whereArrayObjectContains(
+                    $query,
+                    'proponents',
+                    ['id' => (string) $userId],
+                    or: true,
+                );
             })
             ->with(['schoolClass', 'user', 'adviser'])
             ->latest()

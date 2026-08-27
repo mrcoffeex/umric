@@ -52,6 +52,42 @@ test('faculty dashboard includes papers from enrolled students', function () {
         );
 });
 
+test('faculty dashboard submissions over time groups by month', function () {
+    $this->withoutVite();
+
+    $faculty = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $faculty->id]);
+
+    $student = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $student->id]);
+
+    $class = SchoolClass::factory()->create(['faculty_id' => $faculty->id]);
+
+    DB::table('school_class_members')->insert([
+        'school_class_id' => $class->id,
+        'student_id' => $student->id,
+        'joined_at' => now(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+    ]);
+
+    $this->actingAs($faculty)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->missing('submissionsOverTime')
+            ->loadDeferredProps('charts', fn (Assert $reload) => $reload
+                ->has('submissionsOverTime', 6)
+                ->where('submissionsOverTime', fn ($rows) => collect($rows)->sum('count') === 1)
+            )
+        );
+});
+
 test('faculty dashboard excludes papers from students in other faculty classes', function () {
     $this->withoutVite();
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Announcement;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
+use App\Support\JsonContains;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,8 +34,13 @@ class HomeController extends Controller
 
         $paper = ResearchPaper::query()
             ->where(function ($query) use ($userId) {
-                $query->where('user_id', $userId)
-                    ->orWhereRaw('"proponents"::jsonb @> ?::jsonb', [json_encode([['id' => (string) $userId]])]);
+                $query->where('user_id', $userId);
+                JsonContains::whereArrayObjectContains(
+                    $query,
+                    'proponents',
+                    ['id' => (string) $userId],
+                    or: true,
+                );
             })
             ->first();
 

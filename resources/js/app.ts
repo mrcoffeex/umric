@@ -11,14 +11,14 @@ applyBrandColorVariables();
 
 function readAppNameFromDocument(): string {
     if (typeof document === 'undefined') {
-        return import.meta.env.VITE_APP_NAME || 'Laravel';
+        return import.meta.env.VITE_APP_NAME || 'UMRIC';
     }
 
     return (
         document.querySelector<HTMLMetaElement>('meta[name="application-name"]')
             ?.content ||
         import.meta.env.VITE_APP_NAME ||
-        'Laravel'
+        'UMRIC'
     );
 }
 

@@ -35,9 +35,9 @@ class DefenseCalendarController extends Controller
                 $q->whereIn('user_id', $studentIds)
                     ->orWhere('adviser_id', $facultyUserId)
                     ->orWhere('statistician_id', $facultyUserId)
-                    ->orWhereHas('panelDefenses', fn ($pq) => $pq->whereRaw(
-                        'panel_members::jsonb @> ?::jsonb',
-                        [json_encode([$facultyName])]
+                    ->orWhereHas('panelDefenses', fn ($pq) => $pq->whereJsonContains(
+                        'panel_members',
+                        $facultyName
                     ));
             })
             ->where(function ($q) use ($start, $end) {

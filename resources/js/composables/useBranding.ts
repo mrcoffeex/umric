@@ -15,7 +15,7 @@ export function useBranding(): ComputedRef<Branding> {
     const page = usePage();
 
     return computed(() => ({
-        name: (page.props.name as string) ?? 'Laravel',
+        name: (page.props.name as string) ?? 'UMRIC',
         tagline:
             (page.props.branding as { tagline?: string | null } | undefined)
                 ?.tagline ?? null,

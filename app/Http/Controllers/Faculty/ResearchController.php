@@ -35,9 +35,9 @@ class ResearchController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $paperQuery->where(function ($q) use ($search) {
-                $q->where('title', 'ilike', "%{$search}%")
-                    ->orWhere('tracking_id', 'ilike', "%{$search}%")
-                    ->orWhereHas('user', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
+                $q->whereILike('title', "%{$search}%")
+                    ->orWhereILike('tracking_id', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->whereILike('name', "%{$search}%"));
             });
         }
 

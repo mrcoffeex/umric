@@ -26,15 +26,20 @@ return new class extends Migration
 
         Schema::create('document_transmission_item_activities', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('document_transmission_item_id')
-                ->constrained('document_transmission_items')
-                ->cascadeOnDelete();
+            $table->ulid('document_transmission_item_id');
             $table->foreignUlid('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('event', 64);
             $table->json('meta')->nullable();
             $table->timestamps();
 
-            $table->index(['document_transmission_item_id', 'created_at']);
+            $table->foreign('document_transmission_item_id', 'dtia_item_id_fk')
+                ->references('id')
+                ->on('document_transmission_items')
+                ->cascadeOnDelete();
+            $table->index(
+                ['document_transmission_item_id', 'created_at'],
+                'dtia_item_created_idx',
+            );
         });
     }
 

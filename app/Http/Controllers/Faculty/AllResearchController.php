@@ -35,9 +35,9 @@ class AllResearchController extends Controller
                 $query->whereIn('user_id', $studentIds)
                     ->orWhere('adviser_id', $facultyUserId)
                     ->orWhere('statistician_id', $facultyUserId)
-                    ->orWhereHas('panelDefenses', fn ($q) => $q->whereRaw(
-                        'panel_members::jsonb @> ?::jsonb',
-                        [json_encode([$facultyName])]
+                    ->orWhereHas('panelDefenses', fn ($q) => $q->whereJsonContains(
+                        'panel_members',
+                        $facultyName
                     ));
 
                 return;
@@ -45,9 +45,9 @@ class AllResearchController extends Controller
 
             $query->where('adviser_id', $facultyUserId)
                 ->orWhere('statistician_id', $facultyUserId)
-                ->orWhereHas('panelDefenses', fn ($q) => $q->whereRaw(
-                    'panel_members::jsonb @> ?::jsonb',
-                    [json_encode([$facultyName])]
+                ->orWhereHas('panelDefenses', fn ($q) => $q->whereJsonContains(
+                    'panel_members',
+                    $facultyName
                 ));
         };
 
@@ -58,9 +58,9 @@ class AllResearchController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $paperQuery->where(function ($q) use ($search) {
-                $q->where('title', 'ilike', "%{$search}%")
-                    ->orWhere('tracking_id', 'ilike', "%{$search}%")
-                    ->orWhereHas('user', fn ($u) => $u->where('name', 'ilike', "%{$search}%"));
+                $q->whereILike('title', "%{$search}%")
+                    ->orWhereILike('tracking_id', "%{$search}%")
+                    ->orWhereHas('user', fn ($u) => $u->whereILike('name', "%{$search}%"));
             });
         }
 
@@ -207,7 +207,7 @@ class AllResearchController extends Controller
             || $paper->statistician_id === $facultyUserId;
 
         $isPanelMember = $paper->panelDefenses()
-            ->whereRaw('panel_members::jsonb @> ?::jsonb', [json_encode([$facultyName])])
+            ->whereJsonContains('panel_members', $facultyName)
             ->exists();
 
         if (! $isAdviserOrStatistician && ! $isPanelMember) {

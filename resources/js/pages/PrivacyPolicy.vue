@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { Shield } from 'lucide-vue-next';
+import { useBranding } from '@/composables/useBranding';
 import { documentation, faq, terms } from '@/routes';
 
+const branding = useBranding();
 const lastUpdated = 'April 27, 2026';
 </script>
 
@@ -35,7 +37,7 @@ const lastUpdated = 'April 27, 2026';
                     1. Scope
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    This Privacy Policy explains how UMRIC collects, uses,
+                    This Privacy Policy explains how {{ branding.name }} collects, uses,
                     stores, and protects personal information in connection with
                     the research workflow platform operated for UM Digos
                     College. It applies to students, faculty, staff, and
@@ -50,7 +52,7 @@ const lastUpdated = 'April 27, 2026';
                     2. Data we process
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    Depending on your role, UMRIC may process:
+                    Depending on your role, {{ branding.name }} may process:
                 </p>
                 <ul
                     class="mt-2 list-disc space-y-1.5 pl-5 text-slate-600 dark:text-slate-300"
@@ -123,7 +125,7 @@ const lastUpdated = 'April 27, 2026';
                     applicable data protection rules (including the Data Privacy
                     Act of 2012 in the Philippines, as relevant). The
                     institution is responsible for official policies and
-                    requests concerning academic records; use UMRIC in
+                    requests concerning academic records; use {{ branding.name }} in
                     accordance with those policies.
                 </p>
             </section>
@@ -198,7 +200,7 @@ const lastUpdated = 'April 27, 2026';
                     9. Cookies and local storage
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    UMRIC and its hosting stack may use cookies or similar
+                    {{ branding.name }} and its hosting stack may use cookies or similar
                     technologies that are necessary for security, sessions, and
                     preferences (for example, staying signed in, theme, or
                     application state). You can control browser cookies through

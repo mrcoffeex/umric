@@ -1,5 +1,9 @@
 {
-    "agents": ["claude_code", "cursor", "copilot"],
+    "agents": [
+        "claude_code",
+        "cursor",
+        "copilot"
+    ],
     "guidelines": true,
     "mcp": true,
     "nightwatch_mcp": false,
@@ -7,6 +11,8 @@
     "skills": [
         "fortify-development",
         "laravel-best-practices",
+        "mcp-development",
+        "socialite-development",
         "wayfinder-development",
         "pest-testing",
         "inertia-vue-development",

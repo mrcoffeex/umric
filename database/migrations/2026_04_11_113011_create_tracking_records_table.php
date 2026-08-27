@@ -19,7 +19,10 @@ return new class extends Migration
             $table->foreignUlid('updated_by')->nullable()->constrained('users')->cascadeOnDelete();
             $table->timestamp('status_changed_at');
             $table->timestamps();
-            $table->index(['research_paper_id', 'status', 'status_changed_at']);
+            $table->index(
+                ['research_paper_id', 'status', 'status_changed_at'],
+                'tracking_records_paper_status_changed_idx',
+            );
         });
     }
 

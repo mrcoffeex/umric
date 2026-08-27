@@ -345,8 +345,10 @@ html {
 
 @theme inline {
     --font-sans:
-        Inter, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
         'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-display:
+        'Bricolage Grotesque', 'Figtree', ui-sans-serif, system-ui, sans-serif;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -424,8 +426,71 @@ html {
     body,
     html {
         --font-sans:
-            'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+            'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
             'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+        --font-display:
+            'Bricolage Grotesque', 'Figtree', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    .font-display {
+        font-family: var(--font-display);
+    }
+}
+
+/* Landing: quiet atmospheric mesh (no particle canvas) */
+.landing-mesh {
+    background:
+        radial-gradient(
+            ellipse 90% 70% at 12% 18%,
+            color-mix(in srgb, var(--brand-primary) 22%, transparent) 0%,
+            transparent 55%
+        ),
+        radial-gradient(
+            ellipse 70% 60% at 88% 30%,
+            color-mix(in srgb, var(--brand-secondary) 18%, transparent) 0%,
+            transparent 55%
+        ),
+        radial-gradient(
+            ellipse 80% 50% at 50% 100%,
+            color-mix(in srgb, var(--brand-primary) 10%, transparent) 0%,
+            transparent 50%
+        );
+}
+
+.landing-pipeline-stage {
+    animation: hero-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animate-gradient-shift,
+    .animate-float,
+    .animate-float-slow,
+    .animate-blob,
+    .animate-ticker,
+    .animate-spin-slow,
+    .animate-pulse-ring,
+    .text-shimmer,
+    .hero-stagger-1,
+    .hero-stagger-2,
+    .hero-stagger-3,
+    .hero-stagger-4,
+    .hero-stagger-5,
+    .hero-card-enter,
+    .landing-pipeline-stage,
+    .nav-active-indicator {
+        animation: none !important;
+    }
+
+    .reveal,
+    .reveal-left,
+    .reveal-right {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    .text-shimmer {
+        background-size: 100% 100%;
     }
 }
 

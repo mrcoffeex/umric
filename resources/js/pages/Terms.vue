@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { FileText } from 'lucide-vue-next';
+import { useBranding } from '@/composables/useBranding';
 import { documentation, faq, privacy } from '@/routes';
 
+const branding = useBranding();
 const lastUpdated = 'April 27, 2026';
 </script>
 
@@ -36,7 +38,7 @@ const lastUpdated = 'April 27, 2026';
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
                     These Terms &amp; Conditions (&ldquo;Terms&rdquo;) govern
-                    your access to and use of UMRIC (the &ldquo;Service&rdquo;),
+                    your access to and use of {{ branding.name }} (the &ldquo;Service&rdquo;),
                     the official research-paper tracking and workflow platform
                     &mdash; including submission, review, defense scheduling,
                     and related tools &mdash; operated for UM Digos College and
@@ -70,7 +72,7 @@ const lastUpdated = 'April 27, 2026';
                     3. Acceptable use
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    You agree to use UMRIC only for lawful, institutional
+                    You agree to use {{ branding.name }} only for lawful, institutional
                     purposes, including to:
                 </p>
                 <ul
@@ -103,7 +105,7 @@ const lastUpdated = 'April 27, 2026';
                     research, subject to institutional policies, adviser
                     agreements, and applicable law. By uploading or entering
                     content, you represent that you have the rights needed to
-                    process it in UMRIC for grading, review, defense scheduling,
+                    process it in {{ branding.name }} for grading, review, defense scheduling,
                     and related academic operations. The institution may use
                     such content for those purposes in line with the
                     <Link
@@ -123,7 +125,7 @@ const lastUpdated = 'April 27, 2026';
                     5. Platform role and changes
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    UMRIC provides workflow, tracking, and administrative tools;
+                    {{ branding.name }} provides workflow, tracking, and administrative tools;
                     it does not replace official academic or publication
                     decisions made by the institution. Features, workflow
                     stages, and policies may be updated. Material changes to

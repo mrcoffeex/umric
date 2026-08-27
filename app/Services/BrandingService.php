@@ -39,7 +39,7 @@ class BrandingService
         $b = $this->record();
 
         return [
-            'name' => $b->site_name,
+            'name' => $this->resolvedSiteName($b),
             'logoUrl' => $b->logoPublicUrl(),
             'tagline' => $b->tagline,
         ];
@@ -47,6 +47,19 @@ class BrandingService
 
     public function siteName(): string
     {
-        return $this->record()->site_name;
+        return $this->resolvedSiteName($this->record());
+    }
+
+    private function resolvedSiteName(AppBranding $branding): string
+    {
+        $name = trim((string) $branding->site_name);
+        $appName = (string) config('app.name', 'Laravel');
+
+        // Prefer APP_NAME until an admin customizes branding away from the framework default.
+        if ($name === '' || $name === 'Laravel') {
+            return $appName;
+        }
+
+        return $name;
     }
 }

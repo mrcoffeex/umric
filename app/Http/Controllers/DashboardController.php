@@ -169,10 +169,16 @@ class DashboardController extends Controller
 
         $query = $baseQuery ? clone $baseQuery : ResearchPaper::query();
 
+        $monthExpression = match (DB::connection()->getDriverName()) {
+            'pgsql' => "to_char(created_at, 'YYYY-MM')",
+            'sqlite' => "strftime('%Y-%m', created_at)",
+            default => "DATE_FORMAT(created_at, '%Y-%m')",
+        };
+
         $rows = $query
             ->where('created_at', '>=', $since)
-            ->selectRaw("to_char(created_at, 'YYYY-MM') as month, count(*) as count")
-            ->groupByRaw("to_char(created_at, 'YYYY-MM')")
+            ->selectRaw("{$monthExpression} as month, count(*) as count")
+            ->groupByRaw($monthExpression)
             ->orderBy('month')
             ->pluck('count', 'month');
 

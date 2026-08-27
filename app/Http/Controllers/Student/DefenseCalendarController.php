@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\ResearchPaper;
 use App\Support\DefenseCalendarEvents;
+use App\Support\JsonContains;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,8 +23,13 @@ class DefenseCalendarController extends Controller
 
         $papers = ResearchPaper::with(['schoolClass', 'panelDefenses'])
             ->where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)
-                    ->orWhereRaw('"proponents"::jsonb @> ?::jsonb', [json_encode([['id' => (string) $userId]])]);
+                $q->where('user_id', $userId);
+                JsonContains::whereArrayObjectContains(
+                    $q,
+                    'proponents',
+                    ['id' => (string) $userId],
+                    or: true,
+                );
             })
             ->where(function ($q) use ($start, $end) {
                 DefenseCalendarEvents::addScheduleInMonthConstraint($q, $start, $end);

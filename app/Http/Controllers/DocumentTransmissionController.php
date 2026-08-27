@@ -56,18 +56,18 @@ class DocumentTransmissionController extends Controller
             $needle = '%'.$q.'%';
             if ($direction === 'incoming') {
                 $query->where(function ($w) use ($needle) {
-                    $w->where('purpose', 'ilike', $needle)
+                    $w->whereILike('purpose', $needle)
                         ->orWhereHas('sender', function ($s) use ($needle) {
-                            $s->where('name', 'ilike', $needle)
-                                ->orWhere('email', 'ilike', $needle);
+                            $s->whereILike('name', $needle)
+                                ->orWhereILike('email', $needle);
                         });
                 });
             } else {
                 $query->where(function ($w) use ($needle) {
-                    $w->where('purpose', 'ilike', $needle)
+                    $w->whereILike('purpose', $needle)
                         ->orWhereHas('receiver', function ($s) use ($needle) {
-                            $s->where('name', 'ilike', $needle)
-                                ->orWhere('email', 'ilike', $needle);
+                            $s->whereILike('name', $needle)
+                                ->orWhereILike('email', $needle);
                         });
                 });
             }
@@ -510,8 +510,8 @@ class DocumentTransmissionController extends Controller
             ->whereNull('blocked_at')
             ->whereNotNull('email_verified_at')
             ->where(function ($q) use ($qStr) {
-                $q->where('name', 'ilike', "%{$qStr}%")
-                    ->orWhere('email', 'ilike', "%{$qStr}%");
+                $q->whereILike('name', "%{$qStr}%")
+                    ->orWhereILike('email', "%{$qStr}%");
             })
             ->orderBy('name')
             ->select('id', 'name', 'email')

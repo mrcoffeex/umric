@@ -16,7 +16,10 @@ import {
 import { onMounted, ref, watch } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
 import { Button } from '@/components/ui/button';
+import { useBranding } from '@/composables/useBranding';
 import admin from '@/routes/admin';
+
+const branding = useBranding();
 
 interface UserRow {
     id: string;
@@ -624,7 +627,8 @@ function doReject() {
                         blockTarget?.name
                     }}</strong>
                     <template v-if="blockTarget?.status === 'blocked'">
-                        will be unblocked and regain access to UMRIC.</template
+                        will be unblocked and regain access to
+                        {{ branding.name }}.</template
                     >
                     <template v-else>
                         will be blocked and immediately logged out.</template
@@ -722,7 +726,8 @@ function doReject() {
                     <strong class="text-slate-700 dark:text-slate-300">{{
                         actioning?.name
                     }}</strong>
-                    will be granted access to UMRIC as a faculty member.
+                    will be granted access to {{ branding.name }} as a faculty
+                    member.
                 </p>
                 <div class="flex gap-3">
                     <Button

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\CaseInsensitiveLike;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -35,14 +36,14 @@ class ActivityLogController extends Controller
                     $likeValue = "%{$search}%";
 
                     $innerQuery
-                        ->where('description', 'ILIKE', $likeValue)
-                        ->orWhere('event', 'ILIKE', $likeValue)
-                        ->orWhere('subject_type', 'ILIKE', $likeValue)
-                        ->orWhereRaw('properties::text ILIKE ?', [$likeValue])
-                        ->orWhereHas('causer', function ($causerQuery) use ($likeValue) {
-                            $causerQuery->where('name', 'ILIKE', $likeValue)
-                                ->orWhere('email', 'ILIKE', $likeValue);
-                        });
+                        ->whereILike('description', $likeValue)
+                        ->orWhereILike('event', $likeValue)
+                        ->orWhereILike('subject_type', $likeValue);
+                    CaseInsensitiveLike::orWhereJsonTextILike($innerQuery, 'properties', $likeValue);
+                    $innerQuery->orWhereHas('causer', function ($causerQuery) use ($likeValue) {
+                        $causerQuery->whereILike('name', $likeValue)
+                            ->orWhereILike('email', $likeValue);
+                    });
                 });
             });
 

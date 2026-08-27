@@ -79,10 +79,18 @@ class PanelDefense extends Model
             return $query->whereRaw('0 = 1');
         }
 
-        return $query->whereRaw(
-            'EXISTS (SELECT 1 FROM jsonb_array_elements_text(panel_members::jsonb) AS t(name) WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)))',
-            [$user->name]
-        );
+        $driver = $query->getConnection()->getDriverName();
+
+        if ($driver === 'pgsql') {
+            return $query->whereRaw(
+                'EXISTS (SELECT 1 FROM jsonb_array_elements_text(panel_members::jsonb) AS t(name) WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)))',
+                [$user->name]
+            );
+        }
+
+        // MySQL / SQLite: JSON array membership (case-sensitive match of stored names).
+        // PHP-side userIsOnPanel() remains the case-insensitive authority for authorization.
+        return $query->whereJsonContains('panel_members', $user->name);
     }
 
     public function getDefenseTypeLabelAttribute(): string

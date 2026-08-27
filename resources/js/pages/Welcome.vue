@@ -8,6 +8,7 @@ import LandingHero from '@/components/landing/LandingHero.vue';
 import LandingHowItWorks from '@/components/landing/LandingHowItWorks.vue';
 import LandingNavbar from '@/components/landing/LandingNavbar.vue';
 import LandingShowcase from '@/components/landing/LandingShowcase.vue';
+import LandingStats from '@/components/landing/LandingStats.vue';
 import LandingTestimonials from '@/components/landing/LandingTestimonials.vue';
 import { useAppearance } from '@/composables/useAppearance';
 import { useBranding } from '@/composables/useBranding';
@@ -43,7 +44,6 @@ const welcomeDescription = computed(
         `Submit, track and collaborate on research papers in real-time. ${branding.value.name} — built for academics.`,
 );
 
-// Initialise theme from stored preference on mount
 const { updateAppearance } = useAppearance();
 onMounted(() => {
     const stored = localStorage.getItem('appearance') as
@@ -64,14 +64,11 @@ onMounted(() => {
     </Head>
 
     <div
-        class="min-h-screen bg-white text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100"
+        class="min-h-screen bg-white font-sans text-slate-900 antialiased transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100"
     >
         <LandingNavbar :can-register="props.canRegister" />
-        <LandingHero
-            :can-register="props.canRegister"
-            :featured-papers="props.featuredPapers"
-            :stats="props.stats"
-        />
+        <LandingHero :can-register="props.canRegister" />
+        <LandingStats :stats="props.stats" />
         <LandingFeatures />
         <LandingShowcase />
         <LandingHowItWorks />

@@ -552,10 +552,10 @@ class PanelDefenseEvaluationController extends Controller
             $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $q).'%';
             $query->where(function ($outer) use ($like): void {
                 $outer->whereHas('researchPaper', function ($pq) use ($like): void {
-                    $pq->where('title', 'ilike', $like)
-                        ->orWhere('tracking_id', 'ilike', $like);
+                    $pq->whereILike('title', $like)
+                        ->orWhereILike('tracking_id', $like);
                 })->orWhereHas('researchPaper.user', function ($uq) use ($like): void {
-                    $uq->where('name', 'ilike', $like);
+                    $uq->whereILike('name', $like);
                 });
             });
         }
