@@ -1,9 +1,9 @@
 ---
 name: mcp-development
-description: "Use this skill for Laravel MCP development only. Trigger when creating or editing MCP tools, resources, prompts, or servers in Laravel projects. Covers: artisan make:mcp-* generators, mcp:inspector, routes/ai.php, Tool/Resource/Prompt classes, schema validation, shouldRegister(), OAuth setup, URI templates, read-only attributes, and MCP debugging. Do not use for non-Laravel MCP projects or generic AI features without MCP."
+description: 'Use this skill for Laravel MCP development only. Trigger when creating or editing MCP tools, resources, prompts, or servers in Laravel projects. Covers: artisan make:mcp-* generators, mcp:inspector, routes/ai.php, Tool/Resource/Prompt classes, schema validation, shouldRegister(), OAuth setup, URI templates, read-only attributes, and MCP debugging. Do not use for non-Laravel MCP projects or generic AI features without MCP.'
 license: MIT
 metadata:
-  author: laravel
+    author: laravel
 ---
 
 # MCP Development
@@ -17,6 +17,7 @@ Use `search-docs` for detailed Laravel MCP patterns and documentation.
 Register MCP servers in `routes/ai.php`:
 
 <!-- Register MCP Server -->
+
 ```php
 use Laravel\Mcp\Facades\Mcp;
 
@@ -43,6 +44,7 @@ After creating primitives, register them in your server's `$tools`, `$resources`
 ### Tools
 
 <!-- MCP Tool Example -->
+
 ```php
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Request;
@@ -62,6 +64,7 @@ class MyTool extends Tool
 Each MCP server must explicitly declare the tools, resources, and prompts it exposes.
 
 <!-- Register Primitives in MCP Server -->
+
 ```php
 use Laravel\Mcp\Server;
 

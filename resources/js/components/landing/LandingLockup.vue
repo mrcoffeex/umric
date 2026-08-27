@@ -17,7 +17,7 @@ const branding = useBranding();
     <span class="flex min-w-0 items-center gap-3">
         <span
             v-if="branding.logoUrl"
-            class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden bg-white"
+            class="flex h-11 w-11 shrink-0 items-center justify-center sm:h-12 sm:w-12"
         >
             <img
                 :src="branding.logoUrl"
@@ -27,7 +27,7 @@ const branding = useBranding();
         </span>
         <span
             v-else
-            class="relative flex h-10 w-10 shrink-0 items-center justify-center bg-um-maroon"
+            class="relative flex h-11 w-11 shrink-0 items-center justify-center bg-um-maroon sm:h-12 sm:w-12"
             aria-hidden="true"
         >
             <span class="absolute inset-y-0 left-0 w-[3px] bg-um-gold" />

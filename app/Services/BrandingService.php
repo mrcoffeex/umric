@@ -32,6 +32,14 @@ class BrandingService
     }
 
     /**
+     * Default UM Digos College seal when no custom branding logo is uploaded.
+     */
+    public function defaultLogoUrl(): string
+    {
+        return asset('images/um-digos-college-logo.png');
+    }
+
+    /**
      * @return array{name: string, logoUrl: string|null, tagline: string|null}
      */
     public function inertiaProps(): array
@@ -40,7 +48,7 @@ class BrandingService
 
         return [
             'name' => $this->resolvedSiteName($b),
-            'logoUrl' => $b->logoPublicUrl(),
+            'logoUrl' => $b->logoPublicUrl() ?? $this->defaultLogoUrl(),
             'tagline' => $b->tagline,
         ];
     }

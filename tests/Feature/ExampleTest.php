@@ -12,5 +12,6 @@ test('the home page renders the welcome landing', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Welcome')
             ->has('canRegister')
-            ->has('stats'));
+            ->has('stats')
+            ->where('branding.logoUrl', asset('images/um-digos-college-logo.png')));
 });

@@ -56,10 +56,10 @@ const mainNavItems = computed<NavItem[]>(() => [
 
 const roleBadge = computed(() => {
     const map: Record<string, { label: string; dot: string }> = {
-        admin: { label: 'Admin', dot: 'bg-orange-500' },
-        staff: { label: 'Staff', dot: 'bg-amber-500' },
-        faculty: { label: 'Faculty', dot: 'bg-teal-500' },
-        student: { label: 'Student', dot: 'bg-blue-500' },
+        admin: { label: 'Admin', dot: 'bg-um-maroon' },
+        staff: { label: 'Staff', dot: 'bg-um-navy' },
+        faculty: { label: 'Faculty', dot: 'bg-um-gold' },
+        student: { label: 'Student', dot: 'bg-um-body' },
     };
 
     return map[role.value] ?? { label: role.value, dot: 'bg-muted-foreground' };

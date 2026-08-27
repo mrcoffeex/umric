@@ -55,17 +55,13 @@ function hasBadge(item: NavItem) {
                 </SidebarMenuButton>
                 <SidebarMenuBadge
                     v-if="hasBadge(item)"
-                    :class="
-                        cn(
-                            'bg-orange-500/20 text-orange-900 dark:text-orange-200',
-                        )
-                    "
+                    :class="cn('bg-primary/20 text-primary dark:text-primary')"
                 >
                     {{ badgeLabel(item.badgeCount ?? 0) }}
                 </SidebarMenuBadge>
                 <span
                     v-if="hasBadge(item)"
-                    class="pointer-events-none absolute top-2 right-0.5 z-10 hidden h-1.5 w-1.5 rounded-full bg-orange-500 group-data-[collapsible=icon]:block"
+                    class="pointer-events-none absolute top-2 right-0.5 z-10 hidden h-1.5 w-1.5 rounded-full bg-primary group-data-[collapsible=icon]:block"
                     aria-hidden="true"
                 />
             </SidebarMenuItem>

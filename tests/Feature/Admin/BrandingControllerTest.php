@@ -127,3 +127,13 @@ it('allows admin to upload and clear logo', function () {
     expect(AppBranding::query()->first()->logo_path)->toBeNull();
     Storage::disk('public')->assertMissing($path);
 });
+
+it('falls back to the default college seal when no custom logo is set', function () {
+    AppBranding::query()->update(['logo_path' => null]);
+
+    $this->get(route('home'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('branding.logoUrl', asset('images/um-digos-college-logo.png'))
+        );
+});

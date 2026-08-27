@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Check, Search } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import { useBranding } from '@/composables/useBranding';
 import { useCountUp } from '@/composables/useCountUp';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 import { dashboard, login, register } from '@/routes';
@@ -19,6 +20,7 @@ const trackingId = ref('');
 const trackingError = ref('');
 const isSearching = ref(false);
 const page = usePage();
+const branding = useBranding();
 
 async function searchPaper() {
     if (!trackingId.value.trim()) {
@@ -83,11 +85,19 @@ const pipelineSteps = [
             class="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16"
         >
             <div>
-                <p
-                    class="mb-4 text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
-                >
-                    UM Digos College · Research and Innovation Center
-                </p>
+                <div class="mb-5 flex items-center gap-3 sm:gap-4">
+                    <img
+                        v-if="branding.logoUrl"
+                        :src="branding.logoUrl"
+                        :alt="branding.name"
+                        class="h-14 w-14 shrink-0 object-contain sm:h-16 sm:w-16"
+                    />
+                    <p
+                        class="text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
+                    >
+                        UM Digos College · Research and Innovation Center
+                    </p>
+                </div>
                 <h1
                     class="mb-5 font-display text-4xl leading-[1.12] font-extrabold tracking-tight text-um-heading sm:text-5xl lg:text-[3.25rem]"
                 >

@@ -36,11 +36,9 @@ const branding = useBranding();
             <div class="relative z-10 flex h-full flex-col p-12">
                 <!-- Logo -->
                 <Link :href="home()" class="group flex items-center gap-3">
-                    <div
-                        class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30 transition-colors group-hover:bg-white/30"
-                    >
-                        <AppLogoIcon class="size-5 text-white" />
-                    </div>
+                    <AppLogoIcon
+                        class="size-14 shrink-0 object-contain drop-shadow-sm transition-transform group-hover:scale-[1.02]"
+                    />
                     <span class="text-xl font-bold tracking-tight text-white">{{
                         branding.name
                     }}</span>
@@ -148,11 +146,7 @@ const branding = useBranding();
                 :href="home()"
                 class="mb-8 flex items-center gap-2.5 lg:hidden"
             >
-                <div
-                    class="flex h-9 w-9 items-center justify-center rounded-[3px] bg-um-maroon"
-                >
-                    <AppLogoIcon class="size-4 text-white" />
-                </div>
+                <AppLogoIcon class="size-12 shrink-0 object-contain" />
                 <span class="text-lg font-bold text-gray-900 dark:text-white">{{
                     branding.name
                 }}</span>

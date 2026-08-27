@@ -9,7 +9,7 @@ const branding = useBranding();
     <div class="flex min-w-0 items-center gap-2">
         <div
             v-if="branding.logoUrl"
-            class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted"
+            class="flex size-8 shrink-0 items-center justify-center overflow-hidden"
         >
             <img
                 :src="branding.logoUrl"
@@ -19,12 +19,12 @@ const branding = useBranding();
         </div>
         <div
             v-else
-            class="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-teal-500 shadow"
+            class="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-um-maroon to-um-gold shadow"
         >
             <FlaskConical class="size-4 text-white" />
         </div>
         <div class="ml-1 grid min-w-0 flex-1 text-left text-sm">
-            <span class="truncate font-black tracking-tight text-orange-500">{{
+            <span class="truncate font-black tracking-tight text-um-maroon">{{
                 branding.name
             }}</span>
             <span

@@ -360,6 +360,34 @@ html {
     --color-um-heading: #000000;
     --color-um-navy: #1d3557;
 
+    /*
+     * Remap legacy orange/teal utilities to UM maroon/gold so the whole app
+     * inherits landing branding without rewriting every hard-coded class.
+     */
+    --color-orange-50: #fef2f2;
+    --color-orange-100: #fce4e4;
+    --color-orange-200: #f5b8b8;
+    --color-orange-300: #e87a7b;
+    --color-orange-400: #d93a3b;
+    --color-orange-500: #be0002;
+    --color-orange-600: #9a0002;
+    --color-orange-700: #7a0002;
+    --color-orange-800: #5c0001;
+    --color-orange-900: #3d0001;
+    --color-orange-950: #1f0000;
+
+    --color-teal-50: #fff8e6;
+    --color-teal-100: #fff1c2;
+    --color-teal-200: #ffe185;
+    --color-teal-300: #ffd14d;
+    --color-teal-400: #ffc41a;
+    --color-teal-500: #ffb600;
+    --color-teal-600: #e5a400;
+    --color-teal-700: #c48a00;
+    --color-teal-800: #9a6c00;
+    --color-teal-900: #6b4a00;
+    --color-teal-950: #3d2a00;
+
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
@@ -530,7 +558,8 @@ html {
         var(--brand-secondary) 16%,
         var(--background)
     );
-    --secondary-foreground: var(--brand-on-secondary);
+    /* Maroon text on light gold wash (solid gold CTAs use brand-secondary-foreground) */
+    --secondary-foreground: var(--brand-primary);
 
     --muted: var(
         --brand-muted,
@@ -549,9 +578,9 @@ html {
 
     --chart-1: var(--brand-primary);
     --chart-2: var(--brand-secondary);
-    --chart-3: hsl(197 37% 24%);
-    --chart-4: hsl(43 74% 66%);
-    --chart-5: hsl(27 87% 67%);
+    --chart-3: #1d3557;
+    --chart-4: #e5a400;
+    --chart-5: #9a0002;
     --radius: 0.5rem;
 
     --sidebar-background: hsl(0 0% 98%);
@@ -598,9 +627,9 @@ html {
 
     --chart-1: var(--brand-primary);
     --chart-2: var(--brand-secondary);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
+    --chart-3: #ffd14d;
+    --chart-4: #e87a7b;
+    --chart-5: #1d3557;
 
     --sidebar-background: hsl(0 0% 7%);
     --sidebar-foreground: hsl(0 0% 95.9%);
