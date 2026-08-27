@@ -12,25 +12,30 @@ use Throwable;
 
 class HandoffPdfSignatureEmbedder
 {
-    private const SIG_CARD_W_MM = 72.0;
+    /** Compact stamp width on the page. */
+    private const SIG_CARD_W_MM = 42.0;
 
     /**
-     * Vertical offset between cards when multiple e-signatures are embedded on the same page
+     * Vertical offset between stamps when multiple e-signatures are embedded
      * (earlier ones sit above later ones, anchored to the page bottom).
      */
-    private const SIG_BOTTOM_STACK_GAP_MM = 36.0;
+    private const SIG_BOTTOM_STACK_GAP_MM = 22.0;
 
-    private const SIG_IMG_MAX_H_MM = 10.0;
+    private const SIG_IMG_MAX_H_MM = 7.0;
 
-    private const SIG_CARD_PAD_MM = 2.5;
+    private const SIG_IMG_MAX_W_MM = 34.0;
+
+    private const SIG_CARD_PAD_MM = 1.0;
 
     /**
-     * Embeds a PNG (public disk) on the last page in a right-aligned “card” with handoff
-     * (sender → recipient), printed name, and datetime. New signatures stack on the same page;
-     * slot index is taken from
+     * Embeds a PNG (public disk) on the first page as a small transparent stamp
+     * with handoff (sender → recipient), printed name, and datetime. The handwritten
+     * signature sits above the stamp labels; both are drawn after the page template
+     * so they appear above existing document text. New stamps stack upward from the
+     * bottom-right; slot index is taken from
      * {@see DocumentTransmissionItem::$pdf_esignature_embed_count} and incremented on success.
      */
-    public function embedPngOnLastPage(
+    public function embedPngOnFirstPage(
         DocumentTransmissionItem $item,
         string $pngPathRelativeToPublicDisk,
         string $signerName,
@@ -57,18 +62,25 @@ class HandoffPdfSignatureEmbedder
             return false;
         }
 
+        // TCPDF Image() needs a .png extension to detect the format.
+        $tmpPngPath = $tmpPng.'.png';
+        @unlink($tmpPng);
+
         $slotIndex = (int) $item->pdf_esignature_embed_count;
 
         try {
-            file_put_contents($tmpPng, $public->get($pngPathRelativeToPublicDisk));
+            file_put_contents($tmpPngPath, $public->get($pngPathRelativeToPublicDisk));
             file_put_contents($tmpIn, $fileDisk->get($item->file_path));
             if (! is_file($tmpIn) || filesize($tmpIn) < 1) {
                 return false;
             }
 
+            $this->makeNearWhitePixelsTransparent($tmpPngPath);
+
             $pdf = new Fpdi;
             $pdf->setPrintHeader(false);
             $pdf->setPrintFooter(false);
+            $pdf->SetAutoPageBreak(false);
             $pageCount = $pdf->setSourceFile($tmpIn);
 
             for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
@@ -82,22 +94,22 @@ class HandoffPdfSignatureEmbedder
                 );
                 $pdf->useTemplate($tplId, 0, 0, $w, $h, true);
 
-                if ($pageNo === $pageCount) {
+                if ($pageNo === 1) {
                     $item->loadMissing('transmission.sender', 'transmission.receiver');
                     $at = Carbon::parse($signedAt)->timezone((string) config('app.timezone'));
                     $dateStr = $at->format('Y-m-d H:i T');
                     $name = $this->sanitizeSignerLabel($signerName);
                     $handoffLine = $this->handoffLineForItem($item);
-                    $metrics = $this->buildSignatureCardMetrics($pdf, $w, $tmpPng, $name, $dateStr, $handoffLine);
+                    $metrics = $this->buildSignatureCardMetrics($pdf, $w, $tmpPngPath, $name, $dateStr, $handoffLine);
                     $yTop = $this->resolveSignatureCardTopMm(
                         $h,
                         $slotIndex,
                         (float) $metrics['cardH'],
                     );
-                    $this->drawSignatureCard(
+                    $this->drawSignatureStamp(
                         $pdf,
                         $h,
-                        $tmpPng,
+                        $tmpPngPath,
                         $yTop,
                         $metrics,
                     );
@@ -128,10 +140,22 @@ class HandoffPdfSignatureEmbedder
             if (is_file($tmpIn)) {
                 @unlink($tmpIn);
             }
-            if (is_file($tmpPng)) {
-                @unlink($tmpPng);
+            if (is_file($tmpPngPath)) {
+                @unlink($tmpPngPath);
             }
         }
+    }
+
+    /**
+     * @deprecated Use {@see embedPngOnFirstPage()} — stamps always go on page 1.
+     */
+    public function embedPngOnLastPage(
+        DocumentTransmissionItem $item,
+        string $pngPathRelativeToPublicDisk,
+        string $signerName,
+        DateTimeInterface $signedAt,
+    ): bool {
+        return $this->embedPngOnFirstPage($item, $pngPathRelativeToPublicDisk, $signerName, $signedAt);
     }
 
     public function isPdfItem(DocumentTransmissionItem $item): bool
@@ -145,22 +169,6 @@ class HandoffPdfSignatureEmbedder
         return $ext === 'pdf';
     }
 
-    /**
-     * Lays out the card using TCPDF line wrapping so the rounded rect is tall enough for the
-     * “Printed name” (possibly long) and “Date & time” block.
-     *
-     * @return array{
-     *     cardH: float,
-     *     x: float,
-     *     cardW: float,
-     *     innerW: float,
-     *     imgW: float,
-     *     imgH: float,
-     *     headerH: float,
-     *     lineH: float,
-     *     labelText: string
-     * }
-     */
     private function handoffLineForItem(DocumentTransmissionItem $item): string
     {
         $transmission = $item->transmission;
@@ -171,7 +179,7 @@ class HandoffPdfSignatureEmbedder
         $from = $this->handoffPartyLabel($transmission->sender?->name);
         $to = $this->handoffPartyLabel($transmission->receiver?->name);
 
-        return "Handoff: {$from} → {$to}";
+        return "{$from} → {$to}";
     }
 
     private function handoffPartyLabel(?string $name): string
@@ -183,6 +191,18 @@ class HandoffPdfSignatureEmbedder
         return $this->sanitizeSignerLabel($name);
     }
 
+    /**
+     * @return array{
+     *     cardH: float,
+     *     x: float,
+     *     cardW: float,
+     *     innerW: float,
+     *     imgW: float,
+     *     imgH: float,
+     *     lineH: float,
+     *     labelText: string
+     * }
+     */
     private function buildSignatureCardMetrics(
         Fpdi $pdf,
         float $pageWidth,
@@ -198,23 +218,23 @@ class HandoffPdfSignatureEmbedder
         $info = @getimagesize($tmpPngPath);
         $wPx = is_array($info) ? (int) ($info[0] ?? 1) : 1;
         $hPx = is_array($info) ? (int) ($info[1] ?? 1) : 1;
-        $imgW = min(60.0, $innerW);
+        $imgW = min(self::SIG_IMG_MAX_W_MM, $innerW);
         $imgH = $imgW * ($hPx / max($wPx, 1));
         if ($imgH > self::SIG_IMG_MAX_H_MM) {
             $scale = self::SIG_IMG_MAX_H_MM / $imgH;
             $imgH = self::SIG_IMG_MAX_H_MM;
             $imgW = $imgW * $scale;
         }
-        $lineH = 3.3;
-        $headerH = 3.2;
-        $labelText = "{$handoffLine}\nPrinted name: {$name}\nDate & time: {$dateStr}";
-        $fontPt = 6.5;
+        $lineH = 2.8;
+        $labelText = "{$handoffLine}\n{$name}\n{$dateStr}";
+        $fontPt = 5.5;
         $pdf->SetFont('dejavusans', '', $fontPt);
         $textH = max(
             $lineH * 3.0,
             $pdf->getStringHeight($innerW, $labelText, true, true, 0, 0),
-        ) + 1.0;
-        $cardH = self::SIG_CARD_PAD_MM + $headerH + 0.3 + $imgH + 0.4 + $textH + self::SIG_CARD_PAD_MM;
+        ) + 0.5;
+        // Signature image sits above the stamp labels.
+        $cardH = self::SIG_CARD_PAD_MM + $imgH + 0.8 + $textH + self::SIG_CARD_PAD_MM;
 
         return [
             'cardH' => $cardH,
@@ -223,16 +243,11 @@ class HandoffPdfSignatureEmbedder
             'innerW' => $innerW,
             'imgW' => $imgW,
             'imgH' => $imgH,
-            'headerH' => $headerH,
             'lineH' => $lineH,
             'labelText' => $labelText,
         ];
     }
 
-    /**
-     * Places e-signature card(s) at the end of the last page: anchored to the bottom margin,
-     * with earlier slots (previous embeds) stacked upward so multiple signatures do not overlap.
-     */
     private function resolveSignatureCardTopMm(
         float $pageHeightMm,
         int $slotIndex,
@@ -245,7 +260,7 @@ class HandoffPdfSignatureEmbedder
             - $slotIndex * self::SIG_BOTTOM_STACK_GAP_MM;
 
         if ($yTop < 4.0) {
-            Log::warning('E-signature: page very full; card placed at top margin and may overlap prior marks.', [
+            Log::warning('E-signature: page very full; stamp placed at top margin and may overlap prior marks.', [
                 'page_height' => $pageHeightMm,
                 'slot' => $slotIndex,
             ]);
@@ -256,21 +271,19 @@ class HandoffPdfSignatureEmbedder
     }
 
     /**
-     * Renders the e-signature card content (no border) so a dry-run can measure the true
-     * bottom Y. Draw order: image first, then the “E-signature” title, then printed name and
-     * datetime so the PNG sits behind all text in the stack (PDFs paint last object on top).
+     * Renders stamp content with no filled background. Stamp labels are drawn first,
+     * then the handwritten signature so the ink sits above the stamp and the page text.
      *
      * @param  array{
      *     x: float,
      *     innerW: float,
      *     imgW: float,
      *     imgH: float,
-     *     headerH: float,
      *     lineH: float,
      *     labelText: string
      * }  $metrics
      */
-    private function renderSignatureCardInterior(
+    private function renderSignatureStampInterior(
         Fpdi $pdf,
         float $yTop,
         string $tmpPngPath,
@@ -280,35 +293,24 @@ class HandoffPdfSignatureEmbedder
         $innerW = (float) $metrics['innerW'];
         $imgW = (float) $metrics['imgW'];
         $imgH = (float) $metrics['imgH'];
-        $headerH = (float) $metrics['headerH'];
         $lineH = (float) $metrics['lineH'];
         $labelText = (string) $metrics['labelText'];
-        $ix = $x + self::SIG_CARD_PAD_MM + max(0.0, ($innerW - $imgW) / 2.0);
-        $iy = $yTop + self::SIG_CARD_PAD_MM + $headerH + 0.3;
-        $fontPt = 6.5;
         $textLeft = $x + self::SIG_CARD_PAD_MM;
-        $textTop = $yTop + self::SIG_CARD_PAD_MM;
+        $ix = $x + self::SIG_CARD_PAD_MM + max(0.0, ($innerW - $imgW) / 2.0);
+        $iy = $yTop + self::SIG_CARD_PAD_MM;
+        $fontPt = 5.5;
 
-        // Signature graphic first; title and name/date render on top if anything overlaps.
-        $pdf->Image($tmpPngPath, $ix, $iy, $imgW, $imgH, 'PNG', '', '', true, 300);
-
-        $pdf->SetFont('dejavusans', 'B', $fontPt);
-        $pdf->SetTextColor(70, 75, 95);
-        $pdf->SetXY($textLeft, $textTop);
-        $pdf->Cell($innerW, $headerH, 'E-signature', 0, 1, 'L', false, '', 0, false, 'T', 'M');
-
-        $yText = $iy + $imgH + 0.5;
+        // Stamp labels sit below the signature image.
+        $yText = $iy + $imgH + 0.8;
         $pdf->SetXY($textLeft, $yText);
         $pdf->SetFont('dejavusans', '', $fontPt);
-        $pdf->SetTextColor(30, 30, 32);
-        // $ln must be 1: with ln=0, TCPDF resets Y to the MultiCell start Y after drawing, so
-        // GetY() omits the label height and the rounded rect is sized too short (text renders below the card).
+        $pdf->SetTextColor(40, 42, 48);
         $pdf->MultiCell(
             $innerW,
             $lineH,
             $labelText,
             0,
-            'L',
+            'C',
             false,
             1,
             '',
@@ -321,9 +323,12 @@ class HandoffPdfSignatureEmbedder
             'T',
             false
         );
+
+        // Draw signature last so ink sits above stamp labels and document text.
+        $pdf->Image($tmpPngPath, $ix, $iy, $imgW, $imgH, 'PNG', '', '', true, 300, '', false, false, 0, false, false, false);
     }
 
-    private function drawSignatureCard(
+    private function drawSignatureStamp(
         Fpdi $pdf,
         float $pageHeight,
         string $tmpPngPath,
@@ -331,12 +336,10 @@ class HandoffPdfSignatureEmbedder
         array $metrics,
     ): void {
         $margin = 10.0;
-        $x = (float) $metrics['x'];
-        $cardW = (float) $metrics['cardW'];
-        $bottomPadMm = 1.5;
+        $bottomPadMm = 1.0;
 
         $pdf->startTransaction();
-        $this->renderSignatureCardInterior($pdf, $yTop, $tmpPngPath, $metrics);
+        $this->renderSignatureStampInterior($pdf, $yTop, $tmpPngPath, $metrics);
         $cardH = (float) $pdf->GetY() - $yTop + $bottomPadMm;
         $pdf->rollbackTransaction(true);
 
@@ -344,12 +347,69 @@ class HandoffPdfSignatureEmbedder
             $yTop = max(4.0, $pageHeight - $margin - $cardH);
         }
 
-        $pdf->SetFillColor(255, 255, 255);
-        $pdf->SetDrawColor(200, 205, 220);
-        $pdf->SetLineWidth(0.2);
-        $pdf->RoundedRect($x, $yTop, $cardW, $cardH, 1.2, '1111', 'DF');
+        // Drawn after useTemplate so stamp + signature sit above existing page text.
+        $this->renderSignatureStampInterior($pdf, $yTop, $tmpPngPath, $metrics);
+    }
 
-        $this->renderSignatureCardInterior($pdf, $yTop, $tmpPngPath, $metrics);
+    /**
+     * Converts near-white pixels to fully transparent so saved signatures with a white
+     * pad background do not cover document content.
+     */
+    private function makeNearWhitePixelsTransparent(string $pngPath): void
+    {
+        if (! function_exists('imagecreatefrompng') || ! is_file($pngPath)) {
+            return;
+        }
+
+        $source = @imagecreatefrompng($pngPath);
+        if ($source === false) {
+            return;
+        }
+
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $dest = imagecreatetruecolor($width, $height);
+        if ($dest === false) {
+            imagedestroy($source);
+
+            return;
+        }
+
+        imagealphablending($dest, false);
+        imagesavealpha($dest, true);
+        $transparent = imagecolorallocatealpha($dest, 0, 0, 0, 127);
+        imagefilledrectangle($dest, 0, 0, $width, $height, $transparent);
+
+        for ($x = 0; $x < $width; $x++) {
+            for ($y = 0; $y < $height; $y++) {
+                $rgba = imagecolorat($source, $x, $y);
+
+                if (imageistruecolor($source)) {
+                    $a = ($rgba & 0x7F000000) >> 24;
+                    $r = ($rgba >> 16) & 0xFF;
+                    $g = ($rgba >> 8) & 0xFF;
+                    $b = $rgba & 0xFF;
+                    $alpha = $a;
+                } else {
+                    $colors = imagecolorsforindex($source, $rgba);
+                    $r = (int) ($colors['red'] ?? 0);
+                    $g = (int) ($colors['green'] ?? 0);
+                    $b = (int) ($colors['blue'] ?? 0);
+                    $alpha = (int) ($colors['alpha'] ?? 0);
+                }
+
+                if ($r >= 245 && $g >= 245 && $b >= 245) {
+                    continue;
+                }
+
+                $color = imagecolorallocatealpha($dest, $r, $g, $b, $alpha);
+                imagesetpixel($dest, $x, $y, $color);
+            }
+        }
+
+        imagepng($dest, $pngPath);
+        imagedestroy($source);
+        imagedestroy($dest);
     }
 
     private function sanitizeSignerLabel(string $name): string

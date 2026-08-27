@@ -145,8 +145,8 @@ const pendingReceiptIds = ref<Set<string>>(new Set());
 const confirming = ref(false);
 const esignPad = ref<InstanceType<typeof EsignaturePad> | null>(null);
 const signatureEmpty = ref(true);
-/** When true, PDFs get an e-signature card and a drawn/saved signature is required (unless account already has one). */
-const embedEsignatureInPdf = ref(true);
+/** When true, PDFs get a signature stamp on receive (opt-in). */
+const embedEsignatureInPdf = ref(false);
 
 const checkedCount = computed(
     () => props.transmission.items.filter((i) => i.received_at !== null).length,
@@ -788,7 +788,7 @@ function itemActivityDescription(act: ItemActivity): string {
                                 id="embed-esignature-pdf"
                                 :model-value="embedEsignatureInPdf"
                                 class="mt-0.5"
-                                :aria-label="'Embed e-signature on PDF documents'"
+                                :aria-label="'Optionally stamp e-signature on PDF documents'"
                                 @update:model-value="
                                     (v) => (embedEsignatureInPdf = v === true)
                                 "
@@ -797,8 +797,13 @@ function itemActivityDescription(act: ItemActivity): string {
                                 for="embed-esignature-pdf"
                                 class="cursor-pointer text-xs leading-snug text-foreground"
                             >
-                                Embed e-signature on the last page of each PDF
-                                you mark received
+                                <span class="font-medium"
+                                    >Stamp my signature on PDFs</span
+                                >
+                                <span class="mt-0.5 block text-muted-foreground">
+                                    Optional. Adds a small signature stamp to
+                                    the first page of each PDF you mark received.
+                                </span>
                             </label>
                         </div>
                         <template v-if="embedEsignatureInPdf">
@@ -810,18 +815,13 @@ function itemActivityDescription(act: ItemActivity): string {
                                     v-if="hasAccountEsignature"
                                     class="text-xs text-muted-foreground"
                                 >
-                                    Your saved account signature is used for
-                                    this action. Draw below to replace it and
-                                    update your account. For each PDF you mark
-                                    received, it is also embedded on the last
-                                    page of that file.
+                                    Your saved account signature will be stamped
+                                    on each PDF you mark received. Draw below to
+                                    replace it and update your account.
                                 </p>
                                 <p v-else class="text-xs text-muted-foreground">
-                                    Sign below once to save it to your account;
-                                    the next time you can confirm with your
-                                    saved signature only. For each PDF you mark
-                                    received now, your signature is also
-                                    embedded on the last page of that file.
+                                    Sign below to stamp PDFs and save the
+                                    signature to your account for next time.
                                 </p>
                             </div>
                             <div
@@ -856,8 +856,8 @@ function itemActivityDescription(act: ItemActivity): string {
                             </p>
                         </template>
                         <p v-else class="text-xs text-muted-foreground">
-                            PDF attachments will not be modified. You can
-                            confirm receipt without signing.
+                            Receipt will be confirmed without modifying PDF
+                            files.
                         </p>
                         <Button
                             type="button"

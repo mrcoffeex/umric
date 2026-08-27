@@ -4,20 +4,22 @@ import {
     AlertCircle,
     ArrowRight,
     Bell,
-    BookOpen,
-    GraduationCap,
+    CalendarDays,
+    CheckCircle2,
+    ClipboardList,
+    FileWarning,
+    Megaphone,
     Pin,
     School,
     ScrollText,
     UserRoundPlus,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import StudentResearchProgress from '@/components/student/StudentResearchProgress.vue';
 import {
-    firstPendingWorkflowStepIndex,
     workflowFocusStepKey,
     workflowProgressPercent,
 } from '@/lib/research-workflow-ui';
-import { getStepStatusClass } from '@/lib/step-colors';
 import classesRoutes from '@/routes/classes';
 import student from '@/routes/student';
 
@@ -51,6 +53,24 @@ interface Paper {
     step_final_manuscript?: string | null;
     step_final_defense?: string | null;
     step_hard_bound?: string | null;
+    is_returned?: boolean;
+    last_update?: {
+        step: string;
+        action: string;
+        status: string;
+        notes?: string | null;
+        at?: string | null;
+    } | null;
+    upcoming_defense?: { type: string; at: string } | null;
+}
+
+interface AttentionNotification {
+    id: string;
+    category: string;
+    title: string;
+    body: string;
+    url: string | null;
+    created_at: string | null;
 }
 
 interface Props {
@@ -60,11 +80,14 @@ interface Props {
     stepLabels: Record<string, string>;
     steps: string[];
     hasClass: boolean;
+    attention: {
+        unread_notifications: AttentionNotification[];
+        unread_count: number;
+    };
 }
 
 const props = defineProps<Props>();
 const page = usePage();
-
 const joinCode = ref('');
 
 const userName = computed(() => {
@@ -88,47 +111,146 @@ const greeting = computed(() => {
     return 'Good evening';
 });
 
+const focusStepKey = computed(() =>
+    props.paper ? workflowFocusStepKey(props.paper) : '',
+);
+
+const progressPercent = computed(() =>
+    props.paper ? workflowProgressPercent(props.paper) : 0,
+);
+
+type NextAction = {
+    tone: 'urgent' | 'action' | 'waiting' | 'done';
+    title: string;
+    description: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    showJoin?: boolean;
+};
+
+const nextAction = computed<NextAction>(() => {
+    if (!props.hasClass) {
+        return {
+            tone: 'urgent',
+            title: 'Join a class to get started',
+            description:
+                'You need a class code before you can submit a title proposal.',
+            showJoin: true,
+        };
+    }
+
+    if (!props.paper) {
+        return {
+            tone: 'action',
+            title: 'Submit your title proposal',
+            description:
+                'Start your research workflow by submitting a title for evaluation.',
+            ctaLabel: 'Submit Title Proposal',
+            ctaHref: student.research.create.url(),
+        };
+    }
+
+    if (props.paper.is_returned || props.paper.current_step === 'title_proposal') {
+        return {
+            tone: 'urgent',
+            title: props.paper.is_returned
+                ? 'Your paper was returned for revision'
+                : 'Continue your title proposal',
+            description: props.paper.is_returned
+                ? 'Review the feedback and resubmit when ready.'
+                : 'Finish and submit your title so RIC review can begin.',
+            ctaLabel: props.paper.is_returned ? 'Revise paper' : 'Continue editing',
+            ctaHref: student.research.edit.url(props.paper.id),
+        };
+    }
+
+    if (props.paper.current_step === 'completed') {
+        return {
+            tone: 'done',
+            title: 'Research workflow complete',
+            description: 'Your paper has finished the official pipeline.',
+            ctaLabel: 'View paper',
+            ctaHref: student.research.show.url(props.paper.id),
+        };
+    }
+
+    const stage =
+        props.stepLabels[focusStepKey.value] ?? focusStepKey.value;
+
+    return {
+        tone: 'waiting',
+        title: `Waiting on ${stage}`,
+        description: `You're ${progressPercent.value}% through the workflow. Open your paper for details and updates.`,
+        ctaLabel: 'Open paper',
+        ctaHref: student.research.show.url(props.paper.id),
+    };
+});
+
+const attentionItems = computed(() => {
+    const items: Array<{
+        id: string;
+        icon: 'warning' | 'bell' | 'calendar' | 'megaphone';
+        title: string;
+        body: string;
+        href?: string;
+    }> = [];
+
+    if (props.paper?.is_returned) {
+        items.push({
+            id: 'returned',
+            icon: 'warning',
+            title: 'Paper returned',
+            body: 'RIC asked for revisions before review can continue.',
+            href: student.research.edit.url(props.paper.id),
+        });
+    }
+
+    if (props.paper?.upcoming_defense) {
+        const label =
+            props.paper.upcoming_defense.type === 'final'
+                ? 'Final defense'
+                : 'Outline defense';
+        items.push({
+            id: 'defense',
+            icon: 'calendar',
+            title: `${label} upcoming`,
+            body: formatDateTime(props.paper.upcoming_defense.at),
+            href: student.research.show.url(props.paper.id),
+        });
+    }
+
+    for (const note of props.attention.unread_notifications.slice(0, 3)) {
+        items.push({
+            id: note.id,
+            icon: note.category === 'research' ? 'warning' : 'bell',
+            title: note.title,
+            body: note.body,
+            href: note.url ?? '/notifications',
+        });
+    }
+
+    for (const announcement of props.announcements.filter((a) => a.is_pinned).slice(0, 2)) {
+        if (items.some((item) => item.title === announcement.title)) {
+            continue;
+        }
+
+        items.push({
+            id: `announcement-${announcement.id}`,
+            icon: 'megaphone',
+            title: announcement.title,
+            body: announcement.content,
+        });
+    }
+
+    return items.slice(0, 5);
+});
+
 const announcementTypeStyles: Record<Announcement['type'], string> = {
     info: 'border-l-blue-500',
     success: 'border-l-green-500',
     warning: 'border-l-amber-500',
     danger: 'border-l-red-500',
 };
-
-const announcementDotStyles: Record<Announcement['type'], string> = {
-    info: 'bg-blue-500',
-    success: 'bg-green-500',
-    warning: 'bg-amber-500',
-    danger: 'bg-red-500',
-};
-
-const workflowFocusIndex = computed(() => {
-    if (!props.paper) {
-        return -1;
-    }
-
-    return firstPendingWorkflowStepIndex(props.paper);
-});
-
-const focusStepKey = computed(() => {
-    if (!props.paper) {
-        return '';
-    }
-
-    return workflowFocusStepKey(props.paper);
-});
-
-const progressPercent = computed(() => {
-    if (!props.paper) {
-        return 0;
-    }
-
-    return workflowProgressPercent(props.paper);
-});
-
-function stepLabel(step: string): string {
-    return props.stepLabels[step] ?? step;
-}
 
 function formatDate(value?: string | null): string {
     if (!value) {
@@ -142,20 +264,13 @@ function formatDate(value?: string | null): string {
     });
 }
 
-function isCompletedStep(index: number): boolean {
-    if (!props.paper || workflowFocusIndex.value < 0) {
-        return false;
-    }
-
-    return index < workflowFocusIndex.value;
-}
-
-function isCurrentStep(index: number): boolean {
-    if (!props.paper || workflowFocusIndex.value < 0) {
-        return false;
-    }
-
-    return index === workflowFocusIndex.value;
+function formatDateTime(value: string): string {
+    return new Date(value).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
 }
 
 function joinClassUrl(): string {
@@ -176,258 +291,251 @@ defineOptions({
 <template>
     <Head title="Student Home" />
 
-    <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
-        <!-- Hero Welcome -->
+    <div class="flex h-full flex-1 flex-col gap-5 p-4 md:gap-6 md:p-6">
+        <!-- Compact greeting -->
+        <div class="flex flex-wrap items-end justify-between gap-2">
+            <div>
+                <h1 class="text-2xl font-bold text-foreground">
+                    {{ greeting }}, {{ userName }}
+                </h1>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                    Here’s what needs your attention today.
+                </p>
+            </div>
+            <Link
+                :href="student.research.index.url()"
+                class="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400"
+            >
+                <ScrollText class="h-3.5 w-3.5" />
+                My Research
+            </Link>
+        </div>
+
+        <!-- Next action banner -->
         <section
-            class="overflow-hidden rounded-2xl border border-border bg-card"
+            :class="[
+                'overflow-hidden rounded-2xl border',
+                nextAction.tone === 'urgent'
+                    ? 'border-amber-300 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30'
+                    : nextAction.tone === 'done'
+                      ? 'border-teal-300 bg-teal-50/70 dark:border-teal-800 dark:bg-teal-950/30'
+                      : nextAction.tone === 'waiting'
+                        ? 'border-border bg-card'
+                        : 'border-orange-300 bg-orange-50/70 dark:border-orange-800 dark:bg-orange-950/30',
+            ]"
         >
-            <div
-                class="h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-teal-500"
-            />
             <div
                 class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
             >
-                <div>
-                    <h1 class="text-2xl font-bold text-foreground">
-                        {{ greeting }}, {{ userName }}
-                    </h1>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        Here's an overview of your academic progress.
-                    </p>
-                </div>
-                <div class="flex gap-2">
-                    <Link
-                        :href="student.research.index.url()"
-                        class="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
+                <div class="flex min-w-0 items-start gap-3">
+                    <span
+                        :class="[
+                            'mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl',
+                            nextAction.tone === 'urgent'
+                                ? 'bg-amber-500 text-white'
+                                : nextAction.tone === 'done'
+                                  ? 'bg-teal-500 text-white'
+                                  : nextAction.tone === 'waiting'
+                                    ? 'bg-muted text-muted-foreground'
+                                    : 'bg-orange-500 text-white',
+                        ]"
                     >
-                        <ScrollText class="h-4 w-4" />
-                        My Research
-                    </Link>
+                        <AlertCircle
+                            v-if="nextAction.tone === 'urgent'"
+                            class="h-5 w-5"
+                        />
+                        <CheckCircle2
+                            v-else-if="nextAction.tone === 'done'"
+                            class="h-5 w-5"
+                        />
+                        <ClipboardList
+                            v-else-if="nextAction.tone === 'waiting'"
+                            class="h-5 w-5"
+                        />
+                        <ScrollText v-else class="h-5 w-5" />
+                    </span>
+                    <div class="min-w-0">
+                        <p
+                            class="text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                        >
+                            Next action
+                        </p>
+                        <h2 class="mt-0.5 text-lg font-bold text-foreground">
+                            {{ nextAction.title }}
+                        </h2>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            {{ nextAction.description }}
+                        </p>
+                    </div>
+                </div>
+
+                <div
+                    v-if="nextAction.showJoin"
+                    class="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[18rem] sm:flex-row sm:items-center"
+                >
+                    <input
+                        v-model="joinCode"
+                        type="text"
+                        placeholder="Enter class code"
+                        class="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-400/30"
+                    />
                     <Link
-                        :href="student.classes.index.url()"
-                        class="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+                        :href="joinClassUrl()"
+                        class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-500 px-4 text-sm font-semibold text-white transition hover:bg-teal-600 active:scale-[0.98]"
                     >
-                        <GraduationCap class="h-4 w-4" />
-                        My Classes
+                        <UserRoundPlus class="h-4 w-4" />
+                        Join class
                     </Link>
                 </div>
+
+                <Link
+                    v-else-if="nextAction.ctaHref"
+                    :href="nextAction.ctaHref"
+                    class="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-orange-500 px-5 text-sm font-semibold text-white transition hover:bg-orange-600 active:scale-[0.98]"
+                >
+                    {{ nextAction.ctaLabel }}
+                    <ArrowRight class="h-4 w-4" />
+                </Link>
             </div>
         </section>
 
-        <!-- Quick Stats -->
-        <div class="grid gap-3 sm:grid-cols-3">
-            <div
-                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
-            >
-                <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30"
-                >
-                    <ScrollText class="h-5 w-5 text-orange-500" />
-                </div>
-                <div>
-                    <p class="text-xs font-medium text-muted-foreground">
-                        Research
-                    </p>
-                    <p class="text-lg font-bold text-foreground">
-                        {{ paper ? `${progressPercent}%` : 'None' }}
-                    </p>
-                </div>
-            </div>
-            <div
-                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
-            >
-                <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950/30"
-                >
-                    <School class="h-5 w-5 text-teal-500" />
-                </div>
-                <div>
-                    <p class="text-xs font-medium text-muted-foreground">
-                        Classes
-                    </p>
-                    <p class="text-lg font-bold text-foreground">
-                        {{ classes.length }}
-                    </p>
-                </div>
-            </div>
-            <div
-                class="flex items-center gap-3 rounded-xl border border-border bg-card p-4"
-            >
-                <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950/30"
-                >
-                    <Bell class="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                    <p class="text-xs font-medium text-muted-foreground">
-                        Announcements
-                    </p>
-                    <p class="text-lg font-bold text-foreground">
-                        {{ announcements.length }}
-                    </p>
-                </div>
-            </div>
-        </div>
+        <!-- Research + Needs attention -->
+        <div class="grid gap-5 lg:grid-cols-5 lg:gap-6">
+            <div class="lg:col-span-3">
+                <StudentResearchProgress
+                    v-if="paper"
+                    :paper="paper"
+                    :step-labels="stepLabels"
+                    :steps="steps"
+                />
 
-        <!-- Research Progress -->
-        <section class="rounded-2xl border border-border bg-card">
-            <div
-                class="flex items-center justify-between border-b border-border p-5"
-            >
-                <div class="flex items-center gap-2">
-                    <ScrollText class="h-4 w-4 text-orange-500" />
-                    <h2 class="text-base font-bold text-foreground">
-                        Research Progress
-                    </h2>
-                </div>
-                <Link
-                    :href="student.research.index.url()"
-                    class="inline-flex items-center gap-1 text-xs font-semibold text-orange-500 hover:text-orange-600"
-                >
-                    View all
-                    <ArrowRight class="h-3 w-3" />
-                </Link>
-            </div>
-
-            <div class="p-5">
-                <div
-                    v-if="!paper"
-                    class="flex flex-col items-center rounded-xl border border-dashed border-border py-8"
+                <section
+                    v-else
+                    class="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center"
                 >
                     <div
                         class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30"
                     >
-                        <BookOpen class="h-6 w-6 text-orange-400" />
+                        <ScrollText class="h-6 w-6 text-orange-400" />
                     </div>
                     <p class="text-sm font-semibold text-foreground">
                         No research paper yet
                     </p>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        Submit your title proposal to start.
+                    <p class="mt-1 max-w-sm text-sm text-muted-foreground">
+                        Your progress tracker will appear here after you submit
+                        a title proposal.
                     </p>
-
-                    <!-- No class: show disabled button with instruction -->
-                    <div
-                        v-if="!hasClass"
-                        class="mt-4 flex flex-col items-center gap-2"
-                    >
-                        <div
-                            class="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-                        >
-                            <AlertCircle class="h-3.5 w-3.5 shrink-0" />
-                            Join a class first to submit a title proposal.
-                        </div>
-                        <button
-                            disabled
-                            class="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-orange-200 px-4 py-2 text-sm font-semibold text-white dark:bg-orange-900/40"
-                        >
-                            Submit Title Proposal
-                        </button>
-                    </div>
-
-                    <Link
-                        v-else
-                        :href="student.research.create.url()"
-                        class="mt-4 inline-flex items-center gap-2 rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
-                    >
-                        Submit Title Proposal
-                    </Link>
-                </div>
-
-                <div v-else>
-                    <div
-                        class="flex flex-wrap items-center justify-between gap-2"
-                    >
-                        <div class="min-w-0 flex-1">
-                            <Link
-                                :href="student.research.show.url(paper.id)"
-                                class="text-sm font-bold text-foreground hover:text-orange-600 dark:hover:text-orange-400"
-                            >
-                                {{ paper.title }}
-                            </Link>
-                            <p class="mt-0.5 text-xs text-muted-foreground">
-                                <code
-                                    class="rounded bg-orange-50 px-1.5 py-0.5 font-mono text-[11px] text-orange-600 dark:bg-orange-950/40 dark:text-orange-400"
-                                    >{{ paper.tracking_id }}</code
-                                >
-                            </p>
-                        </div>
-                        <span
-                            class="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
-                        >
-                            {{ stepLabel(focusStepKey) }}
-                        </span>
-                    </div>
-
-                    <!-- Progress bar -->
-                    <div class="mt-3 flex items-center gap-3">
-                        <div
-                            class="h-2 flex-1 overflow-hidden rounded-full bg-muted"
-                        >
-                            <div
-                                class="h-full rounded-full bg-gradient-to-r from-orange-500 to-teal-500 transition-all"
-                                :style="{ width: progressPercent + '%' }"
-                            />
-                        </div>
-                        <span class="text-xs font-bold text-muted-foreground"
-                            >{{ progressPercent }}%</span
-                        >
-                    </div>
-
-                    <!-- Step grid -->
-                    <div
-                        class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8"
-                    >
-                        <div
-                            v-for="(step, idx) in steps"
-                            :key="step"
-                            :aria-current="
-                                isCurrentStep(idx) ? 'step' : undefined
-                            "
-                            :data-completed="isCompletedStep(idx) || undefined"
-                            :class="[
-                                'rounded-xl border px-3 py-2 text-center text-sm font-semibold',
-                                getStepStatusClass(step, focusStepKey, steps),
-                            ]"
-                        >
-                            {{ stepLabel(step) }}
-                        </div>
-                    </div>
-                </div>
+                </section>
             </div>
-        </section>
 
-        <!-- Two-column layout for Classes and Announcements -->
-        <div class="grid gap-6 lg:grid-cols-2">
-            <!-- Classes -->
-            <section
-                :class="[
-                    'rounded-2xl border bg-card',
-                    !hasClass
-                        ? 'border-teal-400 ring-2 ring-teal-400/40 dark:border-teal-500 dark:ring-teal-500/30'
-                        : 'border-border',
-                ]"
-            >
-                <!-- Attention banner when no class -->
-                <div
-                    v-if="!hasClass"
-                    class="flex items-center gap-2 rounded-t-2xl bg-teal-500 px-5 py-2.5 text-sm font-semibold text-white"
+            <aside class="lg:col-span-2">
+                <section
+                    class="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card"
                 >
-                    <AlertCircle class="h-4 w-4 shrink-0" />
-                    Join a class to unlock title proposal submission.
-                </div>
+                    <div
+                        class="flex items-center justify-between border-b border-border px-5 py-4"
+                    >
+                        <div class="flex items-center gap-2">
+                            <Bell class="h-4 w-4 text-orange-500" />
+                            <h2 class="text-base font-bold text-foreground">
+                                Needs attention
+                            </h2>
+                        </div>
+                        <Link
+                            href="/notifications"
+                            class="text-xs font-semibold text-orange-600 hover:text-orange-700 dark:text-orange-400"
+                        >
+                            {{
+                                attention.unread_count > 0
+                                    ? `${attention.unread_count} unread`
+                                    : 'All clear'
+                            }}
+                        </Link>
+                    </div>
+
+                    <div v-if="attentionItems.length === 0" class="flex flex-1 flex-col items-center justify-center px-5 py-10 text-center">
+                        <CheckCircle2 class="mb-2 h-8 w-8 text-teal-500" />
+                        <p class="text-sm font-semibold text-foreground">
+                            Nothing urgent
+                        </p>
+                        <p class="mt-1 text-sm text-muted-foreground">
+                            New announcements and paper updates will show up
+                            here.
+                        </p>
+                    </div>
+
+                    <ul v-else class="divide-y divide-border">
+                        <li v-for="item in attentionItems" :key="item.id">
+                            <component
+                                :is="item.href ? Link : 'div'"
+                                :href="item.href"
+                                class="flex items-start gap-3 px-5 py-3.5 transition"
+                                :class="
+                                    item.href
+                                        ? 'hover:bg-muted/50'
+                                        : ''
+                                "
+                            >
+                                <span
+                                    :class="[
+                                        'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
+                                        item.icon === 'warning'
+                                            ? 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400'
+                                            : item.icon === 'calendar'
+                                              ? 'bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-400'
+                                              : item.icon === 'megaphone'
+                                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400'
+                                                : 'bg-orange-50 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400',
+                                    ]"
+                                >
+                                    <FileWarning
+                                        v-if="item.icon === 'warning'"
+                                        class="h-3.5 w-3.5"
+                                    />
+                                    <CalendarDays
+                                        v-else-if="item.icon === 'calendar'"
+                                        class="h-3.5 w-3.5"
+                                    />
+                                    <Megaphone
+                                        v-else-if="item.icon === 'megaphone'"
+                                        class="h-3.5 w-3.5"
+                                    />
+                                    <Bell v-else class="h-3.5 w-3.5" />
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span
+                                        class="block text-sm font-semibold text-foreground"
+                                    >
+                                        {{ item.title }}
+                                    </span>
+                                    <span
+                                        class="mt-0.5 line-clamp-2 block text-xs text-muted-foreground"
+                                    >
+                                        {{ item.body }}
+                                    </span>
+                                </span>
+                            </component>
+                        </li>
+                    </ul>
+                </section>
+            </aside>
+        </div>
+
+        <!-- Classes + Announcements -->
+        <div class="grid gap-5 lg:grid-cols-2 lg:gap-6">
+            <section class="rounded-2xl border border-border bg-card">
                 <div
-                    class="flex items-center justify-between border-b border-border p-5"
+                    class="flex items-center justify-between border-b border-border px-5 py-4"
                 >
                     <div class="flex items-center gap-2">
                         <School class="h-4 w-4 text-teal-500" />
                         <h2 class="text-base font-bold text-foreground">
-                            Classes
+                            My class
                         </h2>
                     </div>
                     <Link
                         :href="student.classes.index.url()"
-                        class="inline-flex items-center gap-1 text-xs font-semibold text-teal-500 hover:text-teal-600"
+                        class="inline-flex items-center gap-1 text-xs font-semibold text-teal-600 hover:text-teal-700"
                     >
                         View all
                         <ArrowRight class="h-3 w-3" />
@@ -437,42 +545,21 @@ defineOptions({
                 <div class="p-5">
                     <div
                         v-if="classes.length === 0"
-                        class="flex flex-col items-center rounded-xl border border-dashed border-border py-6"
+                        class="rounded-xl border border-dashed border-border px-4 py-6 text-center"
                     >
-                        <div
-                            class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/30"
-                        >
-                            <GraduationCap class="h-6 w-6 text-teal-400" />
-                        </div>
                         <p class="text-sm font-semibold text-foreground">
-                            No classes yet
+                            No class joined yet
                         </p>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            Enter a class code to join.
+                            Use the join code in Next action above.
                         </p>
-
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <input
-                                v-model="joinCode"
-                                type="text"
-                                placeholder="Enter class code"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 sm:max-w-[180px]"
-                            />
-                            <Link
-                                :href="joinClassUrl()"
-                                class="inline-flex items-center gap-2 rounded-lg bg-teal-500 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-600"
-                            >
-                                <UserRoundPlus class="h-3.5 w-3.5" />
-                                Join
-                            </Link>
-                        </div>
                     </div>
 
                     <div v-else class="space-y-3">
                         <article
-                            v-for="classItem in classes"
+                            v-for="classItem in classes.slice(0, 2)"
                             :key="classItem.id"
-                            class="rounded-xl border border-border p-4 transition hover:border-teal-300 dark:hover:border-teal-800"
+                            class="rounded-xl border border-border px-4 py-3"
                         >
                             <div class="flex items-start justify-between gap-2">
                                 <h3 class="text-sm font-bold text-foreground">
@@ -485,37 +572,33 @@ defineOptions({
                                     {{ classItem.section }}
                                 </span>
                             </div>
-                            <div class="mt-2 flex flex-wrap gap-1.5">
-                                <span
-                                    v-for="subject in classItem.subjects ?? []"
-                                    :key="subject.id"
-                                    :class="[
-                                        'rounded-full px-2 py-0.5 text-xs font-semibold',
-                                        subject.code
-                                            ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
-                                            : 'bg-muted text-muted-foreground',
-                                    ]"
-                                >
-                                    {{ subject.code ?? subject.name }}
+                            <p class="mt-1 text-xs text-muted-foreground">
+                                {{
+                                    (classItem.subjects ?? []).length
+                                        ? `${(classItem.subjects ?? []).length} subject${(classItem.subjects ?? []).length === 1 ? '' : 's'}`
+                                        : 'No subjects listed'
+                                }}
+                                <span v-if="(classItem.subjects ?? []).length">
+                                    ·
+                                    {{
+                                        (classItem.subjects ?? [])
+                                            .map((s) => s.code ?? s.name)
+                                            .slice(0, 3)
+                                            .join(', ')
+                                    }}
                                 </span>
-                                <span
-                                    v-if="!(classItem.subjects ?? []).length"
-                                    class="text-xs text-muted-foreground"
-                                    >No subjects listed</span
-                                >
-                            </div>
+                            </p>
                         </article>
                     </div>
                 </div>
             </section>
 
-            <!-- Announcements -->
             <section class="rounded-2xl border border-border bg-card">
                 <div
-                    class="flex items-center justify-between border-b border-border p-5"
+                    class="flex items-center justify-between border-b border-border px-5 py-4"
                 >
                     <div class="flex items-center gap-2">
-                        <Bell class="h-4 w-4 text-blue-500" />
+                        <Megaphone class="h-4 w-4 text-blue-500" />
                         <h2 class="text-base font-bold text-foreground">
                             Announcements
                         </h2>
@@ -524,25 +607,20 @@ defineOptions({
                         v-if="announcements.length > 0"
                         class="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/30 dark:text-blue-400"
                     >
-                        {{ announcements.length }} new
+                        {{ announcements.length }}
                     </span>
                 </div>
 
                 <div class="p-5">
                     <div
                         v-if="announcements.length === 0"
-                        class="flex flex-col items-center rounded-xl border border-dashed border-border py-6"
+                        class="rounded-xl border border-dashed border-border px-4 py-6 text-center"
                     >
-                        <div
-                            class="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30"
-                        >
-                            <Bell class="h-6 w-6 text-blue-400" />
-                        </div>
                         <p class="text-sm font-semibold text-foreground">
                             No announcements
                         </p>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            You're all caught up!
+                            You're all caught up.
                         </p>
                     </div>
 
@@ -551,37 +629,25 @@ defineOptions({
                             v-for="item in announcements"
                             :key="item.id"
                             :class="[
-                                'rounded-xl border border-l-4 border-border p-4 transition',
+                                'rounded-xl border border-l-4 border-border p-3.5',
                                 announcementTypeStyles[item.type],
                             ]"
                         >
                             <div class="flex items-start justify-between gap-2">
-                                <div class="flex items-center gap-2">
-                                    <span
-                                        :class="[
-                                            'mt-1 h-2 w-2 shrink-0 rounded-full',
-                                            announcementDotStyles[item.type],
-                                        ]"
-                                    />
-                                    <h3
-                                        class="text-sm font-bold text-foreground"
-                                    >
-                                        {{ item.title }}
-                                    </h3>
-                                </div>
+                                <h3 class="text-sm font-bold text-foreground">
+                                    {{ item.title }}
+                                </h3>
                                 <Pin
                                     v-if="item.is_pinned"
                                     class="h-3.5 w-3.5 shrink-0 text-orange-500"
                                 />
                             </div>
                             <p
-                                class="mt-1.5 line-clamp-2 pl-4 text-sm text-muted-foreground"
+                                class="mt-1 line-clamp-2 text-sm text-muted-foreground"
                             >
                                 {{ item.content }}
                             </p>
-                            <p
-                                class="mt-2 pl-4 text-[11px] text-muted-foreground/70"
-                            >
+                            <p class="mt-2 text-[11px] text-muted-foreground/70">
                                 {{ formatDate(item.published_at) }}
                             </p>
                         </article>

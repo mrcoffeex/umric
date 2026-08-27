@@ -30,6 +30,7 @@ declare module '@inertiajs/core' {
             branding: { tagline: string | null; logoUrl: string | null };
             auth: Auth;
             documentHandoffs: { incomingPending: number };
+            notifications: { unreadCount: number };
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

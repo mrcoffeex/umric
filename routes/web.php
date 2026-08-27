@@ -23,6 +23,7 @@ use App\Http\Controllers\DocumentTransmissionController;
 use App\Http\Controllers\Faculty\AllResearchController;
 use App\Http\Controllers\Faculty\ClassJoinController;
 use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PanelDefenseEvaluationController;
 use App\Http\Controllers\ResearchPaperController;
 use App\Http\Controllers\Student\ClassController;
@@ -77,6 +78,11 @@ Route::get('/registration-pending', function () {
 
 Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 
     Route::get('papers/proponents/search', [ResearchPaperController::class, 'searchProponents'])
         ->name('papers.proponents.search');

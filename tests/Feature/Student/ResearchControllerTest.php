@@ -269,11 +269,15 @@ it('shows student home with announcements, classes, and paper data', function ()
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/Home')
-            ->has('announcements')
+            ->has('announcements', 1)
             ->has('classes', 1)
             ->where('paper.id', $paper->id)
+            ->where('paper.is_returned', false)
+            ->has('attention.unread_notifications')
+            ->has('attention.unread_count')
             ->has('stepLabels')
             ->has('steps')
+            ->where('hasClass', true)
         );
 });
 

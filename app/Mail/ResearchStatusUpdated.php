@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\ResearchPaper;
 use App\Models\User;
+use App\Notifications\ResearchPaperUpdatedNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Address;
@@ -12,6 +13,7 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 
 class ResearchStatusUpdated extends Mailable
 {
@@ -100,6 +102,11 @@ class ResearchStatusUpdated extends Mailable
                 Mail::to(new Address($user->email, $user->name))
                     ->queue(new self($paper, $step, $stepLabel, $status, $notes));
             }
+
+            Notification::send(
+                $recipients,
+                new ResearchPaperUpdatedNotification($paper, $step, $stepLabel, $status, $notes),
+            );
         } catch (\Throwable $e) {
             Log::error('ResearchStatusUpdated: failed to queue', [
                 'paper_id' => $paper->id,

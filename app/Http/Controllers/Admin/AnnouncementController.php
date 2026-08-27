@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Services\AnnouncementNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,6 +12,8 @@ use Inertia\Response;
 
 class AnnouncementController extends Controller
 {
+    public function __construct(private AnnouncementNotifier $notifier) {}
+
     public function index(): Response
     {
         $announcements = Announcement::with('creator')
@@ -49,7 +52,13 @@ class AnnouncementController extends Controller
             'expires_at' => ['nullable', 'date', 'after:published_at'],
         ]);
 
-        Announcement::create([...$validated, 'created_by' => $request->user()->id]);
+        if (($validated['is_active'] ?? false) && empty($validated['published_at'])) {
+            $validated['published_at'] = now();
+        }
+
+        $announcement = Announcement::create([...$validated, 'created_by' => $request->user()->id]);
+
+        $this->notifier->notifyIfVisible($announcement);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Announcement created.']);
 
@@ -58,6 +67,8 @@ class AnnouncementController extends Controller
 
     public function update(Request $request, Announcement $announcement): RedirectResponse
     {
+        $wasVisible = $this->notifier->isVisible($announcement);
+
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string'],
@@ -70,7 +81,15 @@ class AnnouncementController extends Controller
             'expires_at' => ['nullable', 'date'],
         ]);
 
+        if (($validated['is_active'] ?? false) && empty($validated['published_at'])) {
+            $validated['published_at'] = $announcement->published_at ?? now();
+        }
+
         $announcement->update($validated);
+
+        if (! $wasVisible && $this->notifier->isVisible($announcement->fresh())) {
+            $this->notifier->notifyIfVisible($announcement);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Announcement updated.']);
 

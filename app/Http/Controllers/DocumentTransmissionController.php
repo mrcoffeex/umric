@@ -416,7 +416,7 @@ class DocumentTransmissionController extends Controller
             ->unique()
             ->values();
 
-        $embedEsignature = $request->boolean('embed_esignature', true);
+        $embedEsignature = $request->boolean('embed_esignature', false);
 
         DB::transaction(function () use ($request, $transmission, $ids, $pdfSignatureEmbedder, $embedEsignature) {
             $transmission->load('items');
@@ -475,7 +475,7 @@ class DocumentTransmissionController extends Controller
                 $signerName = (string) ($request->user()?->name ?? '');
                 $signedAt = now();
                 foreach ($newlyReceivedPdfItems as $pdfItem) {
-                    $pdfSignatureEmbedder->embedPngOnLastPage($pdfItem, $pngPath, $signerName, $signedAt);
+                    $pdfSignatureEmbedder->embedPngOnFirstPage($pdfItem, $pngPath, $signerName, $signedAt);
                 }
             }
 

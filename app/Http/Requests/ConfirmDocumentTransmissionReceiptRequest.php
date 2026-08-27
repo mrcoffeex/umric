@@ -12,7 +12,7 @@ class ConfirmDocumentTransmissionReceiptRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (! $this->has('embed_esignature')) {
-            $this->merge(['embed_esignature' => true]);
+            $this->merge(['embed_esignature' => false]);
         }
     }
 

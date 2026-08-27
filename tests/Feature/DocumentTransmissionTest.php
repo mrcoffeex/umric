@@ -76,6 +76,7 @@ test('users can create a handoff and receiver can complete checklist', function 
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$first->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -94,6 +95,7 @@ test('users can create a handoff and receiver can complete checklist', function 
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$first->id, $second->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -157,6 +159,7 @@ test('receiver can confirm receipt with saved account esignature without sending
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$item->id],
+            'embed_esignature' => true,
         ])
         ->assertRedirect();
 
@@ -169,6 +172,48 @@ test('receiver can confirm receipt with saved account esignature without sending
     $metaPath = $receipt?->meta['esignature_path'] ?? null;
     expect($metaPath)->toBeString()
         ->and(Storage::disk('public')->exists($metaPath))->toBeTrue();
+});
+
+test('receiver can confirm receipt without stamping when embed flag is omitted', function () {
+    $this->withoutVite();
+    Storage::fake('public');
+
+    $sender = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $sender->id]);
+    $receiver = User::factory()->create();
+    UserProfile::factory()->student()->create(['user_id' => $receiver->id]);
+
+    $pdf = UploadedFile::fake()->create('one.pdf', 200, 'application/pdf');
+    $this->actingAs($sender)
+        ->post(route('document-transmissions.store'), [
+            'receiver_id' => $receiver->id,
+            'purpose' => 'Optional stamp default.',
+            'items' => [
+                ['file' => $pdf],
+            ],
+        ])
+        ->assertRedirect();
+
+    $transmission = DocumentTransmission::query()->first();
+    expect($transmission)->not->toBeNull();
+    $item = $transmission->items()->orderBy('sort_order')->first();
+    expect($item)->not->toBeNull();
+
+    $this->actingAs($receiver)
+        ->post(route('document-transmissions.receive', $transmission), [
+            'item_ids' => [$item->id],
+        ])
+        ->assertRedirect();
+
+    $item->refresh();
+    expect($item->received_at)->not->toBeNull();
+    expect((int) $item->pdf_esignature_embed_count)->toBe(0);
+
+    $receipt = DocumentTransmissionHistory::query()
+        ->where('document_transmission_id', $transmission->id)
+        ->where('event', DocumentTransmissionHistory::EVENT_RECEIPT_CONFIRMED)
+        ->first();
+    expect($receipt?->meta['esignature_path'] ?? null)->toBeNull();
 });
 
 test('receiver can confirm receipt without embedding e-signature on PDFs', function () {
@@ -288,6 +333,7 @@ test('sender cannot confirm receipt', function () {
     $this->actingAs($sender)
         ->post(route('document-transmissions.receive', $transmission), [
             'item_ids' => [$item->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertForbidden();
@@ -319,6 +365,7 @@ test('receiver cannot confirm receipt again after handoff is completed', functio
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$item->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -329,6 +376,7 @@ test('receiver cannot confirm receipt again after handoff is completed', functio
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$item->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertForbidden();
@@ -364,6 +412,7 @@ test('receiver cannot unmark an already received document line', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$first->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -374,6 +423,7 @@ test('receiver cannot unmark an already received document line', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$second->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -524,6 +574,7 @@ test('completing handoff allows forward and copies item events', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$item->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -607,6 +658,7 @@ test('forward can include a subset of documents', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$keep->id, $skip->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();
@@ -658,6 +710,7 @@ test('original sender can forward a completed handoff', function () {
     $this->actingAs($receiver)
         ->post(route('document-transmissions.receive', $t), [
             'item_ids' => [$item->id],
+            'embed_esignature' => true,
             'signature' => validHandoffSignatureDataUrl(),
         ])
         ->assertRedirect();

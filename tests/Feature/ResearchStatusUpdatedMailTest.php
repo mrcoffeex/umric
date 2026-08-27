@@ -5,9 +5,11 @@ use App\Models\ResearchPaper;
 use App\Models\User;
 use App\Models\UserProfile;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
     Mail::fake();
+    Notification::fake();
 });
 
 it('queues one email per proponent using string ulid ids', function () {

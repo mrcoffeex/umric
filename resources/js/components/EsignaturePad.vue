@@ -54,7 +54,7 @@ onMounted(() => {
     void nextTick(() => {
         layoutCanvas();
         signaturePad = new SignaturePad(canvas, {
-            backgroundColor: 'rgb(255, 255, 255)',
+            backgroundColor: 'rgba(0, 0, 0, 0)',
             penColor: 'rgb(15, 23, 42)',
         });
         signaturePad.addEventListener('endStroke', emitEmptyState);
@@ -96,6 +96,7 @@ function getPngDataUrl(): string {
         return '';
     }
 
+    // Transparent PNG — no white pad fill when stamped onto documents.
     return signaturePad.toDataURL('image/png');
 }
 

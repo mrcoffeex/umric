@@ -60,6 +60,11 @@ class HandleInertiaRequests extends Middleware
                     ? DocumentTransmission::pendingCountForUser($user->id, 'incoming')
                     : 0,
             ],
+            'notifications' => [
+                'unreadCount' => $user
+                    ? $user->unreadNotifications()->count()
+                    : 0,
+            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
