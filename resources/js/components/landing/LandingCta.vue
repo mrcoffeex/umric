@@ -39,7 +39,7 @@ const contactInfo = [
     {
         icon: Mail,
         label: 'Email',
-        value: 'research@umdigos.edu.ph',
+        value: 'support@umdcric.com',
     },
     {
         icon: MapPin,

@@ -22,7 +22,27 @@ test('submits contact form and queues mail', function () {
         ->post(route('contact.store'), $payload);
 
     $response->assertRedirect();
-    Mail::assertQueued(ContactFormMail::class, 1);
+    Mail::assertQueued(ContactFormMail::class, function (ContactFormMail $mail) {
+        return $mail->inboxEmail === 'inbox@example.com';
+    });
+});
+
+test('contact form sends to support@umdcric.com when that inbox is configured', function () {
+    config(['contact.mail_to' => 'support@umdcric.com']);
+
+    $payload = [
+        'name' => 'Support Route',
+        'email' => 'visitor@example.com',
+        'message' => 'Please route to support.',
+    ];
+
+    $this->from(route('home'))
+        ->post(route('contact.store'), $payload)
+        ->assertRedirect();
+
+    Mail::assertQueued(ContactFormMail::class, function (ContactFormMail $mail) {
+        return $mail->inboxEmail === 'support@umdcric.com';
+    });
 });
 
 test('allows only three contact submissions per ip per day in production', function () {
