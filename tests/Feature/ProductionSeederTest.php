@@ -1,0 +1,61 @@
+<?php
+
+use App\Models\Agenda;
+use App\Models\Department;
+use App\Models\EvaluationFormat;
+use App\Models\Program;
+use App\Models\SchoolClass;
+use App\Models\Sdg;
+use App\Models\User;
+use Database\Seeders\ProductionSeeder;
+use Illuminate\Support\Facades\Hash;
+
+beforeEach(function () {
+    $this->withoutVite();
+});
+
+test('production seeder creates admin reference data evaluation formats and one class', function () {
+    config([
+        'app.env' => 'testing',
+    ]);
+
+    putenv('SEED_ADMIN_NAME=Production Admin');
+    putenv('SEED_ADMIN_EMAIL=admin@umdcric.com');
+    putenv('SEED_ADMIN_PASSWORD=SecureAdminPass1!');
+    putenv('SEED_CLASS_PROGRAM=BSIT');
+    putenv('SEED_CLASS_YEAR_LEVEL=4');
+    putenv('SEED_CLASS_SECTION=A');
+    putenv('SEED_CLASS_SCHOOL_YEAR=2025-2026');
+    putenv('SEED_CLASS_SEMESTER=1');
+
+    $this->seed(ProductionSeeder::class);
+
+    $admin = User::query()->where('email', 'admin@umdcric.com')->first();
+    expect($admin)->not->toBeNull()
+        ->and($admin->isAdmin())->toBeTrue()
+        ->and(Hash::check('SecureAdminPass1!', $admin->password))->toBeTrue();
+
+    expect(Department::query()->count())->toBeGreaterThan(0)
+        ->and(Program::query()->count())->toBeGreaterThan(0)
+        ->and(Sdg::query()->where('is_active', true)->count())->toBe(17)
+        ->and(Agenda::query()->where('is_active', true)->count())->toBe(15);
+
+    $formatNames = ['Outline Defense', 'Final Defense', 'Title Proposal Checklist'];
+    foreach ($formatNames as $name) {
+        $format = EvaluationFormat::query()->where('name', $name)->first();
+        expect($format)->not->toBeNull()
+            ->and($format->isReady())->toBeTrue();
+    }
+
+    $class = SchoolClass::query()->where('class_code', 'BSIT4A-S1-2526')->first();
+    expect($class)->not->toBeNull()
+        ->and($class->name)->toBe('BSIT 4-A')
+        ->and($class->join_code)->not->toBeEmpty();
+
+    // Idempotent on second run.
+    $this->seed(ProductionSeeder::class);
+
+    expect(User::query()->where('email', 'admin@umdcric.com')->count())->toBe(1)
+        ->and(SchoolClass::query()->where('class_code', 'BSIT4A-S1-2526')->count())->toBe(1)
+        ->and(EvaluationFormat::query()->whereIn('name', $formatNames)->count())->toBe(3);
+});
