@@ -58,6 +58,10 @@
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#c4b5fd,#fdba74\" \"php artisan queue:listen --tries=1 --timeout=0\" \"npm run dev\" --names=queue,vite --kill-others"
         ],
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan serve --no-reload --host=127.0.0.1 --port=8000"
+        ],
         "lint": [
             "pint --parallel"
         ],

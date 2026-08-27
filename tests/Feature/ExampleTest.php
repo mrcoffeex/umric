@@ -13,5 +13,5 @@ test('the home page renders the welcome landing', function () {
             ->component('Welcome')
             ->has('canRegister')
             ->has('stats')
-            ->where('branding.logoUrl', asset('images/um-digos-college-logo.png')));
+            ->where('branding.logoUrl', '/images/um-digos-college-logo.png'));
 });

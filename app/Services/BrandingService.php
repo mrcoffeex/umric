@@ -36,7 +36,7 @@ class BrandingService
      */
     public function defaultLogoUrl(): string
     {
-        return asset('images/um-digos-college-logo.png');
+        return '/images/um-digos-college-logo.png';
     }
 
     /**

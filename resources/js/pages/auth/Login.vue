@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { useBranding } from '@/composables/useBranding';
+import { google } from '@/routes/auth';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
@@ -28,7 +29,8 @@ const props = defineProps<{
 const branding = useBranding();
 
 function redirectToGoogle() {
-    window.location.href = '/auth/google';
+    // Login intent only — no role query, so unregistered emails are rejected.
+    window.location.href = google.url();
 }
 </script>
 
