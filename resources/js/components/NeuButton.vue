@@ -81,14 +81,14 @@ withDefaults(defineProps<Props>(), {
 
 /* Variants */
 .neu-btn-primary {
-    background-color: #f97316;
+    background-color: #be0002;
     color: white;
 }
 
 .neu-btn-primary:hover:not(:disabled) {
-    background-color: #ea580c;
+    background-color: #9a0002;
     box-shadow:
-        7px 7px 16px rgba(249, 115, 22, 0.3),
+        7px 7px 16px rgba(190, 0, 2, 0.3),
         -7px -7px 16px rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
 }
@@ -117,14 +117,14 @@ withDefaults(defineProps<Props>(), {
 }
 
 .neu-btn-success {
-    background-color: #14b8a6;
+    background-color: #ffb600;
     color: white;
 }
 
 .neu-btn-success:hover:not(:disabled) {
-    background-color: #0d9488;
+    background-color: #e5a400;
     box-shadow:
-        7px 7px 16px rgba(17, 153, 142, 0.3),
+        7px 7px 16px rgba(255, 182, 0, 0.3),
         -7px -7px 16px rgba(255, 255, 255, 0.5);
     transform: translateY(-2px);
 }

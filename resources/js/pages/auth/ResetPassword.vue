@@ -234,8 +234,7 @@ const strengthLabels = {
             <button
                 type="submit"
                 :disabled="processing"
-                class="relative mt-2 flex h-11 w-full items-center justify-center rounded-lg font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:opacity-60"
-                style="background: linear-gradient(135deg, #f97316, #ea580c)"
+                class="relative mt-2 flex h-11 w-full items-center justify-center rounded-[3px] bg-primary font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-60"
                 data-test="reset-password-button"
             >
                 <Spinner v-if="processing" class="mr-2" />

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
+import LandingAudience from '@/components/landing/LandingAudience.vue';
 import LandingCta from '@/components/landing/LandingCta.vue';
 import LandingFeatures from '@/components/landing/LandingFeatures.vue';
 import LandingFooter from '@/components/landing/LandingFooter.vue';
@@ -8,9 +9,6 @@ import LandingHero from '@/components/landing/LandingHero.vue';
 import LandingHowItWorks from '@/components/landing/LandingHowItWorks.vue';
 import LandingNavbar from '@/components/landing/LandingNavbar.vue';
 import LandingShowcase from '@/components/landing/LandingShowcase.vue';
-import LandingStats from '@/components/landing/LandingStats.vue';
-import LandingTestimonials from '@/components/landing/LandingTestimonials.vue';
-import { useAppearance } from '@/composables/useAppearance';
 import { useBranding } from '@/composables/useBranding';
 
 interface Props {
@@ -37,25 +35,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 const branding = useBranding();
 const welcomeTitle = computed(
-    () => `${branding.value.name} - Research Paper Tracking & Management`,
+    () =>
+        `${branding.value.name} — UM Digos College Research and Innovation Center`,
 );
 const welcomeDescription = computed(
     () =>
-        `Submit, track and collaborate on research papers in real-time. ${branding.value.name} — built for academics.`,
+        `Official research paper tracking for UM Digos College. Follow every milestone from title proposal to publication with ${branding.value.name}.`,
 );
-
-const { updateAppearance } = useAppearance();
-onMounted(() => {
-    const stored = localStorage.getItem('appearance') as
-        | 'light'
-        | 'dark'
-        | 'system'
-        | null;
-
-    if (stored) {
-        updateAppearance(stored);
-    }
-});
 </script>
 
 <template>
@@ -63,16 +49,13 @@ onMounted(() => {
         <meta name="description" :content="welcomeDescription" />
     </Head>
 
-    <div
-        class="min-h-screen bg-white font-sans text-slate-900 antialiased transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100"
-    >
+    <div class="min-h-screen bg-um-wash font-landing text-um-heading">
         <LandingNavbar :can-register="props.canRegister" />
-        <LandingHero :can-register="props.canRegister" />
-        <LandingStats :stats="props.stats" />
+        <LandingHero :can-register="props.canRegister" :stats="props.stats" />
         <LandingFeatures />
         <LandingShowcase />
         <LandingHowItWorks />
-        <LandingTestimonials />
+        <LandingAudience />
         <LandingCta />
         <LandingFooter />
     </div>

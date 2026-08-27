@@ -16,16 +16,9 @@ const branding = useBranding();
     <div class="min-h-svh lg:grid lg:grid-cols-2">
         <!-- Left: branded panel (desktop only) -->
         <div
-            class="relative hidden overflow-hidden lg:flex lg:flex-col"
-            style="
-                background: linear-gradient(
-                    145deg,
-                    #c2410c 0%,
-                    #f97316 45%,
-                    #0d9488 100%
-                );
-            "
+            class="relative hidden overflow-hidden bg-um-maroon lg:flex lg:flex-col"
         >
+            <div class="absolute inset-x-0 top-0 h-1 bg-um-gold" />
             <!-- Decorative rings -->
             <div
                 class="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full border border-white/10"
@@ -156,10 +149,7 @@ const branding = useBranding();
                 class="mb-8 flex items-center gap-2.5 lg:hidden"
             >
                 <div
-                    class="flex h-9 w-9 items-center justify-center rounded-xl"
-                    style="
-                        background: linear-gradient(135deg, #f97316, #0d9488);
-                    "
+                    class="flex h-9 w-9 items-center justify-center rounded-[3px] bg-um-maroon"
                 >
                     <AppLogoIcon class="size-4 text-white" />
                 </div>

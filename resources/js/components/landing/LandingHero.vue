@@ -1,27 +1,24 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { ArrowRight, Search } from 'lucide-vue-next';
-import { ref } from 'vue';
-import { useBranding } from '@/composables/useBranding';
+import { ArrowRight, Check, Search } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { useCountUp } from '@/composables/useCountUp';
+import { useScrollReveal } from '@/composables/useScrollReveal';
 import { dashboard, login, register } from '@/routes';
 
-defineProps<{
+const props = defineProps<{
     canRegister: boolean;
+    stats?: {
+        papers: number;
+        students: number;
+        departments: number;
+    };
 }>();
 
-const branding = useBranding();
 const trackingId = ref('');
 const trackingError = ref('');
 const isSearching = ref(false);
 const page = usePage();
-
-const pipelineStages = [
-    { label: 'Title proposal', status: 'done' },
-    { label: 'Chapters', status: 'done' },
-    { label: 'Panel review', status: 'active' },
-    { label: 'Oral defense', status: 'upcoming' },
-    { label: 'Publication', status: 'upcoming' },
-];
 
 async function searchPaper() {
     if (!trackingId.value.trim()) {
@@ -50,57 +47,81 @@ async function searchPaper() {
         isSearching.value = false;
     }
 }
+
+const { target: statsRef, isVisible: statsVisible } = useScrollReveal(0.2);
+const paperCount = useCountUp(
+    computed(() => props.stats?.papers ?? 0),
+    statsVisible,
+    2000,
+);
+const studentCount = useCountUp(
+    computed(() => props.stats?.students ?? 0),
+    statsVisible,
+    2000,
+);
+const deptCount = useCountUp(
+    computed(() => props.stats?.departments ?? 0),
+    statsVisible,
+    1200,
+);
+
+const pipelineSteps = [
+    { n: '01', label: 'Title proposal', status: 'complete' as const },
+    { n: '02', label: 'Chapters', status: 'complete' as const },
+    { n: '03', label: 'Panel review', status: 'current' as const },
+    { n: '04', label: 'Oral defense', status: 'upcoming' as const },
+    { n: '05', label: 'Publication', status: 'upcoming' as const },
+];
 </script>
 
 <template>
     <section
         id="hero"
-        class="relative overflow-hidden pt-24 pb-10 sm:pt-28 sm:pb-14 lg:min-h-[calc(100svh-0px)] lg:pb-16"
+        class="scroll-mt-28 bg-um-wash px-4 pt-32 pb-16 sm:px-6 sm:pt-36 lg:px-8 lg:pb-20"
     >
-        <div class="landing-mesh absolute inset-0 -z-10 bg-slate-50 dark:bg-slate-950" />
-
         <div
-            class="mx-auto grid max-w-7xl items-center gap-10 px-4 sm:px-6 lg:grid-cols-12 lg:gap-8 lg:px-8"
+            class="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-16"
         >
-            <!-- Copy column -->
-            <div class="relative z-10 lg:col-span-5">
+            <div>
                 <p
-                    class="hero-stagger-1 font-display mb-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white"
+                    class="mb-4 text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
                 >
-                    {{ branding.name }}
+                    UM Digos College · Research and Innovation Center
                 </p>
-
                 <h1
-                    class="hero-stagger-2 font-display mb-4 text-4xl leading-[1.08] font-extrabold tracking-tight text-slate-900 sm:text-5xl dark:text-white"
+                    class="mb-5 font-display text-4xl leading-[1.12] font-extrabold tracking-tight text-um-heading sm:text-5xl lg:text-[3.25rem]"
                 >
                     Research tracked,
-                    <span class="text-shimmer">step by step.</span>
+                    <span class="relative inline-block">
+                        step by step.
+                        <span
+                            class="absolute inset-x-0 -bottom-1 h-[3px] bg-um-gold"
+                        />
+                    </span>
                 </h1>
-
                 <p
-                    class="hero-stagger-3 mb-8 max-w-md text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400"
+                    class="mb-8 max-w-xl text-base leading-relaxed text-um-body sm:text-lg"
                 >
-                    {{
-                        branding.tagline ||
-                        'From title proposal to publication — one workflow for students, advisers, and the research office.'
-                    }}
+                    The campus research office for UM Digos College. Follow
+                    every milestone from title proposal through panel review,
+                    oral defense, and institutional publication.
                 </p>
 
                 <div
-                    class="hero-stagger-4 mb-8 flex flex-col gap-3 sm:flex-row sm:items-center"
+                    class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center"
                 >
                     <template v-if="!page.props.auth.user">
                         <Link
                             v-if="canRegister"
                             :href="register.url()"
-                            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600 active:scale-[0.98]"
+                            class="inline-flex min-h-11 items-center justify-center gap-2 rounded-[3px] bg-um-gold px-6 text-sm font-bold text-white transition hover:bg-um-gold-hover active:opacity-90"
                         >
-                            Get Started
+                            Submit research
                             <ArrowRight class="h-4 w-4" />
                         </Link>
                         <Link
                             :href="login.url()"
-                            class="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white/80 px-6 py-3 text-sm font-semibold text-slate-800 transition hover:bg-white dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:bg-slate-900"
+                            class="inline-flex min-h-11 items-center justify-center rounded-[3px] border border-um-maroon px-6 text-sm font-bold text-um-maroon transition hover:bg-um-maroon hover:text-white"
                         >
                             Sign in
                         </Link>
@@ -108,174 +129,174 @@ async function searchPaper() {
                     <Link
                         v-else
                         :href="dashboard.url()"
-                        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 transition hover:bg-teal-700 active:scale-[0.98]"
+                        class="inline-flex min-h-11 items-center justify-center gap-2 rounded-[3px] bg-um-gold px-6 text-sm font-bold text-white transition hover:bg-um-gold-hover"
                     >
-                        Go to Dashboard
+                        Go to dashboard
                         <ArrowRight class="h-4 w-4" />
                     </Link>
                 </div>
 
-                <!-- Tracking search (kept in hero per plan) -->
-                <div class="hero-stagger-5 w-full max-w-lg">
-                    <label class="sr-only" for="landing-track-id"
-                        >Paper tracking ID</label
-                    >
+                <form
+                    class="border border-black/8 bg-white p-2 shadow-sm"
+                    @submit.prevent="searchPaper"
+                >
                     <div
-                        class="flex flex-col gap-2 rounded-2xl border border-slate-200/90 bg-white/90 p-1.5 shadow-lg shadow-slate-900/5 sm:flex-row sm:items-center dark:border-slate-700/80 dark:bg-slate-900/90 dark:shadow-black/20"
+                        class="flex flex-col gap-2 sm:flex-row sm:items-center"
                     >
-                        <div class="flex min-w-0 flex-1 items-center gap-3 px-3">
+                        <label class="sr-only" for="tracking-id"
+                            >Tracking ID</label
+                        >
+                        <div
+                            class="flex min-w-0 flex-1 items-center gap-3 px-3"
+                        >
                             <Search
-                                class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500"
+                                class="h-4 w-4 shrink-0 text-um-body"
+                                aria-hidden="true"
                             />
                             <input
-                                id="landing-track-id"
+                                id="tracking-id"
                                 v-model="trackingId"
                                 type="text"
                                 placeholder="Tracking ID (e.g. RP-XXXXXXXX)"
-                                class="min-w-0 flex-1 bg-transparent py-2.5 text-base text-slate-800 placeholder-slate-400 focus:outline-none sm:text-sm dark:text-slate-200 dark:placeholder-slate-600"
-                                @keyup.enter="searchPaper"
+                                class="min-w-0 flex-1 bg-transparent py-2.5 text-base text-um-heading placeholder:text-um-body/70 focus:outline-none md:text-sm"
+                                autocomplete="off"
                             />
                         </div>
                         <button
-                            type="button"
-                            class="min-h-11 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold whitespace-nowrap text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
+                            type="submit"
                             :disabled="isSearching"
-                            @click="searchPaper"
+                            class="min-h-11 shrink-0 rounded-[3px] bg-um-maroon px-5 text-sm font-bold text-white transition hover:bg-um-maroon-deep disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {{ isSearching ? 'Searching…' : 'Track Paper' }}
+                            {{ isSearching ? 'Searching…' : 'Track paper' }}
                         </button>
                     </div>
-                    <p
-                        v-if="trackingError"
-                        class="mt-2 text-sm text-red-500"
-                        role="alert"
-                    >
-                        {{ trackingError }}
-                    </p>
-                    <p
-                        class="mt-2 text-xs text-slate-500 dark:text-slate-500"
-                    >
-                        No login required · Public tracking is anonymous
-                    </p>
-                </div>
+                </form>
+                <p v-if="trackingError" class="mt-2 text-sm text-um-maroon">
+                    {{ trackingError }}
+                </p>
+                <p class="mt-2 text-xs text-um-body">
+                    No login required · Public tracking is anonymous
+                </p>
             </div>
 
-            <!-- Full-bleed pipeline visual -->
             <div
-                class="hero-card-enter relative lg:col-span-7 lg:-mr-8 xl:-mr-16"
+                class="border-t-4 border-um-maroon bg-white p-6 shadow-sm sm:p-8"
             >
-                <div
-                    class="relative overflow-hidden border-y border-slate-200/80 bg-slate-900 text-slate-100 sm:rounded-l-3xl sm:border sm:border-r-0 dark:border-slate-700/60"
-                    aria-hidden="true"
-                >
-                    <div
-                        class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(249,115,22,0.28),transparent_55%),radial-gradient(ellipse_at_bottom_left,rgba(20,184,166,0.22),transparent_50%)]"
-                    />
-                    <div
-                        class="absolute inset-0 opacity-[0.07]"
-                        style="
-                            background-image: linear-gradient(
-                                    rgba(255, 255, 255, 0.9) 1px,
-                                    transparent 1px
-                                ),
-                                linear-gradient(
-                                    90deg,
-                                    rgba(255, 255, 255, 0.9) 1px,
-                                    transparent 1px
-                                );
-                            background-size: 48px 48px;
-                        "
-                    />
-
-                    <div class="relative px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
-                        <div class="mb-8 flex items-end justify-between gap-4">
-                            <div>
-                                <p
-                                    class="text-xs font-semibold tracking-[0.2em] text-orange-300/90 uppercase"
-                                >
-                                    Research pipeline
-                                </p>
-                                <p
-                                    class="font-display mt-1 text-2xl font-bold tracking-tight sm:text-3xl"
-                                >
-                                    Every milestone, visible
-                                </p>
-                            </div>
-                            <span
-                                class="hidden rounded-full border border-teal-400/30 bg-teal-400/10 px-3 py-1 text-xs font-semibold text-teal-300 sm:inline"
-                            >
-                                Live status
-                            </span>
-                        </div>
-
-                        <ol class="space-y-3">
-                            <li
-                                v-for="(stage, i) in pipelineStages"
-                                :key="stage.label"
-                                class="landing-pipeline-stage flex items-center gap-4 rounded-2xl border px-4 py-3.5 backdrop-blur-sm"
-                                :class="
-                                    stage.status === 'active'
-                                        ? 'border-orange-400/40 bg-orange-500/15'
-                                        : stage.status === 'done'
-                                          ? 'border-white/10 bg-white/5'
-                                          : 'border-white/5 bg-white/[0.03]'
-                                "
-                                :style="{ animationDelay: `${0.35 + i * 0.08}s` }"
-                            >
-                                <span
-                                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold"
-                                    :class="
-                                        stage.status === 'active'
-                                            ? 'bg-orange-500 text-white'
-                                            : stage.status === 'done'
-                                              ? 'bg-teal-500/90 text-white'
-                                              : 'bg-slate-700 text-slate-300'
-                                    "
-                                >
-                                    {{
-                                        stage.status === 'done'
-                                            ? '✓'
-                                            : String(i + 1).padStart(2, '0')
-                                    }}
-                                </span>
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-semibold">
-                                        {{ stage.label }}
-                                    </p>
-                                    <p
-                                        class="text-xs capitalize"
-                                        :class="
-                                            stage.status === 'active'
-                                                ? 'text-orange-200'
-                                                : 'text-slate-400'
-                                        "
-                                    >
-                                        {{
-                                            stage.status === 'done'
-                                                ? 'Completed'
-                                                : stage.status === 'active'
-                                                  ? 'In progress'
-                                                  : 'Upcoming'
-                                        }}
-                                    </p>
-                                </div>
-                                <span
-                                    v-if="stage.status === 'active'"
-                                    class="hidden h-2 w-2 shrink-0 rounded-full bg-orange-400 sm:block"
-                                    style="
-                                        box-shadow: 0 0 0 4px
-                                            rgba(249, 115, 22, 0.25);
-                                    "
-                                />
-                            </li>
-                        </ol>
-
+                <div class="mb-6 flex items-start justify-between gap-3">
+                    <div>
                         <p
-                            class="mt-8 font-mono text-[11px] tracking-wide text-slate-500"
+                            class="text-[11px] font-bold tracking-[0.16em] text-um-maroon uppercase"
                         >
-                            RP-2026-•••• · Panel review · Updated today
+                            Research pipeline
                         </p>
+                        <h2
+                            class="mt-1 font-display text-xl font-bold text-um-heading"
+                        >
+                            Every milestone, visible
+                        </h2>
                     </div>
+                    <span
+                        class="shrink-0 bg-um-gold px-2.5 py-1 text-[10px] font-bold tracking-wide text-white uppercase"
+                    >
+                        Live status
+                    </span>
+                </div>
+                <ol class="space-y-3">
+                    <li
+                        v-for="step in pipelineSteps"
+                        :key="step.n"
+                        class="flex items-center gap-3 border px-3 py-2.5"
+                        :class="
+                            step.status === 'current'
+                                ? 'border-um-maroon bg-um-wash'
+                                : 'border-black/8'
+                        "
+                    >
+                        <span
+                            v-if="step.status === 'complete'"
+                            class="flex h-8 w-8 shrink-0 items-center justify-center bg-um-gold text-white"
+                        >
+                            <Check class="h-4 w-4" stroke-width="3" />
+                        </span>
+                        <span
+                            v-else
+                            class="flex h-8 w-8 shrink-0 items-center justify-center text-xs font-bold"
+                            :class="
+                                step.status === 'current'
+                                    ? 'bg-um-maroon text-white'
+                                    : 'bg-um-wash text-um-body'
+                            "
+                        >
+                            {{ step.n }}
+                        </span>
+                        <span
+                            class="text-sm font-semibold"
+                            :class="
+                                step.status === 'upcoming'
+                                    ? 'text-um-body'
+                                    : 'text-um-heading'
+                            "
+                        >
+                            {{ step.label }}
+                        </span>
+                    </li>
+                </ol>
+                <p class="mt-5 text-xs text-um-body">
+                    RP-2026-···· · Panel review · Example pipeline
+                </p>
+            </div>
+        </div>
+
+        <div
+            ref="statsRef"
+            class="mx-auto mt-14 grid max-w-7xl grid-cols-2 gap-6 border-t border-black/8 pt-8 sm:grid-cols-4"
+        >
+            <div>
+                <div
+                    class="font-display text-2xl font-extrabold text-um-maroon tabular-nums"
+                >
+                    {{ paperCount.toLocaleString() }}+
+                </div>
+                <div
+                    class="mt-1 text-xs font-semibold tracking-wide text-um-body uppercase"
+                >
+                    Papers tracked
+                </div>
+            </div>
+            <div>
+                <div
+                    class="font-display text-2xl font-extrabold text-um-maroon tabular-nums"
+                >
+                    {{ studentCount.toLocaleString() }}+
+                </div>
+                <div
+                    class="mt-1 text-xs font-semibold tracking-wide text-um-body uppercase"
+                >
+                    Student researchers
+                </div>
+            </div>
+            <div>
+                <div
+                    class="font-display text-2xl font-extrabold text-um-maroon tabular-nums"
+                >
+                    {{ deptCount }}+
+                </div>
+                <div
+                    class="mt-1 text-xs font-semibold tracking-wide text-um-body uppercase"
+                >
+                    Departments
+                </div>
+            </div>
+            <div>
+                <div
+                    class="font-display text-2xl font-extrabold text-um-maroon tabular-nums"
+                >
+                    9
+                </div>
+                <div
+                    class="mt-1 text-xs font-semibold tracking-wide text-um-body uppercase"
+                >
+                    Research stages
                 </div>
             </div>
         </div>

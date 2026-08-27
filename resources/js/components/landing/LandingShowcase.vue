@@ -1,66 +1,65 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useBranding } from '@/composables/useBranding';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 
-const branding = useBranding();
 const { target: sectionRef, isVisible } = useScrollReveal(0.1);
-const previewTitle = computed(() => `${branding.value.name} Platform Preview`);
 </script>
 
 <template>
     <section
         id="showcase"
-        class="scroll-mt-24 overflow-hidden bg-slate-50 px-4 py-20 sm:px-6 sm:py-24 lg:px-8 dark:bg-slate-900/40"
+        class="scroll-mt-28 bg-um-wash px-4 py-20 sm:px-6 sm:py-24"
     >
         <div class="mx-auto max-w-7xl">
             <div
                 ref="sectionRef"
-                :class="[
-                    'reveal mb-12 max-w-2xl',
-                    { visible: isVisible },
-                ]"
+                :class="['reveal mb-12 text-center', { visible: isVisible }]"
             >
                 <p
-                    class="mb-3 text-sm font-semibold tracking-wide text-orange-600 uppercase dark:text-orange-400"
+                    class="mb-3 text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
                 >
-                    Platform preview
+                    Platform overview
                 </p>
                 <h2
-                    class="font-display mb-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white"
+                    class="mb-4 font-display text-3xl font-extrabold tracking-tight text-um-heading sm:text-4xl"
                 >
-                    See the workflow in motion
+                    See the research office system
                 </h2>
-                <p class="text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400">
-                    A short look at how students and faculty follow active
-                    research papers across UM Digos College.
+                <p
+                    class="mx-auto max-w-2xl text-base leading-relaxed text-um-body"
+                >
+                    A campus dashboard that gives students and faculty
+                    visibility over research papers in progress at UM Digos
+                    College.
                 </p>
             </div>
 
-            <div :class="['reveal-right', { visible: isVisible }]">
+            <div :class="['reveal', { visible: isVisible }]">
                 <div
-                    class="overflow-hidden rounded-2xl border border-slate-200/80 shadow-xl shadow-slate-900/10 dark:border-slate-700/50 dark:shadow-black/40"
+                    class="overflow-hidden border border-black/8 bg-white shadow-sm"
                 >
                     <div
-                        class="flex items-center gap-2 border-b border-slate-200/70 bg-slate-100/90 px-4 py-2.5 dark:border-slate-700/50 dark:bg-slate-900"
+                        class="flex items-center border-b border-black/8 bg-white px-4 py-2.5"
                     >
-                        <div class="flex gap-1.5" aria-hidden="true">
-                            <span class="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                            <span class="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                            <span class="h-2.5 w-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
-                        </div>
                         <p
-                            class="flex-1 text-center font-mono text-[11px] text-slate-500"
+                            class="text-[11px] font-bold tracking-[0.14em] text-um-maroon uppercase"
                         >
-                            Platform walkthrough
+                            UMRIC · research tracking
                         </p>
                     </div>
-                    <div class="relative aspect-video w-full bg-slate-900">
+                    <div class="relative w-full" style="padding-bottom: 56.25%">
                         <iframe
                             class="absolute inset-0 h-full w-full"
                             src="https://www.youtube.com/embed/o4jIKc_DIoM?rel=0&modestbranding=1"
-                            :title="previewTitle"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            title="UMRIC platform overview"
+                            allow="
+                                accelerometer;
+                                autoplay;
+                                clipboard-write;
+                                encrypted-media;
+                                gyroscope;
+                                picture-in-picture;
+                                web-share;
+                            "
                             allowfullscreen
                             loading="lazy"
                         />

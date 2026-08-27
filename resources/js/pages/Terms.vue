@@ -38,12 +38,12 @@ const lastUpdated = 'April 27, 2026';
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
                     These Terms &amp; Conditions (&ldquo;Terms&rdquo;) govern
-                    your access to and use of {{ branding.name }} (the &ldquo;Service&rdquo;),
-                    the official research-paper tracking and workflow platform
-                    &mdash; including submission, review, defense scheduling,
-                    and related tools &mdash; operated for UM Digos College and
-                    authorized users. By creating an account or using the
-                    Service, you agree to these Terms.
+                    your access to and use of {{ branding.name }} (the
+                    &ldquo;Service&rdquo;), the official research-paper tracking
+                    and workflow platform &mdash; including submission, review,
+                    defense scheduling, and related tools &mdash; operated for
+                    UM Digos College and authorized users. By creating an
+                    account or using the Service, you agree to these Terms.
                 </p>
             </section>
 
@@ -72,8 +72,8 @@ const lastUpdated = 'April 27, 2026';
                     3. Acceptable use
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    You agree to use {{ branding.name }} only for lawful, institutional
-                    purposes, including to:
+                    You agree to use {{ branding.name }} only for lawful,
+                    institutional purposes, including to:
                 </p>
                 <ul
                     class="mt-2 list-disc space-y-1.5 pl-5 text-slate-600 dark:text-slate-300"
@@ -105,9 +105,10 @@ const lastUpdated = 'April 27, 2026';
                     research, subject to institutional policies, adviser
                     agreements, and applicable law. By uploading or entering
                     content, you represent that you have the rights needed to
-                    process it in {{ branding.name }} for grading, review, defense scheduling,
-                    and related academic operations. The institution may use
-                    such content for those purposes in line with the
+                    process it in {{ branding.name }} for grading, review,
+                    defense scheduling, and related academic operations. The
+                    institution may use such content for those purposes in line
+                    with the
                     <Link
                         :href="privacy.url()"
                         class="font-semibold text-orange-600 underline decoration-dotted dark:text-orange-400"
@@ -125,12 +126,12 @@ const lastUpdated = 'April 27, 2026';
                     5. Platform role and changes
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    {{ branding.name }} provides workflow, tracking, and administrative tools;
-                    it does not replace official academic or publication
-                    decisions made by the institution. Features, workflow
-                    stages, and policies may be updated. Material changes to
-                    these Terms will be reflected on this page with an updated
-                    &ldquo;Last updated&rdquo; date.
+                    {{ branding.name }} provides workflow, tracking, and
+                    administrative tools; it does not replace official academic
+                    or publication decisions made by the institution. Features,
+                    workflow stages, and policies may be updated. Material
+                    changes to these Terms will be reflected on this page with
+                    an updated &ldquo;Last updated&rdquo; date.
                 </p>
             </section>
 

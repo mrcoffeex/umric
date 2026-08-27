@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { UserPlus, FileUp, BarChart3 } from 'lucide-vue-next';
+import { BarChart3, CheckCircle2, FileUp, UserPlus } from 'lucide-vue-next';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 
 const { target: sectionRef, isVisible } = useScrollReveal(0.1);
@@ -8,10 +8,10 @@ const steps = [
     {
         number: '01',
         icon: UserPlus,
-        title: 'Register & submit a title',
+        title: 'Register and submit a title proposal',
         description:
-            'Create your student account, file the title proposal, and notify your adviser automatically.',
-        points: [
+            'Create a student account, complete the title form, and notify the assigned adviser.',
+        highlights: [
             'Student account setup',
             'Title proposal form',
             'Adviser notification',
@@ -20,24 +20,24 @@ const steps = [
     {
         number: '02',
         icon: FileUp,
-        title: 'Upload chapters & get feedback',
+        title: 'Complete chapters and panel review',
         description:
-            'Submit work stage by stage, collect panel comments, and keep revisions in one place.',
-        points: [
-            'Chapter uploads',
-            'Panel feedback',
+            'Upload chapters and revisions stage by stage. Keep panel comments in one place.',
+        highlights: [
+            'Chapter-by-chapter upload',
+            'Panel feedback tracking',
             'Pre-defense clearance',
         ],
     },
     {
         number: '03',
         icon: BarChart3,
-        title: 'Defend & publish',
+        title: 'Defend and publish',
         description:
-            'Schedule defense, submit the final manuscript, and complete publication to the college repository.',
-        points: [
+            'Schedule oral defense, submit the final manuscript, and record the paper with the college research office.',
+        highlights: [
             'Defense scheduling',
-            'Final manuscript',
+            'Final manuscript upload',
             'Repository publication',
         ],
     },
@@ -49,74 +49,85 @@ const stepRefs = steps.map(() => useScrollReveal(0.05));
 <template>
     <section
         id="how-it-works"
-        class="scroll-mt-24 px-4 py-20 sm:px-6 sm:py-24 lg:px-8"
+        class="scroll-mt-28 bg-white px-4 py-20 sm:px-6 sm:py-24"
     >
         <div class="mx-auto max-w-7xl">
             <div
                 ref="sectionRef"
-                :class="['reveal mb-14 max-w-2xl', { visible: isVisible }]"
+                :class="['reveal mb-14 text-center', { visible: isVisible }]"
             >
                 <p
-                    class="mb-3 text-sm font-semibold tracking-wide text-orange-600 uppercase dark:text-orange-400"
+                    class="mb-3 text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
                 >
                     The research lifecycle
                 </p>
                 <h2
-                    class="font-display mb-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white"
+                    class="mb-4 font-display text-3xl font-extrabold tracking-tight text-um-heading sm:text-4xl"
                 >
                     From idea to publication
                 </h2>
-                <p class="text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400">
-                    Three clear stages guide every student from title proposal
-                    to a published research paper.
+                <p
+                    class="mx-auto max-w-2xl text-base leading-relaxed text-um-body"
+                >
+                    Three stages guide UM Digos College students from a first
+                    title proposal to a recorded research paper.
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-12 lg:grid-cols-3 lg:gap-10">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div
                     v-for="(step, i) in steps"
                     :key="step.number"
                     :ref="
                         (el) => {
-                            if (el)
+                            if (el) {
                                 stepRefs[i].target.value = el as HTMLElement;
+                            }
                         }
                     "
-                    :class="['reveal', { visible: stepRefs[i].isVisible.value }]"
-                    :style="{ transitionDelay: `${i * 100}ms` }"
+                    :class="[
+                        'reveal',
+                        { visible: stepRefs[i].isVisible.value },
+                    ]"
                 >
-                    <div class="mb-5 flex items-center gap-4">
-                        <span
-                            class="font-display text-4xl font-extrabold text-orange-500/90 tabular-nums"
-                        >
-                            {{ step.number }}
-                        </span>
-                        <span
-                            class="flex h-11 w-11 items-center justify-center rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-400"
-                        >
-                            <component :is="step.icon" class="h-5 w-5" />
-                        </span>
-                    </div>
-                    <h3
-                        class="font-display mb-3 text-xl font-bold text-slate-900 dark:text-slate-100"
+                    <article
+                        class="relative h-full border border-t-4 border-black/8 border-t-um-maroon bg-white p-7 shadow-sm"
                     >
-                        {{ step.title }}
-                    </h3>
-                    <p class="mb-5 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                        {{ step.description }}
-                    </p>
-                    <ul class="space-y-2 border-t border-slate-200/80 pt-5 dark:border-slate-800">
-                        <li
-                            v-for="point in step.points"
-                            :key="point"
-                            class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+                        <div
+                            class="mb-5 flex items-center justify-between gap-3"
                         >
+                            <div
+                                class="flex h-12 w-12 items-center justify-center bg-um-maroon text-white"
+                            >
+                                <component :is="step.icon" class="h-6 w-6" />
+                            </div>
                             <span
-                                class="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500"
-                            />
-                            {{ point }}
-                        </li>
-                    </ul>
+                                class="font-display text-2xl font-extrabold text-um-gold"
+                            >
+                                {{ step.number }}
+                            </span>
+                        </div>
+                        <h3
+                            class="mb-3 font-display text-xl font-bold text-um-heading"
+                        >
+                            {{ step.title }}
+                        </h3>
+                        <p class="mb-5 leading-relaxed text-um-body">
+                            {{ step.description }}
+                        </p>
+                        <ul class="space-y-2">
+                            <li
+                                v-for="item in step.highlights"
+                                :key="item"
+                                class="flex items-center gap-2 text-sm text-um-heading"
+                            >
+                                <CheckCircle2
+                                    class="h-4 w-4 shrink-0 text-um-gold"
+                                />
+                                {{ item }}
+                            </li>
+                        </ul>
+                    </article>
                 </div>
             </div>
         </div>

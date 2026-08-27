@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {
-    ClipboardList,
-    Users,
-    FolderOpen,
     CalendarCheck,
+    ClipboardList,
+    FolderOpen,
     GraduationCap,
     ShieldCheck,
+    Users,
 } from 'lucide-vue-next';
 import { useScrollReveal } from '@/composables/useScrollReveal';
 
@@ -16,37 +16,37 @@ const features = [
         icon: ClipboardList,
         title: 'Title proposal tracking',
         description:
-            'Submit research titles and follow approval through department and adviser review.',
+            'Submit research title proposals and monitor approval through department and adviser review.',
     },
     {
         icon: GraduationCap,
         title: 'Stage-by-stage progress',
         description:
-            'Chapters, panel review, defense, and publication — every milestone stays visible.',
+            'From title approval and chapter submissions to panel review, oral defense, and publication — every milestone is visible.',
     },
     {
         icon: Users,
-        title: 'Adviser & panel roles',
+        title: 'Adviser and panel management',
         description:
-            'Assign advisers and panel members so the right people see the right work.',
+            'Assign research advisers, add panel members, and coordinate roles across the research process.',
     },
     {
         icon: FolderOpen,
-        title: 'Document archive',
+        title: 'Chapter and document uploads',
         description:
-            'Upload chapters, manuscripts, and revisions in one organized research record.',
+            'Submit chapters, manuscripts, and revisions. Keep a complete archive of research files for the office.',
     },
     {
         icon: CalendarCheck,
         title: 'Defense scheduling',
         description:
-            'Coordinate oral and final defense dates with clear notifications for the team.',
+            'Coordinate oral and final defense schedules with panel members and stay current on upcoming dates.',
     },
     {
         icon: ShieldCheck,
-        title: 'Role-based access',
+        title: 'Secure institutional records',
         description:
-            'Students, advisers, and administrators only see what their role requires.',
+            'Role-based access keeps student, adviser, and administrator records limited to what each role needs.',
     },
 ];
 
@@ -56,55 +56,65 @@ const cardRefs = features.map(() => useScrollReveal(0.05));
 <template>
     <section
         id="features"
-        class="scroll-mt-24 px-4 py-20 sm:px-6 sm:py-24 lg:px-8"
+        class="scroll-mt-28 bg-white px-4 py-20 sm:px-6 sm:py-24"
     >
         <div class="mx-auto max-w-7xl">
             <div
                 ref="titleRef"
-                :class="['reveal mb-14 max-w-2xl', { visible: titleVisible }]"
+                :class="['reveal mb-14 text-center', { visible: titleVisible }]"
             >
                 <p
-                    class="mb-3 text-sm font-semibold tracking-wide text-teal-700 uppercase dark:text-teal-400"
+                    class="mb-3 text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
                 >
-                    Capabilities
+                    Research process
                 </p>
                 <h2
-                    class="font-display mb-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white"
+                    class="mb-4 font-display text-3xl font-extrabold tracking-tight text-um-heading sm:text-4xl"
                 >
                     Built for every research stage
                 </h2>
-                <p class="text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400">
-                    Features map to the UM Digos College research workflow —
-                    from the first title idea to institutional publication.
+                <p
+                    class="mx-auto max-w-2xl text-base leading-relaxed text-um-body"
+                >
+                    Each tool maps to the UM Digos College research paper
+                    workflow — from an initial title to an officially recorded
+                    paper.
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <div
                     v-for="(feature, i) in features"
                     :key="feature.title"
                     :ref="
                         (el) => {
-                            if (el)
+                            if (el) {
                                 cardRefs[i].target.value = el as HTMLElement;
+                            }
                         }
                     "
-                    :class="['reveal', { visible: cardRefs[i].isVisible.value }]"
-                    :style="{ transitionDelay: `${i * 60}ms` }"
+                    :class="[
+                        'reveal',
+                        { visible: cardRefs[i].isVisible.value },
+                    ]"
                 >
-                    <div
-                        class="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-orange-500/10 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400"
+                    <article
+                        class="h-full border border-t-4 border-black/8 border-t-um-maroon bg-white p-6 shadow-sm"
                     >
-                        <component :is="feature.icon" class="h-5 w-5" />
-                    </div>
-                    <h3
-                        class="font-display mb-2 text-lg font-bold text-slate-900 dark:text-slate-100"
-                    >
-                        {{ feature.title }}
-                    </h3>
-                    <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                        {{ feature.description }}
-                    </p>
+                        <div
+                            class="mb-4 flex h-10 w-10 items-center justify-center bg-um-maroon text-white"
+                        >
+                            <component :is="feature.icon" class="h-5 w-5" />
+                        </div>
+                        <h3
+                            class="mb-2 font-display text-lg font-bold text-um-heading"
+                        >
+                            {{ feature.title }}
+                        </h3>
+                        <p class="text-sm leading-relaxed text-um-body">
+                            {{ feature.description }}
+                        </p>
+                    </article>
                 </div>
             </div>
         </div>

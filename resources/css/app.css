@@ -347,8 +347,18 @@ html {
     --font-sans:
         'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
         'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-    --font-display:
-        'Bricolage Grotesque', 'Figtree', ui-sans-serif, system-ui, sans-serif;
+    --font-display: Montserrat, Figtree, ui-sans-serif, system-ui, sans-serif;
+    --font-landing: Montserrat, Figtree, ui-sans-serif, system-ui, sans-serif;
+
+    /* Official UM Digos College tokens (digos.umindanao.edu.ph) */
+    --color-um-maroon: #be0002;
+    --color-um-maroon-deep: #9a0002;
+    --color-um-gold: #ffb600;
+    --color-um-gold-hover: #e5a400;
+    --color-um-wash: #faf9fb;
+    --color-um-body: #8d8d8d;
+    --color-um-heading: #000000;
+    --color-um-navy: #1d3557;
 
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
@@ -426,10 +436,11 @@ html {
     body,
     html {
         --font-sans:
-            'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
-            'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+            'Figtree', ui-sans-serif, system-ui, sans-serif,
+            'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+            'Noto Color Emoji';
         --font-display:
-            'Bricolage Grotesque', 'Figtree', ui-sans-serif, system-ui, sans-serif;
+            Montserrat, Figtree, ui-sans-serif, system-ui, sans-serif;
     }
 
     .font-display {
@@ -495,15 +506,14 @@ html {
 }
 
 :root {
-    /* Brand primitives — optional overrides via VITE_BRAND_* (see resources/js/lib/applyBrandColorVariables.ts) */
-    --brand-primary: #f97316;
+    /* UM Digos College — official maroon / gold. Optional overrides via VITE_BRAND_* */
+    --brand-primary: #be0002;
     --brand-on-primary: #ffffff;
-    --brand-secondary: #14b8a6;
-    --brand-on-secondary: #042f2e;
-    --brand-ring: #f97316;
-    /* Optional warm surface for “muted” regions; not used for all body text */
-    --brand-muted: #fff7ed;
-    --brand-on-muted: #9a3412;
+    --brand-secondary: #ffb600;
+    --brand-on-secondary: #ffffff;
+    --brand-ring: #be0002;
+    --brand-muted: #faf9fb;
+    --brand-on-muted: #000000;
 
     --background: hsl(0 0% 100%);
     --foreground: hsl(0 0% 3.9%);
@@ -572,7 +582,7 @@ html {
     --primary-foreground: var(--brand-on-primary);
 
     --secondary: color-mix(in srgb, var(--brand-secondary) 24%, hsl(0 0% 10%));
-    --secondary-foreground: #ecfdf5;
+    --secondary-foreground: #ffffff;
 
     --muted: color-mix(in srgb, var(--brand-primary) 8%, hsl(0 0% 16.08%));
     --muted-foreground: hsl(0 0% 63.9%);
@@ -620,6 +630,32 @@ html {
     @media (prefers-reduced-motion: reduce) {
         html {
             scroll-behavior: auto;
+        }
+
+        .animate-blob,
+        .animate-float,
+        .animate-float-slow,
+        .animate-ticker,
+        .animate-spin-slow,
+        .animate-pulse-ring,
+        .animate-gradient-shift,
+        .text-shimmer,
+        .step-connector-animated,
+        .hero-stagger-1,
+        .hero-stagger-2,
+        .hero-stagger-3,
+        .hero-stagger-4,
+        .hero-stagger-5,
+        .hero-card-enter {
+            animation: none !important;
+        }
+
+        .reveal,
+        .reveal-left,
+        .reveal-right {
+            opacity: 1;
+            transform: none;
+            transition: none;
         }
     }
 }

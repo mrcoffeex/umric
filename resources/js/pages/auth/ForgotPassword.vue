@@ -24,13 +24,8 @@ defineProps<{
 
     <!-- Heading -->
     <div class="mb-8 flex flex-col items-center gap-3 text-center">
-        <div
-            class="rounded-full bg-gradient-to-br from-orange-50 to-orange-100 p-3 dark:from-orange-900/20 dark:to-orange-800/20"
-        >
-            <Key
-                class="h-6 w-6 text-orange-600 dark:text-orange-400"
-                :stroke-width="2"
-            />
+        <div class="rounded-[3px] bg-um-maroon/10 p-3">
+            <Key class="h-6 w-6 text-primary" :stroke-width="2" />
         </div>
         <div>
             <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -74,7 +69,7 @@ defineProps<{
                     :class="
                         errors.email
                             ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20 dark:border-red-500'
-                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-400/20 dark:border-gray-600'
+                            : 'border-gray-200 focus:border-primary focus:ring-primary/20 dark:border-gray-600'
                     "
                 />
                 <InputError :message="errors.email" />
@@ -84,8 +79,7 @@ defineProps<{
             <button
                 type="submit"
                 :disabled="processing"
-                class="relative mt-2 flex h-11 w-full items-center justify-center rounded-lg font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:opacity-60"
-                style="background: linear-gradient(135deg, #f97316, #ea580c)"
+                class="relative mt-2 flex h-11 w-full items-center justify-center rounded-[3px] bg-primary font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-60"
                 data-test="email-password-reset-link-button"
             >
                 <Spinner v-if="processing" class="mr-2" />
@@ -101,7 +95,7 @@ defineProps<{
                 Remember your password?
                 <TextLink
                     :href="login()"
-                    class="font-medium text-orange-600 hover:text-orange-500 dark:text-orange-400"
+                    class="font-medium text-primary hover:text-primary/80"
                 >
                     Back to sign in
                 </TextLink>

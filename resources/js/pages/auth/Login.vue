@@ -110,7 +110,7 @@ function redirectToGoogle() {
                     :class="
                         errors.email || props.status
                             ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20 dark:border-red-500'
-                            : 'border-gray-200 focus:border-orange-400 focus:ring-orange-400/20 dark:border-gray-700'
+                            : 'border-gray-200 focus:border-primary focus:ring-primary/20 dark:border-gray-700'
                     "
                 />
             </div>
@@ -129,7 +129,7 @@ function redirectToGoogle() {
                 <TextLink
                     v-if="canResetPassword"
                     :href="request()"
-                    class="text-xs text-orange-600 hover:text-orange-500 dark:text-orange-400"
+                    class="text-xs text-primary hover:text-primary/80"
                     :tabindex="5"
                 >
                     Forgot password?
@@ -161,8 +161,7 @@ function redirectToGoogle() {
         <!-- Submit -->
         <Button
             type="submit"
-            class="h-11 w-full rounded-xl font-semibold text-white shadow-sm"
-            style="background: linear-gradient(135deg, #f97316, #ea580c)"
+            class="h-11 w-full rounded-[3px] font-semibold"
             :tabindex="4"
             :disabled="processing"
             data-test="login-button"
@@ -180,7 +179,7 @@ function redirectToGoogle() {
             <TextLink
                 :href="register()"
                 :tabindex="5"
-                class="font-semibold text-orange-600 hover:text-orange-500 dark:text-orange-400"
+                class="font-semibold text-primary hover:text-primary/80"
             >
                 Sign up
             </TextLink>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { Mail, MapPin, Clock, Send, CheckCircle } from 'lucide-vue-next';
+import { CheckCircle, Clock, Mail, MapPin, Send } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useBranding } from '@/composables/useBranding';
 import { useScrollReveal } from '@/composables/useScrollReveal';
@@ -40,7 +40,6 @@ const contactInfo = [
         icon: Mail,
         label: 'Email',
         value: 'research@umdigos.edu.ph',
-        href: 'mailto:research@umdigos.edu.ph',
     },
     {
         icon: MapPin,
@@ -53,34 +52,33 @@ const contactInfo = [
         value: 'Monday – Friday, 8:00 AM – 5:00 PM',
     },
 ];
-
-const fieldClass =
-    'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 placeholder-slate-400 transition focus:border-orange-400 focus:ring-2 focus:ring-orange-400/40 focus:outline-none md:text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:placeholder-slate-600';
 </script>
 
 <template>
     <section
         id="contact"
-        class="scroll-mt-24 px-4 py-20 sm:px-6 sm:py-24 lg:px-8"
+        class="scroll-mt-28 bg-white px-4 py-20 sm:px-6 sm:py-24"
     >
         <div class="mx-auto max-w-7xl">
             <div
                 ref="sectionRef"
-                :class="['reveal mb-12 max-w-2xl', { visible: isVisible }]"
+                :class="['reveal mb-14 text-center', { visible: isVisible }]"
             >
                 <p
-                    class="mb-3 text-sm font-semibold tracking-wide text-orange-600 uppercase dark:text-orange-400"
+                    class="mb-3 text-[11px] font-bold tracking-[0.18em] text-um-maroon uppercase"
                 >
-                    Contact
+                    Contact the office
                 </p>
                 <h2
-                    class="font-display mb-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-white"
+                    class="mb-4 font-display text-3xl font-extrabold tracking-tight text-um-heading sm:text-4xl"
                 >
                     Questions about {{ branding.name }}?
                 </h2>
-                <p class="text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400">
-                    Reach the UM Digos College Research Office and we’ll respond
-                    as soon as we can.
+                <p
+                    class="mx-auto max-w-2xl text-base leading-relaxed text-um-body"
+                >
+                    Reach the UM Digos College Research Office and we will
+                    respond as soon as we can.
                 </p>
             </div>
 
@@ -90,41 +88,32 @@ const fieldClass =
                     { visible: isVisible },
                 ]"
             >
-                <div class="space-y-6 lg:col-span-2">
+                <div class="space-y-4 lg:col-span-2">
                     <div
                         v-for="info in contactInfo"
                         :key="info.label"
-                        class="flex gap-4"
+                        class="flex items-start gap-4 border border-l-4 border-black/8 border-l-um-maroon bg-um-wash p-5"
                     >
                         <div
-                            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-orange-600 dark:bg-slate-800 dark:text-orange-400"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center bg-um-maroon text-white"
                         >
                             <component :is="info.icon" class="h-5 w-5" />
                         </div>
                         <div>
-                            <p
-                                class="mb-1 text-xs font-semibold tracking-wider text-slate-400 uppercase"
+                            <div
+                                class="mb-1 text-[11px] font-bold tracking-[0.14em] text-um-maroon uppercase"
                             >
                                 {{ info.label }}
-                            </p>
-                            <a
-                                v-if="info.href"
-                                :href="info.href"
-                                class="text-sm font-medium text-slate-800 underline-offset-2 hover:underline dark:text-slate-200"
+                            </div>
+                            <div
+                                class="text-sm leading-relaxed font-medium text-um-heading"
                             >
                                 {{ info.value }}
-                            </a>
-                            <p
-                                v-else
-                                class="text-sm leading-relaxed font-medium text-slate-800 dark:text-slate-200"
-                            >
-                                {{ info.value }}
-                            </p>
+                            </div>
                         </div>
                     </div>
-
                     <p
-                        class="border-l-2 border-orange-400 pl-4 text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+                        class="border border-black/8 bg-um-wash p-5 text-sm leading-relaxed text-um-body"
                     >
                         For account issues, contact your department’s research
                         coordinator directly.
@@ -133,31 +122,29 @@ const fieldClass =
 
                 <div class="lg:col-span-3">
                     <div
-                        class="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 dark:border-slate-800 dark:bg-slate-950"
+                        class="border border-t-4 border-black/8 border-t-um-maroon bg-white p-6 shadow-sm sm:p-8"
                     >
                         <div
                             v-if="submitted"
-                            class="flex flex-col items-center gap-4 py-10 text-center"
+                            class="flex flex-col items-center justify-center gap-4 py-12 text-center"
                         >
                             <div
-                                class="flex h-14 w-14 items-center justify-center rounded-full bg-teal-100 dark:bg-teal-950/50"
+                                class="flex h-14 w-14 items-center justify-center bg-um-gold text-white"
                             >
-                                <CheckCircle
-                                    class="h-7 w-7 text-teal-600 dark:text-teal-400"
-                                />
+                                <CheckCircle class="h-7 w-7" />
                             </div>
                             <h3
-                                class="font-display text-xl font-bold text-slate-900 dark:text-white"
+                                class="font-display text-xl font-bold text-um-heading"
                             >
                                 Message sent
                             </h3>
-                            <p class="max-w-sm text-slate-600 dark:text-slate-400">
-                                Thank you. The Research Office typically
-                                responds within 1–2 business days.
+                            <p class="max-w-sm text-um-body">
+                                Thank you. The UM Digos Research Office will
+                                respond within 1–2 business days.
                             </p>
                             <button
                                 type="button"
-                                class="mt-1 min-h-11 text-sm font-semibold text-orange-600 hover:underline dark:text-orange-400"
+                                class="mt-2 text-sm font-bold text-um-maroon hover:underline"
                                 @click="sendAnother"
                             >
                                 Send another message
@@ -172,9 +159,9 @@ const fieldClass =
                             <div class="grid gap-5 sm:grid-cols-2">
                                 <div>
                                     <label
-                                        class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
+                                        class="mb-1.5 block text-sm font-semibold text-um-heading"
                                         >Full name
-                                        <span class="text-orange-500"
+                                        <span class="text-um-maroon"
                                             >*</span
                                         ></label
                                     >
@@ -182,21 +169,20 @@ const fieldClass =
                                         v-model="form.name"
                                         type="text"
                                         placeholder="e.g. Juan dela Cruz"
-                                        :class="fieldClass"
-                                        autocomplete="name"
+                                        class="w-full rounded-[3px] border border-black/15 bg-um-wash px-4 py-3 text-base text-um-heading transition placeholder:text-um-body/70 focus:border-um-maroon focus:ring-2 focus:ring-um-maroon/15 focus:outline-none md:text-sm"
                                     />
                                     <p
                                         v-if="form.errors.name"
-                                        class="mt-1 text-sm text-red-600"
+                                        class="mt-1 text-sm text-um-maroon"
                                     >
                                         {{ form.errors.name }}
                                     </p>
                                 </div>
                                 <div>
                                     <label
-                                        class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
-                                        >Email
-                                        <span class="text-orange-500"
+                                        class="mb-1.5 block text-sm font-semibold text-um-heading"
+                                        >Email address
+                                        <span class="text-um-maroon"
                                             >*</span
                                         ></label
                                     >
@@ -204,12 +190,11 @@ const fieldClass =
                                         v-model="form.email"
                                         type="email"
                                         placeholder="you@umdigos.edu.ph"
-                                        :class="fieldClass"
-                                        autocomplete="email"
+                                        class="w-full rounded-[3px] border border-black/15 bg-um-wash px-4 py-3 text-base text-um-heading transition placeholder:text-um-body/70 focus:border-um-maroon focus:ring-2 focus:ring-um-maroon/15 focus:outline-none md:text-sm"
                                     />
                                     <p
                                         v-if="form.errors.email"
-                                        class="mt-1 text-sm text-red-600"
+                                        class="mt-1 text-sm text-um-maroon"
                                     >
                                         {{ form.errors.email }}
                                     </p>
@@ -218,12 +203,12 @@ const fieldClass =
 
                             <div>
                                 <label
-                                    class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
+                                    class="mb-1.5 block text-sm font-semibold text-um-heading"
                                     >Role</label
                                 >
                                 <FormSelect
                                     v-model="form.role"
-                                    :class="fieldClass"
+                                    class="w-full rounded-[3px] border border-black/15 bg-um-wash px-4 py-3 text-base text-um-heading transition focus:border-um-maroon focus:ring-2 focus:ring-um-maroon/15 focus:outline-none md:text-sm"
                                 >
                                     <option value="" disabled>
                                         Select your role
@@ -241,7 +226,7 @@ const fieldClass =
                                 </FormSelect>
                                 <p
                                     v-if="form.errors.role"
-                                    class="mt-1 text-sm text-red-600"
+                                    class="mt-1 text-sm text-um-maroon"
                                 >
                                     {{ form.errors.role }}
                                 </p>
@@ -249,21 +234,19 @@ const fieldClass =
 
                             <div>
                                 <label
-                                    class="mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300"
+                                    class="mb-1.5 block text-sm font-semibold text-um-heading"
                                     >Message
-                                    <span class="text-orange-500"
-                                        >*</span
-                                    ></label
+                                    <span class="text-um-maroon">*</span></label
                                 >
                                 <textarea
                                     v-model="form.message"
                                     rows="5"
-                                    placeholder="Describe your question or concern…"
-                                    :class="fieldClass + ' resize-none'"
+                                    placeholder="Describe your concern or question..."
+                                    class="w-full resize-none rounded-[3px] border border-black/15 bg-um-wash px-4 py-3 text-base text-um-heading transition placeholder:text-um-body/70 focus:border-um-maroon focus:ring-2 focus:ring-um-maroon/15 focus:outline-none md:text-sm"
                                 />
                                 <p
                                     v-if="form.errors.message"
-                                    class="mt-1 text-sm text-red-600"
+                                    class="mt-1 text-sm text-um-maroon"
                                 >
                                     {{ form.errors.message }}
                                 </p>
@@ -271,13 +254,13 @@ const fieldClass =
 
                             <button
                                 type="submit"
-                                class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-orange-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.99]"
                                 :disabled="
                                     form.processing ||
                                     !form.name ||
                                     !form.email ||
                                     !form.message
                                 "
+                                class="flex min-h-11 w-full items-center justify-center gap-2 rounded-[3px] bg-um-gold px-6 text-base font-bold text-white transition hover:bg-um-gold-hover active:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <Send class="h-4 w-4" />
                                 {{

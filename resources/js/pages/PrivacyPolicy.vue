@@ -37,11 +37,12 @@ const lastUpdated = 'April 27, 2026';
                     1. Scope
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    This Privacy Policy explains how {{ branding.name }} collects, uses,
-                    stores, and protects personal information in connection with
-                    the research workflow platform operated for UM Digos
-                    College. It applies to students, faculty, staff, and
-                    administrators who use the Service.
+                    This Privacy Policy explains how
+                    {{ branding.name }} collects, uses, stores, and protects
+                    personal information in connection with the research
+                    workflow platform operated for UM Digos College. It applies
+                    to students, faculty, staff, and administrators who use the
+                    Service.
                 </p>
             </section>
 
@@ -125,8 +126,8 @@ const lastUpdated = 'April 27, 2026';
                     applicable data protection rules (including the Data Privacy
                     Act of 2012 in the Philippines, as relevant). The
                     institution is responsible for official policies and
-                    requests concerning academic records; use {{ branding.name }} in
-                    accordance with those policies.
+                    requests concerning academic records; use
+                    {{ branding.name }} in accordance with those policies.
                 </p>
             </section>
 
@@ -200,12 +201,12 @@ const lastUpdated = 'April 27, 2026';
                     9. Cookies and local storage
                 </h2>
                 <p class="mt-2 text-slate-600 dark:text-slate-300">
-                    {{ branding.name }} and its hosting stack may use cookies or similar
-                    technologies that are necessary for security, sessions, and
-                    preferences (for example, staying signed in, theme, or
-                    application state). You can control browser cookies through
-                    your device settings; disabling essential cookies may affect
-                    sign-in or functionality.
+                    {{ branding.name }} and its hosting stack may use cookies or
+                    similar technologies that are necessary for security,
+                    sessions, and preferences (for example, staying signed in,
+                    theme, or application state). You can control browser
+                    cookies through your device settings; disabling essential
+                    cookies may affect sign-in or functionality.
                 </p>
             </section>
 
