@@ -14,11 +14,11 @@ class ProductionSchoolClassSeeder extends Seeder
      */
     public function run(): void
     {
-        $schoolYear = (string) env('SEED_CLASS_SCHOOL_YEAR', '2025-2026');
-        $semester = (int) env('SEED_CLASS_SEMESTER', 1);
-        $programCode = (string) env('SEED_CLASS_PROGRAM', 'BSIT');
-        $yearLevel = (int) env('SEED_CLASS_YEAR_LEVEL', 4);
-        $section = strtoupper((string) env('SEED_CLASS_SECTION', 'A'));
+        $schoolYear = (string) config('seeding.class.school_year', '2025-2026');
+        $semester = (int) config('seeding.class.semester', 1);
+        $programCode = (string) config('seeding.class.program', 'BSIT');
+        $yearLevel = (int) config('seeding.class.year_level', 4);
+        $section = strtoupper((string) config('seeding.class.section', 'A'));
 
         $program = Program::query()->where('code', $programCode)->where('is_active', true)->first();
 

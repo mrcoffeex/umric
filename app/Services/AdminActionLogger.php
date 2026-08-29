@@ -19,6 +19,8 @@ class AdminActionLogger
 
     public const ACTION_RESTORE = 'restored';
 
+    public const ACTION_BACKUP = 'backed_up';
+
     public const ACTION_APPROVE = 'approved';
 
     public const ACTION_REJECT = 'rejected';
@@ -69,9 +71,13 @@ class AdminActionLogger
             );
         }
 
-        $activity = Activity::causedBy($this->admin)
-            ->performedOn($this->subject)
-            ->event($action);
+        $activity = Activity::causedBy($this->admin);
+
+        if ($this->subject !== null) {
+            $activity->performedOn($this->subject);
+        }
+
+        $activity->event($action);
 
         if (! empty($this->properties)) {
             $activity->withProperties($this->properties);

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\DocumentTransmission;
 use App\Services\BrandingService;
+use App\Services\MaintenanceService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -39,6 +40,7 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
         $branding = app(BrandingService::class)->inertiaProps();
+        $maintenance = app(MaintenanceService::class)->inertiaProps();
 
         return [
             ...parent::share($request),
@@ -47,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'tagline' => $branding['tagline'],
                 'logoUrl' => $branding['logoUrl'],
             ],
+            'maintenance' => $maintenance,
             'auth' => [
                 'user' => $user ? array_merge($user->toArray(), [
                     'role' => $user->role(),

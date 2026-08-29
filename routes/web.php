@@ -4,11 +4,13 @@ use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AgendaController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ApproveUserController;
+use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\DefenseCalendarController as AdminDefenseCalendarController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\EvaluationCriteriaController;
 use App\Http\Controllers\Admin\EvaluationFormatController;
+use App\Http\Controllers\Admin\MaintenanceController as AdminMaintenanceController;
 use App\Http\Controllers\Admin\ProgramController;
 use App\Http\Controllers\Admin\ResearchController;
 use App\Http\Controllers\Admin\SchoolClassController;
@@ -23,6 +25,7 @@ use App\Http\Controllers\DocumentTransmissionController;
 use App\Http\Controllers\Faculty\AllResearchController;
 use App\Http\Controllers\Faculty\ClassJoinController;
 use App\Http\Controllers\Faculty\DefenseCalendarController as FacultyDefenseCalendarController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PanelDefenseEvaluationController;
 use App\Http\Controllers\ResearchPaperController;
@@ -75,6 +78,8 @@ Route::post('contact', [ContactController::class, 'store'])->name('contact.store
 Route::get('/registration-pending', function () {
     return Inertia::render('auth/RegistrationPending');
 })->name('registration.pending')->middleware('guest');
+
+Route::middleware(['auth'])->get('/maintenance', [MaintenanceController::class, 'show'])->name('maintenance');
 
 Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
@@ -135,10 +140,21 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
         Route::post('users/{user}/approve', [ApproveUserController::class, 'approve'])->name('users.approve');
         Route::post('users/{user}/reject', [ApproveUserController::class, 'reject'])->name('users.reject');
 
-        // Admin-only: user management
+        // Admin-only: user management + system maintenance
         Route::middleware('can:adminOnly,App\Models\User')->group(function () {
             Route::resource('users', UserController::class)->except(['edit', 'show']);
             Route::post('users/{user}/block', [UserController::class, 'block'])->name('users.block');
+
+            Route::get('maintenance', [AdminMaintenanceController::class, 'index'])->name('maintenance.index');
+            Route::put('maintenance', [AdminMaintenanceController::class, 'update'])->name('maintenance.update');
+
+            Route::get('backups', [BackupController::class, 'index'])->name('backups.index');
+            Route::post('backups', [BackupController::class, 'store'])->name('backups.store');
+            Route::put('backups/schedule', [BackupController::class, 'updateSchedule'])->name('backups.schedule');
+            Route::post('backups/restore-upload', [BackupController::class, 'restoreUpload'])->name('backups.restore-upload');
+            Route::get('backups/{backup}/download', [BackupController::class, 'download'])->name('backups.download');
+            Route::post('backups/{backup}/restore', [BackupController::class, 'restore'])->name('backups.restore');
+            Route::delete('backups/{backup}', [BackupController::class, 'destroy'])->name('backups.destroy');
         });
 
         // Admin Defense Calendar

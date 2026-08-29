@@ -28,6 +28,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             branding: { tagline: string | null; logoUrl: string | null };
+            maintenance: { enabled: boolean; message: string };
             auth: Auth;
             documentHandoffs: { incomingPending: number };
             notifications: { unreadCount: number };

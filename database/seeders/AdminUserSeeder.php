@@ -18,9 +18,9 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        $name = (string) env('SEED_ADMIN_NAME', 'System Administrator');
-        $email = strtolower(trim((string) env('SEED_ADMIN_EMAIL', 'admin@umdcric.com')));
-        $password = (string) env('SEED_ADMIN_PASSWORD', 'ChangeMe!Admin123');
+        $name = (string) config('seeding.admin.name', 'System Administrator');
+        $email = strtolower(trim((string) config('seeding.admin.email', 'admin@umdcric.com')));
+        $password = (string) config('seeding.admin.password', 'ChangeMe!Admin123');
 
         if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->command?->error('SEED_ADMIN_EMAIL must be a valid email address.');

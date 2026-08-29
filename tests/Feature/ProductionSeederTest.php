@@ -17,16 +17,15 @@ beforeEach(function () {
 test('production seeder creates admin reference data evaluation formats and one class', function () {
     config([
         'app.env' => 'testing',
+        'seeding.admin.name' => 'Production Admin',
+        'seeding.admin.email' => 'admin@umdcric.com',
+        'seeding.admin.password' => 'SecureAdminPass1!',
+        'seeding.class.program' => 'BSIT',
+        'seeding.class.year_level' => 4,
+        'seeding.class.section' => 'A',
+        'seeding.class.school_year' => '2025-2026',
+        'seeding.class.semester' => 1,
     ]);
-
-    putenv('SEED_ADMIN_NAME=Production Admin');
-    putenv('SEED_ADMIN_EMAIL=admin@umdcric.com');
-    putenv('SEED_ADMIN_PASSWORD=SecureAdminPass1!');
-    putenv('SEED_CLASS_PROGRAM=BSIT');
-    putenv('SEED_CLASS_YEAR_LEVEL=4');
-    putenv('SEED_CLASS_SECTION=A');
-    putenv('SEED_CLASS_SCHOOL_YEAR=2025-2026');
-    putenv('SEED_CLASS_SEMESTER=1');
 
     $this->seed(ProductionSeeder::class);
 

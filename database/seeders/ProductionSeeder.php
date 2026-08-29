@@ -10,7 +10,7 @@ use Illuminate\Database\Seeder;
  * Run:
  *   php artisan db:seed --class=ProductionSeeder --force
  *
- * Configure admin credentials with SEED_ADMIN_* env vars (see .env.example).
+ * Configure admin credentials with SEED_ADMIN_* env vars (see .env.example / config/seeding.php).
  */
 class ProductionSeeder extends Seeder
 {

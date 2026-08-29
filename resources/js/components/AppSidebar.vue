@@ -6,6 +6,8 @@ import {
     CalendarDays,
     ClipboardList,
     Clock,
+    Construction,
+    DatabaseBackup,
     ListChecks,
     SlidersHorizontal,
     ExternalLink,
@@ -141,6 +143,16 @@ const adminOnlyItems: NavItem[] = [
         href: admin.activityLogs.index(),
         icon: Clock,
     },
+    {
+        title: 'Maintenance mode',
+        href: admin.maintenance.index.url(),
+        icon: Construction,
+    },
+    {
+        title: 'Backup & Restore',
+        href: admin.backups.index.url(),
+        icon: DatabaseBackup,
+    },
 ];
 
 const facultyNavItems = computed(() =>
@@ -235,7 +247,7 @@ const studentNavItems = computed(() =>
             <NavMain
                 v-if="isAdminOnly"
                 :items="adminOnlyItems"
-                label="User Management"
+                label="System"
             />
             <NavMain
                 v-if="isFaculty"

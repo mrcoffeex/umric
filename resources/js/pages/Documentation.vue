@@ -92,7 +92,7 @@ const roleGuides = [
         items: [
             'Oversee the full research list: assignments, SDG/agenda tags, panel defense rows, and step updates with full auditability.',
             'Configure master data (departments, programs, subjects, SDGs, agendas), classes, announcements, and evaluation formats with criteria for defenses.',
-            'Use Defense Calendar, approve pending registrations, review System Logs, and manage Handoffs; sensitive admin actions are throttled and logged.',
+            'Use Defense Calendar, approve pending registrations, review System Logs, run Backup & Restore, and manage Handoffs; sensitive admin actions are throttled and logged.',
         ],
     },
 ];

@@ -52,6 +52,7 @@ createInertiaApp({
             case name === 'PrivacyPolicy':
                 return PublicInfoLayout;
             case name.startsWith('auth/'):
+            case name === 'Maintenance':
                 return AuthLayout;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
