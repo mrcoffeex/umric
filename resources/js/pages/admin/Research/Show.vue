@@ -31,6 +31,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
 import InputError from '@/components/InputError.vue';
 import MultiSelect from '@/components/MultiSelect.vue';
+import ResearchStepTiles from '@/components/research/ResearchStepTiles.vue';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/composables/useConfirm';
@@ -40,8 +41,12 @@ import {
     workflowFocusStepKey,
     workflowProgressPercent,
 } from '@/lib/research-workflow-ui';
-import type { WorkflowStepKey } from '@/lib/research-workflow-ui';
 import { getStepBadgeClass } from '@/lib/step-colors';
+import {
+    statusButtonClass
+    
+} from '@/lib/workflow-step-config';
+import type {WorkflowStepSetup} from '@/lib/workflow-step-config';
 import {
     index as researchIndex,
     updateStep as updateStepRoute,
@@ -124,6 +129,11 @@ interface Paper {
     step_final_defense?: string | null;
     final_defense_schedule?: string | null;
     step_hard_bound?: string | null;
+    custom_step_statuses?: Record<string, string | null> | null;
+    step_input_values?: Record<
+        string,
+        Record<string, string | number | null>
+    > | null;
     student?: { id: string; name: string; email?: string } | null;
     adviser?: { id: string; name: string } | null;
     statistician?: { id: string; name: string } | null;
@@ -136,6 +146,7 @@ interface Props {
     trackingRecords?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
+    stepConfigs?: Record<string, WorkflowStepSetup>;
     sdgs: Array<{ id: string; name: string; number?: number; color?: string }>;
     agendas: Array<{ id: string; name: string }>;
     facultyUsers: Array<{ id: string; name: string }>;
@@ -168,12 +179,16 @@ const trackingUrl = computed(() => {
 });
 
 const workflowFocusIndex = computed(() =>
-    firstPendingWorkflowStepIndex(props.paper),
+    firstPendingWorkflowStepIndex(props.paper, props.steps, props.stepConfigs),
 );
 
-const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
+const focusStepKey = computed(() =>
+    workflowFocusStepKey(props.paper, props.steps, props.stepConfigs),
+);
 
-const progressPercent = computed(() => workflowProgressPercent(props.paper));
+const progressPercent = computed(() =>
+    workflowProgressPercent(props.paper, props.steps, props.stepConfigs),
+);
 
 interface ProponentSlot {
     id: string;
@@ -345,13 +360,18 @@ const timeline = computed(() => {
 const stepDetails = computed(() => {
     const p = props.paper;
 
-    return [
+    const catalog = [
         {
             key: 'title_proposal',
             icon: Send,
             status: 'Submitted',
             statusType: 'success' as const,
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'title_proposal',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'ric_review',
@@ -363,6 +383,11 @@ const stepDetails = computed(() => {
                 ['rejected', 'returned'],
             ),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'ric_review',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'outline_defense',
@@ -376,6 +401,11 @@ const stepDetails = computed(() => {
             info: p.outline_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.outline_defense_schedule)}`
                 : null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'outline_defense',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'data_gathering',
@@ -383,6 +413,11 @@ const stepDetails = computed(() => {
             status: statusLabel(p.step_data_gathering),
             statusType: statusType(p.step_data_gathering, ['completed'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'data_gathering',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'rating',
@@ -393,6 +428,7 @@ const stepDetails = computed(() => {
                     : statusLabel(p.step_rating),
             statusType: statusType(p.step_rating, ['rated'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(p, 'rating', props.stepConfigs),
         },
         {
             key: 'final_manuscript',
@@ -400,6 +436,11 @@ const stepDetails = computed(() => {
             status: statusLabel(p.step_final_manuscript),
             statusType: statusType(p.step_final_manuscript, ['submitted'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'final_manuscript',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'final_defense',
@@ -413,6 +454,11 @@ const stepDetails = computed(() => {
             info: p.final_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.final_defense_schedule)}`
                 : null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'final_defense',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'hard_bound',
@@ -420,6 +466,11 @@ const stepDetails = computed(() => {
             status: statusLabel(p.step_hard_bound),
             statusType: statusType(p.step_hard_bound, ['submitted'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'hard_bound',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'completed',
@@ -430,120 +481,123 @@ const stepDetails = computed(() => {
                     ? ('success' as const)
                     : ('neutral' as const),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'completed',
+                props.stepConfigs,
+            ),
         },
     ];
+
+    const byKey = Object.fromEntries(catalog.map((step) => [step.key, step]));
+
+    return props.steps.map((key) => {
+        if (byKey[key]) {
+            return byKey[key];
+        }
+
+        const customStatus = p.custom_step_statuses?.[key] ?? null;
+
+        return {
+            key,
+            icon: CheckCircle2,
+            status: statusLabel(customStatus),
+            statusType: statusType(customStatus, completingValues(key), []),
+            info: null,
+            completed: isWorkflowStepSatisfied(p, key, props.stepConfigs),
+        };
+    });
 });
 
-// --- Per-step status options ---
-const stepStatusOptions: Record<
-    string,
-    Array<{ value: string; label: string; color: string }>
-> = {
-    ric_review: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'approved',
-            label: 'Approved',
-            color: 'bg-teal-500 text-white hover:bg-teal-600',
-        },
-        {
-            value: 'returned',
-            label: 'Return to student',
-            color: 'bg-amber-600 text-white hover:bg-amber-700',
-        },
-        {
-            value: 'rejected',
-            label: 'Rejected',
-            color: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        },
-    ],
-    outline_defense: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'passed',
-            label: 'Passed',
-            color: 'bg-teal-500 text-white hover:bg-teal-600',
-        },
-        {
-            value: 're_defense',
-            label: 'Re-Defense',
-            color: 'bg-amber-500 text-white hover:bg-amber-600',
-        },
-    ],
-    data_gathering: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'completed',
-            label: 'Completed',
-            color: 'bg-violet-600 text-white hover:bg-violet-700',
-        },
-    ],
-    rating: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'rated',
-            label: 'Rated',
-            color: 'bg-amber-500 text-white hover:bg-amber-600',
-        },
-    ],
-    final_manuscript: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'submitted',
-            label: 'Submitted',
-            color: 'bg-indigo-500 text-white hover:bg-indigo-600',
-        },
-    ],
-    final_defense: [
-        {
-            value: 'pending',
-            label: 'Pending',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'passed',
-            label: 'Passed',
-            color: 'bg-teal-500 text-white hover:bg-teal-600',
-        },
-        {
-            value: 're_defense',
-            label: 'Re-Defense',
-            color: 'bg-amber-500 text-white hover:bg-amber-600',
-        },
-    ],
-    hard_bound: [
-        {
-            value: 'ongoing',
-            label: 'Ongoing',
-            color: 'bg-muted text-foreground',
-        },
-        {
-            value: 'submitted',
-            label: 'Submitted',
-            color: 'bg-emerald-500 text-white hover:bg-emerald-600',
-        },
-    ],
-};
+function completingValues(stepKey: string): string[] {
+    return (props.stepConfigs?.[stepKey]?.statuses ?? [])
+        .filter((status) => status.completes)
+        .map((status) => status.value);
+}
+
+function setupFor(stepKey: string): WorkflowStepSetup {
+    return (
+        props.stepConfigs?.[stepKey] ?? {
+            statuses: [
+                {
+                    value: 'pending',
+                    label: 'Pending',
+                    color: 'muted',
+                    completes: false,
+                },
+                {
+                    value: 'completed',
+                    label: 'Completed',
+                    color: 'violet',
+                    completes: true,
+                },
+            ],
+            inputs: [],
+        }
+    );
+}
+
+function statusOptionsFor(stepKey: string) {
+    return setupFor(stepKey).statuses.map((option) => ({
+        ...option,
+        className: statusButtonClass(option.color),
+    }));
+}
+
+function inputsFor(stepKey: string) {
+    return setupFor(stepKey).inputs;
+}
+
+function inputHtmlType(type: string): string {
+    if (type === 'datetime') {
+        return 'datetime-local';
+    }
+
+    if (type === 'number' || type === 'date') {
+        return type;
+    }
+
+    return 'text';
+}
+
+function toDatetimeLocal(value?: string | number | null): string {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+
+    const raw = String(value);
+    const date = new Date(raw);
+
+    if (Number.isNaN(date.getTime())) {
+        return raw.slice(0, 16);
+    }
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function existingFieldValue(stepKey: string, fieldKey: string): string {
+    const stored = props.paper.step_input_values?.[stepKey]?.[fieldKey];
+
+    if (fieldKey === 'grade') {
+        return props.paper.grade != null ? String(props.paper.grade) : '';
+    }
+
+    if (fieldKey === 'schedule' && stepKey === 'outline_defense') {
+        return toDatetimeLocal(props.paper.outline_defense_schedule);
+    }
+
+    if (fieldKey === 'schedule' && stepKey === 'final_defense') {
+        return toDatetimeLocal(props.paper.final_defense_schedule);
+    }
+
+    if (stored === null || stored === undefined) {
+        return '';
+    }
+
+    return String(stored);
+}
 
 const managingStep = ref<string | null>(null);
 
@@ -551,11 +605,20 @@ function toggleManageStep(stepKey: string): void {
     if (managingStep.value === stepKey) {
         managingStep.value = null;
         stepForm.reset();
-    } else {
-        managingStep.value = stepKey;
-        stepForm.reset();
-        stepForm.step = stepKey;
+
+        return;
     }
+
+    const fields: Record<string, string> = {};
+
+    for (const input of inputsFor(stepKey)) {
+        fields[input.key] = existingFieldValue(stepKey, input.key);
+    }
+
+    managingStep.value = stepKey;
+    stepForm.reset();
+    stepForm.step = stepKey;
+    stepForm.fields = fields;
 }
 
 // --- Admin action forms ---
@@ -563,7 +626,7 @@ const stepForm = useForm({
     step: '',
     status: '',
     notes: '',
-    grade: '',
+    fields: {} as Record<string, string>,
 });
 
 const assignmentForm = useForm({
@@ -936,15 +999,6 @@ function statusType(
     return 'warning';
 }
 
-const statusTypeClasses: Record<string, string> = {
-    success:
-        'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-    warning:
-        'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
-    danger: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
-    neutral: 'bg-muted text-muted-foreground',
-};
-
 function fileUrl(file: PaperFile): string {
     return file.disk === 's3' ? (file.url ?? '') : `/storage/${file.file_path}`;
 }
@@ -989,16 +1043,6 @@ function formatDate(value?: string | null): string {
 
 function stepLabel(step: string): string {
     return props.stepLabels[step] ?? step;
-}
-
-function isCompletedStepForKey(key: string): boolean {
-    return isWorkflowStepSatisfied(props.paper, key as WorkflowStepKey);
-}
-function isCurrentStep(idx: number): boolean {
-    return idx === workflowFocusIndex.value;
-}
-function isFutureStep(idx: number): boolean {
-    return idx > workflowFocusIndex.value;
 }
 
 async function copyToClipboard(text: string): Promise<void> {
@@ -1169,11 +1213,16 @@ defineOptions({
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="steps" class="mt-0">
-                        <section
+                        <ResearchStepTiles
                             id="research-show-steps"
-                            class="scroll-mt-24 rounded-2xl border border-border bg-card p-5"
+                            :steps="stepDetails"
+                            :step-labels="stepLabels"
+                            :focus-index="workflowFocusIndex"
+                            :active-key="managingStep"
+                            title="Step management"
+                            description="Click the pencil on a tile to update that stage."
                         >
-                            <div class="mb-4 flex items-center gap-2">
+                            <template #header-extra>
                                 <div
                                     class="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950/30"
                                 >
@@ -1181,220 +1230,115 @@ defineOptions({
                                         class="h-4 w-4 text-orange-500"
                                     />
                                 </div>
-                                <div>
-                                    <h2
-                                        class="text-base font-bold text-foreground"
-                                    >
-                                        Step Management
-                                    </h2>
-                                    <p class="text-xs text-muted-foreground">
-                                        Click
-                                        <Pencil class="inline h-3 w-3" /> to
-                                        manage any step
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="space-y-3">
-                                <div
-                                    v-for="(detail, idx) in stepDetails"
-                                    :key="detail.key"
-                                    :class="[
-                                        'relative overflow-hidden rounded-xl border transition-all',
-                                        managingStep === detail.key
-                                            ? 'border-orange-400 ring-2 ring-orange-200 dark:border-orange-600 dark:ring-orange-900/40'
-                                            : isCurrentStep(idx)
-                                              ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
-                                              : isCompletedStepForKey(
-                                                      detail.key,
-                                                  )
-                                                ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
-                                                : 'border-border bg-card',
-                                    ]"
+                            </template>
+
+                            <template #actions="{ step }">
+                                <button
+                                    v-if="
+                                        step.key !== 'title_proposal' &&
+                                        step.key !== 'completed'
+                                    "
+                                    type="button"
+                                    class="inline-flex size-9 min-h-9 min-w-9 items-center justify-center rounded-lg border transition"
+                                    :class="
+                                        managingStep === step.key
+                                            ? 'border-orange-300 bg-orange-100 text-orange-600 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
+                                            : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                                    "
+                                    :title="
+                                        managingStep === step.key
+                                            ? 'Close'
+                                            : 'Manage step'
+                                    "
+                                    @click="toggleManageStep(step.key)"
                                 >
-                                    <div
-                                        v-if="isCurrentStep(idx)"
-                                        class="absolute top-0 right-0 rounded-bl-lg bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white uppercase"
-                                    >
-                                        Current
+                                    <X
+                                        v-if="managingStep === step.key"
+                                        class="h-3.5 w-3.5"
+                                    />
+                                    <Pencil v-else class="h-3.5 w-3.5" />
+                                </button>
+                            </template>
+
+                            <template #panel="{ step }">
+                                <div class="space-y-3">
+                                    <div>
+                                        <label
+                                            class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                                            >Notes</label
+                                        >
+                                        <textarea
+                                            v-model="stepForm.notes"
+                                            rows="2"
+                                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                                            placeholder="Optional notes for tracking record..."
+                                        />
                                     </div>
 
-                                    <!-- Step header row -->
-                                    <div class="flex items-start gap-3 p-4">
-                                        <div
-                                            :class="[
-                                                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                                                isCompletedStepForKey(
-                                                    detail.key,
-                                                )
-                                                    ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
-                                                    : isCurrentStep(idx)
-                                                      ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
-                                                      : 'bg-muted text-muted-foreground',
-                                            ]"
+                                    <div
+                                        v-for="input in inputsFor(step.key)"
+                                        :key="input.key"
+                                    >
+                                        <label
+                                            class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                                            >{{ input.label }}</label
                                         >
-                                            <Check
-                                                v-if="
-                                                    isCompletedStepForKey(
-                                                        detail.key,
+                                        <textarea
+                                            v-if="input.type === 'textarea'"
+                                            v-model="stepForm.fields[input.key]"
+                                            rows="2"
+                                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                                        />
+                                        <input
+                                            v-else
+                                            v-model="stepForm.fields[input.key]"
+                                            :type="inputHtmlType(input.type)"
+                                            :step="
+                                                input.type === 'number'
+                                                    ? '0.01'
+                                                    : undefined
+                                            "
+                                            class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label
+                                            class="mb-1.5 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                                            >Set Status</label
+                                        >
+                                        <div class="flex flex-wrap gap-2">
+                                            <button
+                                                v-for="opt in statusOptionsFor(
+                                                    step.key,
+                                                )"
+                                                :key="opt.value"
+                                                type="button"
+                                                :disabled="stepForm.processing"
+                                                :class="[
+                                                    'inline-flex min-h-10 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition disabled:opacity-50',
+                                                    opt.className,
+                                                ]"
+                                                @click="
+                                                    submitStepFor(
+                                                        step.key,
+                                                        opt.value,
                                                     )
                                                 "
-                                                class="h-4 w-4"
-                                            />
-                                            <component
-                                                :is="detail.icon"
-                                                v-else
-                                                class="h-4 w-4"
-                                            />
-                                        </div>
-                                        <div class="min-w-0 flex-1">
-                                            <div
-                                                class="flex flex-wrap items-center gap-2"
                                             >
+                                                {{ opt.label }}
                                                 <span
-                                                    class="text-sm font-bold text-foreground"
-                                                    >{{
-                                                        stepLabel(detail.key)
-                                                    }}</span
+                                                    v-if="opt.completes"
+                                                    class="text-[10px] font-medium opacity-80"
                                                 >
-                                                <span
-                                                    v-if="!isFutureStep(idx)"
-                                                    :class="[
-                                                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                        statusTypeClasses[
-                                                            detail.statusType
-                                                        ],
-                                                    ]"
-                                                >
-                                                    {{ detail.status }}
+                                                    · Finishes
                                                 </span>
-                                            </div>
-                                            <p
-                                                v-if="
-                                                    detail.info &&
-                                                    !isFutureStep(idx)
-                                                "
-                                                class="mt-1 text-xs text-muted-foreground"
-                                            >
-                                                {{ detail.info }}
-                                            </p>
-                                            <p
-                                                v-if="isFutureStep(idx)"
-                                                class="mt-1 text-xs text-muted-foreground"
-                                            >
-                                                Waiting for previous steps to
-                                                complete.
-                                            </p>
-                                        </div>
-                                        <!-- Manage button (not for title_proposal or completed) -->
-                                        <button
-                                            v-if="
-                                                detail.key !==
-                                                    'title_proposal' &&
-                                                detail.key !== 'completed'
-                                            "
-                                            type="button"
-                                            @click="
-                                                toggleManageStep(detail.key)
-                                            "
-                                            :class="[
-                                                'shrink-0 rounded-lg border p-1.5 transition',
-                                                managingStep === detail.key
-                                                    ? 'border-orange-300 bg-orange-100 text-orange-600 dark:border-orange-700 dark:bg-orange-950/40 dark:text-orange-400'
-                                                    : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',
-                                            ]"
-                                            :title="
-                                                managingStep === detail.key
-                                                    ? 'Close'
-                                                    : 'Manage step'
-                                            "
-                                        >
-                                            <X
-                                                v-if="
-                                                    managingStep === detail.key
-                                                "
-                                                class="h-3.5 w-3.5"
-                                            />
-                                            <Pencil
-                                                v-else
-                                                class="h-3.5 w-3.5"
-                                            />
-                                        </button>
-                                    </div>
-
-                                    <!-- Expandable manage panel -->
-                                    <div
-                                        v-if="managingStep === detail.key"
-                                        class="border-t border-border bg-muted/30 p-4"
-                                    >
-                                        <div class="space-y-3">
-                                            <!-- Notes -->
-                                            <div>
-                                                <label
-                                                    class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                                    >Notes</label
-                                                >
-                                                <textarea
-                                                    v-model="stepForm.notes"
-                                                    rows="2"
-                                                    class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                                                    placeholder="Optional notes for tracking record..."
-                                                />
-                                            </div>
-
-                                            <!-- Grade (rating) -->
-                                            <div v-if="detail.key === 'rating'">
-                                                <label
-                                                    class="mb-1 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                                    >Grade</label
-                                                >
-                                                <input
-                                                    v-model="stepForm.grade"
-                                                    type="number"
-                                                    min="1"
-                                                    max="100"
-                                                    step="0.01"
-                                                    class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                                                />
-                                            </div>
-
-                                            <!-- Status action buttons -->
-                                            <div>
-                                                <label
-                                                    class="mb-1.5 block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
-                                                    >Set Status</label
-                                                >
-                                                <div
-                                                    class="flex flex-wrap gap-2"
-                                                >
-                                                    <button
-                                                        v-for="opt in stepStatusOptions[
-                                                            detail.key
-                                                        ] ?? []"
-                                                        :key="opt.value"
-                                                        type="button"
-                                                        @click="
-                                                            submitStepFor(
-                                                                detail.key,
-                                                                opt.value,
-                                                            )
-                                                        "
-                                                        :disabled="
-                                                            stepForm.processing
-                                                        "
-                                                        :class="[
-                                                            'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition disabled:opacity-50',
-                                                            opt.color,
-                                                        ]"
-                                                    >
-                                                        {{ opt.label }}
-                                                    </button>
-                                                </div>
-                                            </div>
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </section>
+                            </template>
+                        </ResearchStepTiles>
                     </TabsContent>
 
                     <TabsContent value="comments" class="mt-0">

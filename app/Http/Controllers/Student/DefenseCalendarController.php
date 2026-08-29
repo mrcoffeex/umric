@@ -21,7 +21,7 @@ class DefenseCalendarController extends Controller
 
         $userId = $request->user()->id;
 
-        $papers = ResearchPaper::with(['schoolClass', 'panelDefenses'])
+        $papers = ResearchPaper::with(['schoolClass', 'panelDefenses', 'workflowVersion.steps'])
             ->where(function ($q) use ($userId) {
                 $q->where('user_id', $userId);
                 JsonContains::whereArrayObjectContains(

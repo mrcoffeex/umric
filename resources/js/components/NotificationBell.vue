@@ -139,7 +139,11 @@ function openNotification(item: AppNotification): void {
         },
         credentials: 'same-origin',
     }).finally(() => {
-        if (!item.read_at && localUnread.value !== null && localUnread.value > 0) {
+        if (
+            !item.read_at &&
+            localUnread.value !== null &&
+            localUnread.value > 0
+        ) {
             localUnread.value -= 1;
         }
 
@@ -208,7 +212,11 @@ function openNotification(item: AppNotification): void {
                     :key="item.id"
                     type="button"
                     class="flex w-full items-start gap-3 px-3 py-3 text-left transition hover:bg-muted/60"
-                    :class="!item.read_at ? 'bg-orange-50/50 dark:bg-orange-950/20' : ''"
+                    :class="
+                        !item.read_at
+                            ? 'bg-orange-50/50 dark:bg-orange-950/20'
+                            : ''
+                    "
                     @click="openNotification(item)"
                 >
                     <span

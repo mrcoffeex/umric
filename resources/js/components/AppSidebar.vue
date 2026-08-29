@@ -10,6 +10,7 @@ import {
     DatabaseBackup,
     ListChecks,
     SlidersHorizontal,
+    GitBranch,
     ExternalLink,
     GraduationCap,
     Image,
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard, home } from '@/routes';
 import admin from '@/routes/admin';
+import { index as announcementsIndex } from '@/routes/announcements';
 import documentTransmissions from '@/routes/document-transmissions';
 import faculty from '@/routes/faculty';
 import { index as facultyClassesIndex } from '@/routes/faculty/classes';
@@ -130,6 +132,11 @@ const AdminSettingsItems: NavItem[] = [
         icon: SlidersHorizontal,
     },
     {
+        title: 'Research steps',
+        href: admin.workflowSteps.index.url(),
+        icon: GitBranch,
+    },
+    {
         title: 'Site branding',
         href: admin.branding.index.url(),
         icon: Image,
@@ -164,6 +171,11 @@ const facultyNavItems = computed(() =>
                 icon: ScrollText,
             },
             {
+                title: 'Announcements',
+                href: announcementsIndex(),
+                icon: Megaphone,
+            },
+            {
                 title: 'Defense Calendar',
                 href: facultyDefenseCalendarIndex(),
                 icon: CalendarDays,
@@ -192,6 +204,11 @@ const studentNavItems = computed(() =>
     withHandoffBadge(
         [
             { title: 'Home', href: student.home(), icon: LayoutGrid },
+            {
+                title: 'Announcements',
+                href: announcementsIndex(),
+                icon: Megaphone,
+            },
             {
                 title: 'My Research',
                 href: student.research.index(),

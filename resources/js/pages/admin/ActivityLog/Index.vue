@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import {
     AlertCircle,
     CheckCircle,
+    ChevronLeft,
+    ChevronRight,
     Clock,
+    DatabaseBackup,
     Edit,
     Laptop,
     Lock,
@@ -22,6 +25,12 @@ import admin from '@/routes/admin';
 
 interface Pagination<T> {
     data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
     links: Array<{
         url: string | null;
         label: string;
@@ -30,15 +39,15 @@ interface Pagination<T> {
 }
 
 interface ActivityLog {
-    id: string;
+    id: number | string;
     description: string;
-    event: string;
+    event: string | null;
     causer: string | null;
     causer_name: string | null;
-    subject_type: string;
-    subject_id: number;
+    subject_type: string | null;
+    subject_id: string | number | null;
     subject_name: string | null;
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     ip_address: string;
     browser: string;
     device: string;
@@ -125,7 +134,7 @@ const statCards = computed(() => [
     },
 ]);
 
-const getEventIcon = (event: string) => {
+const getEventIcon = (event: string | null) => {
     return (
         {
             created: Plus,
@@ -137,11 +146,12 @@ const getEventIcon = (event: string) => {
             unblocked: Unlock,
             assigned: MessageSquare,
             rated: CheckCircle,
-        }[event] || Clock
+            backed_up: DatabaseBackup,
+        }[event ?? ''] || Clock
     );
 };
 
-const getEventColor = (event: string) => {
+const getEventColor = (event: string | null) => {
     return (
         {
             created: 'text-emerald-600 dark:text-emerald-400',
@@ -153,7 +163,8 @@ const getEventColor = (event: string) => {
             unblocked: 'text-emerald-600 dark:text-emerald-400',
             assigned: 'text-indigo-600 dark:text-indigo-400',
             rated: 'text-purple-600 dark:text-purple-400',
-        }[event] || 'text-gray-600 dark:text-gray-400'
+            backed_up: 'text-orange-600 dark:text-orange-400',
+        }[event ?? ''] || 'text-gray-600 dark:text-gray-400'
     );
 };
 
@@ -237,11 +248,26 @@ function clearSearch(): void {
     applySearch();
 }
 
+function subjectTypeLabel(log: ActivityLog): string {
+    if (!log.subject_type) {
+        return 'System';
+    }
+
+    return log.subject_type.split('\\').pop() ?? log.subject_type;
+}
+
 function subjectLabel(log: ActivityLog): string {
-    return (
-        log.subject_name ||
-        `${log.subject_type.split('\\\\').pop()} #${log.subject_id}`
-    );
+    if (log.subject_name) {
+        return log.subject_name;
+    }
+
+    if (!log.subject_type) {
+        return 'No subject';
+    }
+
+    return log.subject_id
+        ? `${subjectTypeLabel(log)} #${log.subject_id}`
+        : subjectTypeLabel(log);
 }
 </script>
 
@@ -291,11 +317,8 @@ function subjectLabel(log: ActivityLog): string {
         </section>
 
         <section class="rounded-xl border border-border bg-card p-4">
-            <form
-                class="grid grid-cols-1 gap-3 lg:grid-cols-6"
-                @submit.prevent="applySearch"
-            >
-                <div class="relative flex-1">
+            <form class="flex flex-col gap-3" @submit.prevent="applySearch">
+                <div class="relative">
                     <Search
                         class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                     />
@@ -303,65 +326,71 @@ function subjectLabel(log: ActivityLog): string {
                         v-model="search"
                         type="text"
                         placeholder="Search by action, admin, event, IP, browser, location, payload..."
-                        class="h-10 w-full rounded-lg border border-input bg-background pr-3 pl-9 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                        class="h-11 w-full rounded-lg border border-input bg-background pr-3 pl-9 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                     />
                 </div>
-                <select
-                    v-model="selectedEvent"
-                    class="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                <div
+                    class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5"
                 >
-                    <option value="">All events</option>
-                    <option
-                        v-for="eventName in props.options.events"
-                        :key="eventName"
-                        :value="eventName"
+                    <select
+                        v-model="selectedEvent"
+                        class="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                     >
-                        {{ eventName }}
-                    </option>
-                </select>
-                <select
-                    v-model="selectedCauser"
-                    class="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                >
-                    <option value="">All admins</option>
-                    <option
-                        v-for="causer in props.options.causers"
-                        :key="causer.id"
-                        :value="String(causer.id)"
+                        <option value="">All events</option>
+                        <option
+                            v-for="eventName in props.options.events"
+                            :key="eventName"
+                            :value="eventName"
+                        >
+                            {{ eventName }}
+                        </option>
+                    </select>
+                    <select
+                        v-model="selectedCauser"
+                        class="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                     >
-                        {{
-                            causer.name || causer.email || `User #${causer.id}`
-                        }}
-                    </option>
-                </select>
-                <select
-                    v-model="selectedRisk"
-                    class="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                >
-                    <option value="">All risk levels</option>
-                    <option value="high">High risk</option>
-                    <option value="normal">Normal</option>
-                </select>
-                <input
-                    v-model="dateFrom"
-                    type="date"
-                    class="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                />
-                <input
-                    v-model="dateTo"
-                    type="date"
-                    class="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-                />
-                <div class="flex gap-2">
+                        <option value="">All admins</option>
+                        <option
+                            v-for="causer in props.options.causers"
+                            :key="causer.id"
+                            :value="String(causer.id)"
+                        >
+                            {{
+                                causer.name ||
+                                causer.email ||
+                                `User #${causer.id}`
+                            }}
+                        </option>
+                    </select>
+                    <select
+                        v-model="selectedRisk"
+                        class="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    >
+                        <option value="">All risk levels</option>
+                        <option value="high">High risk</option>
+                        <option value="normal">Normal</option>
+                    </select>
+                    <input
+                        v-model="dateFrom"
+                        type="date"
+                        class="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    />
+                    <input
+                        v-model="dateTo"
+                        type="date"
+                        class="h-11 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                    />
+                </div>
+                <div class="flex flex-wrap gap-2">
                     <button
                         type="submit"
-                        class="inline-flex h-10 items-center justify-center rounded-lg bg-orange-600 px-4 text-sm font-semibold text-white transition hover:bg-orange-700"
+                        class="inline-flex h-11 min-w-28 items-center justify-center rounded-lg bg-orange-600 px-4 text-sm font-semibold text-white transition hover:bg-orange-700 active:opacity-90"
                     >
                         Apply Filters
                     </button>
                     <button
                         type="button"
-                        class="inline-flex h-10 items-center justify-center rounded-lg border border-input px-4 text-sm font-semibold text-foreground transition hover:bg-muted"
+                        class="inline-flex h-11 min-w-24 items-center justify-center rounded-lg border border-input px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:opacity-90"
                         @click="clearSearch"
                     >
                         Clear
@@ -425,7 +454,9 @@ function subjectLabel(log: ActivityLog): string {
                                         >
                                             <span
                                                 class="rounded-full bg-muted px-2 py-0.5"
-                                                >{{ log.event }}</span
+                                                >{{
+                                                    log.event || 'event'
+                                                }}</span
                                             >
                                             <span
                                                 >by
@@ -447,7 +478,7 @@ function subjectLabel(log: ActivityLog): string {
                                         {{ subjectLabel(log) }}
                                     </p>
                                     <p class="text-muted-foreground">
-                                        {{ log.subject_type.split('\\').pop() }}
+                                        {{ subjectTypeLabel(log) }}
                                     </p>
                                     <p
                                         class="max-w-xl break-words whitespace-pre-wrap text-muted-foreground"
@@ -510,30 +541,49 @@ function subjectLabel(log: ActivityLog): string {
         </section>
 
         <section
-            v-if="props.logs.links && props.logs.links.length > 3"
-            class="flex flex-wrap items-center justify-center gap-2"
+            v-if="props.logs.last_page > 1"
+            class="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between"
         >
-            <template v-for="link in props.logs.links" :key="link.label">
-                <span
-                    v-if="!link.url"
-                    class="rounded-lg px-3 py-2 text-sm text-muted-foreground"
-                    v-html="link.label"
-                />
-                <Link
-                    v-else
-                    :href="link.url"
-                    class="rounded-lg px-3 py-2 text-sm font-medium transition"
-                    :class="
-                        link.active
-                            ? 'bg-orange-600 text-white'
-                            : 'bg-muted text-foreground hover:bg-muted/80'
-                    "
-                    preserve-scroll
-                    preserve-state
-                >
-                    <span v-html="link.label" />
-                </Link>
-            </template>
+            <p class="text-muted-foreground">
+                Showing {{ props.logs.from }}–{{ props.logs.to }} of
+                {{ props.logs.total }}
+            </p>
+            <div class="flex flex-wrap items-center gap-1">
+                <template v-for="link in props.logs.links" :key="link.label">
+                    <button
+                        v-if="link.label === '&laquo; Previous'"
+                        type="button"
+                        class="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                        :disabled="!link.url"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        <ChevronLeft class="h-4 w-4" />
+                    </button>
+                    <button
+                        v-else-if="link.label === 'Next &raquo;'"
+                        type="button"
+                        class="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                        :disabled="!link.url"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        <ChevronRight class="h-4 w-4" />
+                    </button>
+                    <button
+                        v-else
+                        type="button"
+                        class="min-w-11 rounded-lg px-2 py-2 text-sm font-medium transition-colors"
+                        :class="
+                            link.active
+                                ? 'bg-orange-600 text-white'
+                                : 'text-muted-foreground hover:bg-muted'
+                        "
+                        :disabled="!link.url"
+                        @click="link.url && router.get(link.url)"
+                    >
+                        {{ link.label }}
+                    </button>
+                </template>
+            </div>
         </section>
 
         <section

@@ -11,6 +11,7 @@ use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
 use App\Services\DocumentExtractorService;
+use App\Services\WorkflowCatalog;
 use App\Support\JsonContains;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -48,8 +49,8 @@ class ResearchController extends Controller
 
         return Inertia::render('student/Research/Index', [
             'papers' => $papers,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
-            'steps' => ResearchPaper::STEPS,
+            'stepLabels' => app(WorkflowCatalog::class)->allKnownLabels(),
+            'steps' => app(WorkflowCatalog::class)->allKnownStepKeys(),
         ]);
     }
 
@@ -66,6 +67,7 @@ class ResearchController extends Controller
         }
 
         $paper->load([
+            'workflowVersion.steps',
             'schoolClass',
             'trackingRecords.updatedBy',
             'adviser',
@@ -89,8 +91,9 @@ class ResearchController extends Controller
                 'finalUploaded' => $paper->hasStudentDefenseDocument('final'),
             ],
             'trackingLog' => $paper->trackingRecords,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
-            'steps' => ResearchPaper::STEPS,
+            'stepLabels' => $paper->stepLabels(),
+            'steps' => $paper->stepKeys(),
+            'stepConfigs' => $paper->stepConfigs(),
             'sdgs' => Sdg::select('id', 'name', 'number')->orderBy('number')->get(),
             'agendas' => Agenda::select('id', 'name')->orderBy('name')->get(),
             'panelDefenses' => $paper->panelDefenses->map(fn ($pd) => [
@@ -191,7 +194,7 @@ class ResearchController extends Controller
             'keywords' => $validated['keywords'] ?? null,
             'school_class_id' => $schoolClass->id,
             'tracking_id' => 'RP-'.strtoupper(Str::random(8)),
-            'current_step' => 'title_proposal',
+            'current_step' => app(WorkflowCatalog::class)->currentStepKeys()[0] ?? 'title_proposal',
             'submission_date' => now(),
             'status' => 'submitted',
         ]);
@@ -221,7 +224,7 @@ class ResearchController extends Controller
         ResearchStatusUpdated::dispatch(
             $paper->fresh(),
             'title_proposal',
-            ResearchPaper::STEP_LABELS['title_proposal'] ?? 'Title Evaluation',
+            $paper->labelForStep('title_proposal'),
             'submitted',
             null,
         );
@@ -303,7 +306,7 @@ class ResearchController extends Controller
             ResearchStatusUpdated::dispatch(
                 $paper,
                 'ric_review',
-                ResearchPaper::STEP_LABELS['ric_review'] ?? 'RIC/Admin Review',
+                $paper->labelForStep('ric_review'),
                 (string) ($paper->step_ric_review ?? 'pending'),
                 null,
             );

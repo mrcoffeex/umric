@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Announcement;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Services\DashboardInsightsBuilder;
+use App\Services\WorkflowCatalog;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -16,17 +17,10 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): Response|RedirectResponse
+    public function __invoke(Request $request, DashboardInsightsBuilder $insightsBuilder): Response|RedirectResponse
     {
         $user = $request->user();
         $role = $user->profile?->role ?? 'student';
-
-        $announcements = Announcement::active()
-            ->forRole($role)
-            ->orderByDesc('is_pinned')
-            ->latest('published_at')
-            ->take(5)
-            ->get(['id', 'title', 'content', 'type', 'is_pinned', 'published_at']);
 
         if ($role === 'student') {
             return redirect()->to(route('student.home'));
@@ -36,12 +30,12 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'role' => $role,
-            'announcements' => $announcements,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
+            'stepLabels' => app(WorkflowCatalog::class)->allKnownLabels(),
             // Keep core dashboard payload available on first response for SSR/tests.
             'stats' => $data['stats'] ?? null,
             'recentPapers' => $data['recentPapers'] ?? null,
             'statusCounts' => $data['statusCounts'] ?? null,
+            'insights' => $insightsBuilder->forUser($user),
             // Deferred + WhenVisible: only fetched when charts scroll into view
             'stepCounts' => Inertia::defer(fn () => $data['stepCounts'] ?? null, 'charts'),
             'submissionsOverTime' => Inertia::defer(fn () => $data['submissionsOverTime'] ?? null, 'charts'),
@@ -64,7 +58,7 @@ class DashboardController extends Controller
     private function adminData(User $user): array
     {
         $stepCounts = [];
-        foreach (ResearchPaper::STEPS as $step) {
+        foreach (app(WorkflowCatalog::class)->allKnownStepKeys() as $step) {
             $stepCounts[$step] = ResearchPaper::where('current_step', $step)->count();
         }
 
@@ -121,7 +115,7 @@ class DashboardController extends Controller
         });
 
         $stepCounts = [];
-        foreach (ResearchPaper::STEPS as $step) {
+        foreach (app(WorkflowCatalog::class)->allKnownStepKeys() as $step) {
             $stepCounts[$step] = (clone $myPapers)->where('current_step', $step)->count();
         }
 

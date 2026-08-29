@@ -46,9 +46,38 @@ it('notifies target role users when an announcement is published', function () {
         ])
         ->assertRedirect();
 
-    Notification::assertSentTo($student, NewAnnouncementNotification::class);
+    Notification::assertSentTo(
+        $student,
+        NewAnnouncementNotification::class,
+        fn (NewAnnouncementNotification $notification, array $channels) => in_array('mail', $channels, true)
+            && in_array('database', $channels, true),
+    );
     Notification::assertSentTo($otherStudent, NewAnnouncementNotification::class);
     Notification::assertNotSentTo($admin, NewAnnouncementNotification::class);
+});
+
+it('stores an in-app notification immediately when an announcement is published', function () {
+    $admin = adminWithProfile();
+    $student = studentWithProfile();
+
+    $this->actingAs($admin)
+        ->post(route('admin.announcements.store'), [
+            'title' => 'Immediate notice',
+            'content' => 'You should see this in the bell right away.',
+            'type' => 'info',
+            'is_pinned' => false,
+            'is_active' => true,
+            'target_roles' => ['student'],
+            'published_at' => now()->toDateTimeString(),
+        ])
+        ->assertRedirect();
+
+    $notification = $student->fresh()->unreadNotifications()->first();
+
+    expect($notification)->not->toBeNull()
+        ->and($notification->data['category'])->toBe('announcement')
+        ->and($notification->data['title'])->toBe('Immediate notice')
+        ->and($notification->data['body'])->toContain('You should see this');
 });
 
 it('does not notify users when an announcement is inactive', function () {
@@ -103,6 +132,7 @@ it('lists notifications for the authenticated user', function () {
     $student = studentWithProfile();
     $announcement = Announcement::factory()->create([
         'title' => 'Campus update',
+        'content' => 'Library hours change next week.',
         'is_active' => true,
         'published_at' => now(),
         'created_by' => adminWithProfile()->id,
@@ -116,8 +146,8 @@ it('lists notifications for the authenticated user', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Notifications/Index')
             ->has('notifications.data', 1)
-            ->where('notifications.data.0.title', 'New announcement')
-            ->where('notifications.data.0.body', 'Campus update')
+            ->where('notifications.data.0.title', 'Campus update')
+            ->where('notifications.data.0.body', 'Library hours change next week.')
         );
 });
 

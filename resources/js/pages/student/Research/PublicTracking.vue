@@ -123,9 +123,13 @@ const proponents = computed(() => {
         .filter(Boolean);
 });
 
-const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
+const focusStepKey = computed(() =>
+    workflowFocusStepKey(props.paper, props.steps),
+);
 
-const progressPercent = computed(() => workflowProgressPercent(props.paper));
+const progressPercent = computed(() =>
+    workflowProgressPercent(props.paper, props.steps),
+);
 
 const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {

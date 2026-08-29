@@ -72,7 +72,9 @@ defineOptions({
     <Head title="Notifications" />
 
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
-        <section class="overflow-hidden rounded-2xl border border-border bg-card">
+        <section
+            class="overflow-hidden rounded-2xl border border-border bg-card"
+        >
             <div class="h-1 bg-gradient-to-r from-orange-500 to-teal-500" />
             <div
                 class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4"
@@ -103,10 +105,16 @@ defineOptions({
                 </button>
             </div>
 
-            <div v-if="notifications.data.length === 0" class="px-5 py-12 text-center">
-                <p class="text-sm font-semibold text-foreground">No notifications yet</p>
+            <div
+                v-if="notifications.data.length === 0"
+                class="px-5 py-12 text-center"
+            >
+                <p class="text-sm font-semibold text-foreground">
+                    No notifications yet
+                </p>
                 <p class="mt-1 text-sm text-muted-foreground">
-                    You'll be notified about new announcements and paper changes.
+                    You'll be notified about new announcements and paper
+                    changes.
                 </p>
             </div>
 
@@ -115,7 +123,11 @@ defineOptions({
                     <button
                         type="button"
                         class="flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-muted/50"
-                        :class="!item.read_at ? 'bg-orange-50/40 dark:bg-orange-950/15' : ''"
+                        :class="
+                            !item.read_at
+                                ? 'bg-orange-50/40 dark:bg-orange-950/15'
+                                : ''
+                        "
                         @click="openNotification(item)"
                     >
                         <span
@@ -133,8 +145,12 @@ defineOptions({
                             <Megaphone v-else class="size-4" />
                         </span>
                         <span class="min-w-0 flex-1">
-                            <span class="flex items-start justify-between gap-3">
-                                <span class="text-sm font-semibold text-foreground">
+                            <span
+                                class="flex items-start justify-between gap-3"
+                            >
+                                <span
+                                    class="text-sm font-semibold text-foreground"
+                                >
                                     {{ item.title }}
                                 </span>
                                 <span
@@ -142,10 +158,14 @@ defineOptions({
                                     class="mt-1.5 size-2 shrink-0 rounded-full bg-orange-500"
                                 />
                             </span>
-                            <span class="mt-1 block text-sm text-muted-foreground">
+                            <span
+                                class="mt-1 block text-sm text-muted-foreground"
+                            >
                                 {{ item.body }}
                             </span>
-                            <span class="mt-2 block text-xs text-muted-foreground/80">
+                            <span
+                                class="mt-2 block text-xs text-muted-foreground/80"
+                            >
                                 {{ formatTime(item.created_at) }}
                             </span>
                         </span>
@@ -167,8 +187,9 @@ defineOptions({
                                 ? 'bg-orange-500 text-white'
                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                         "
-                        v-html="link.label"
-                    />
+                    >
+                        <span v-html="link.label" />
+                    </Link>
                     <span
                         v-else
                         class="rounded-lg px-3 py-1.5 text-xs text-muted-foreground/50"

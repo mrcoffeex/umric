@@ -82,7 +82,7 @@ function stepLabel(step: string): string {
 }
 
 function progressPercent(paper: Paper): number {
-    return workflowProgressPercent(paper);
+    return workflowProgressPercent(paper, props.steps);
 }
 
 function isOwner(paper: Paper): boolean {

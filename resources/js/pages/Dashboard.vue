@@ -29,6 +29,11 @@ import {
 import { computed } from 'vue';
 import { Bar, Doughnut, Line } from 'vue-chartjs';
 
+import SmartInsights from '@/components/dashboard/SmartInsights.vue';
+import type {
+    InsightAction,
+    InsightHealth,
+} from '@/components/dashboard/SmartInsights.vue';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getStepBadgeClass } from '@/lib/step-colors';
 import { dashboard } from '@/routes';
@@ -55,15 +60,6 @@ ChartJS.register(
     PointElement,
     Tooltip,
 );
-
-interface Announcement {
-    id: string;
-    title: string;
-    content: string;
-    type: 'info' | 'success' | 'warning' | 'danger';
-    is_pinned: boolean;
-    published_at: string | null;
-}
 
 interface DashboardPaper {
     id: string;
@@ -101,8 +97,11 @@ interface SubmissionPoint {
 
 interface Props {
     role: 'admin' | 'staff' | 'faculty' | 'student';
-    announcements: Announcement[];
     stepLabels: Record<string, string>;
+    insights: {
+        actions: InsightAction[];
+        health: InsightHealth[];
+    };
     // Deferred — null until the follow-up request resolves
     stats: Record<string, number | string | boolean | null> | null;
     stepCounts?: Record<string, number> | null;
@@ -119,30 +118,13 @@ const props = defineProps<Props>();
 usePoll(60_000, {
     only: [
         'stats',
+        'insights',
         'stepCounts',
         'submissionsOverTime',
         'recentPapers',
         'classes',
     ],
 });
-
-const announcementIcon: Record<Announcement['type'], string> = {
-    info: 'bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
-    success:
-        'bg-green-100 text-green-600 dark:bg-green-950/50 dark:text-green-400',
-    warning:
-        'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
-    danger: 'bg-red-100 text-red-600 dark:bg-red-950/50 dark:text-red-400',
-};
-
-const announcementColors: Record<Announcement['type'], string> = {
-    info: 'border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20',
-    success:
-        'border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/20',
-    warning:
-        'border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20',
-    danger: 'border-red-200 bg-red-50/50 dark:border-red-900/40 dark:bg-red-950/20',
-};
 
 const orderedStepEntries = computed(() =>
     Object.entries(props.stepLabels ?? {}),
@@ -481,10 +463,6 @@ function formatDate(date: string | null | undefined): string {
     });
 }
 
-function announcementDate(date: string | null): string {
-    return date ? formatDate(date) : 'Recently posted';
-}
-
 function stepLabel(step?: string | null): string {
     if (!step) {
         return 'Unassigned';
@@ -544,67 +522,12 @@ defineOptions({
             </div>
         </div>
 
-        <!-- Announcements -->
-        <section v-if="announcements.length > 0">
-            <div class="mb-3 flex items-center gap-2">
-                <h2 class="text-sm font-semibold text-foreground">
-                    Announcements
-                </h2>
-                <span
-                    class="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600 dark:bg-orange-950/40 dark:text-orange-400"
-                >
-                    {{ announcements.length }}
-                </span>
-            </div>
-            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                <div
-                    v-for="announcement in announcements"
-                    :key="announcement.id"
-                    :class="[
-                        'group relative overflow-hidden rounded-xl border p-4 transition-shadow hover:shadow-md',
-                        announcementColors[announcement.type],
-                    ]"
-                >
-                    <div class="flex items-start gap-3">
-                        <div
-                            :class="[
-                                'shrink-0 rounded-lg p-1.5',
-                                announcementIcon[announcement.type],
-                            ]"
-                        >
-                            <Megaphone class="h-3.5 w-3.5" />
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-start justify-between gap-2">
-                                <p
-                                    class="text-sm font-semibold text-foreground"
-                                >
-                                    {{ announcement.title }}
-                                </p>
-                                <span
-                                    v-if="announcement.is_pinned"
-                                    class="shrink-0 rounded-md bg-foreground/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-foreground/70 uppercase"
-                                >
-                                    Pinned
-                                </span>
-                            </div>
-                            <p
-                                class="mt-1 line-clamp-2 text-xs text-muted-foreground"
-                            >
-                                {{ announcement.content }}
-                            </p>
-                            <p
-                                class="mt-2 text-[10px] font-medium text-muted-foreground/70"
-                            >
-                                {{
-                                    announcementDate(announcement.published_at)
-                                }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+        <SmartInsights
+            v-if="role === 'admin' || role === 'staff' || role === 'faculty'"
+            :insights="insights"
+            primary-label="Priority action"
+            list-label="Also on your plate"
+        />
 
         <!-- Stat Cards (deferred — auto-loads after initial render) -->
         <WhenVisible data="stats">

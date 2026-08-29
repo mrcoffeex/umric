@@ -3,22 +3,32 @@ import { useForm } from '@inertiajs/vue3';
 import { watchDebounced } from '@vueuse/core';
 import {
     Bell,
+    ImagePlus,
     Megaphone,
     Pencil,
     Pin,
     Plus,
     Search,
     Trash2,
+    X,
 } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import FormSelect from '@/components/FormSelect.vue';
 import { useConfirm } from '@/composables/useConfirm';
 import admin from '@/routes/admin';
+
+const MAX_THUMBNAILS = 5;
+
+interface AnnouncementThumbnail {
+    path: string;
+    url: string;
+}
 
 interface AnnouncementItem {
     id: string;
     title: string;
     content: string;
+    thumbnails: AnnouncementThumbnail[];
     type: 'info' | 'success' | 'warning' | 'danger';
     is_pinned: boolean;
     is_active: boolean;
@@ -121,7 +131,62 @@ const form = useForm({
     target_roles: [] as string[],
     published_at: '',
     expires_at: '',
+    thumbnails: [] as File[],
+    keep_thumbnails: [] as string[],
 });
+
+const existingThumbnails = ref<AnnouncementThumbnail[]>([]);
+const newPreviewUrls = ref<string[]>([]);
+const thumbnailInput = ref<HTMLInputElement | null>(null);
+
+const thumbnailSlotsUsed = computed(
+    () => existingThumbnails.value.length + form.thumbnails.length,
+);
+
+const remainingThumbnailSlots = computed(
+    () => MAX_THUMBNAILS - thumbnailSlotsUsed.value,
+);
+
+function revokeNewPreviews(): void {
+    for (const url of newPreviewUrls.value) {
+        URL.revokeObjectURL(url);
+    }
+
+    newPreviewUrls.value = [];
+}
+
+function rebuildNewPreviews(files: File[]): void {
+    revokeNewPreviews();
+    newPreviewUrls.value = files.map((file) => URL.createObjectURL(file));
+}
+
+function onThumbnailPick(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+
+    if (picked.length === 0) {
+        return;
+    }
+
+    const room = remainingThumbnailSlots.value;
+    const accepted = picked.slice(0, Math.max(0, room));
+    form.thumbnails = [...form.thumbnails, ...accepted];
+    rebuildNewPreviews(form.thumbnails);
+    input.value = '';
+}
+
+function removeExistingThumbnail(path: string): void {
+    existingThumbnails.value = existingThumbnails.value.filter(
+        (thumb) => thumb.path !== path,
+    );
+    form.keep_thumbnails = existingThumbnails.value.map((thumb) => thumb.path);
+}
+
+function removeNewThumbnail(index: number): void {
+    const next = form.thumbnails.filter((_, i) => i !== index);
+    form.thumbnails = next;
+    rebuildNewPreviews(next);
+}
 
 function toDateInput(value: string | null): string {
     return value ? value.slice(0, 10) : '';
@@ -146,6 +211,10 @@ function openCreate(): void {
     form.is_active = true;
     form.is_pinned = false;
     form.target_roles = [];
+    form.thumbnails = [];
+    form.keep_thumbnails = [];
+    existingThumbnails.value = [];
+    revokeNewPreviews();
     form.clearErrors();
     showForm.value = true;
 }
@@ -160,31 +229,49 @@ function openEdit(item: AnnouncementItem): void {
     form.target_roles = item.target_roles ?? [];
     form.published_at = toDateInput(item.published_at);
     form.expires_at = toDateInput(item.expires_at);
+    form.thumbnails = [];
+    existingThumbnails.value = [...(item.thumbnails ?? [])];
+    form.keep_thumbnails = existingThumbnails.value.map((thumb) => thumb.path);
+    revokeNewPreviews();
     form.clearErrors();
     showForm.value = true;
 }
 
+function closeForm(): void {
+    showForm.value = false;
+    revokeNewPreviews();
+}
+
 function submit(): void {
+    form.keep_thumbnails = existingThumbnails.value.map((thumb) => thumb.path);
+
+    const options = {
+        forceFormData: true,
+        onSuccess: () => {
+            closeForm();
+            form.reset();
+            existingThumbnails.value = [];
+            revokeNewPreviews();
+        },
+    };
+
     if (editing.value) {
         form.put(
-            admin.announcements.update.url({ announcement: editing.value.id }),
-            {
-                onSuccess: () => {
-                    showForm.value = false;
-                },
-            },
+            admin.announcements.update.url({
+                announcement: editing.value.id,
+            }),
+            options,
         );
 
         return;
     }
 
-    form.post(admin.announcements.store.url(), {
-        onSuccess: () => {
-            showForm.value = false;
-            form.reset();
-        },
-    });
+    form.post(admin.announcements.store.url(), options);
 }
+
+onBeforeUnmount(() => {
+    revokeNewPreviews();
+});
 
 async function remove(item: AnnouncementItem): Promise<void> {
     const ok = await confirm(`Delete announcement: ${item.title}?`, {
@@ -423,6 +510,19 @@ defineOptions({
                         {{ item.content }}
                     </p>
 
+                    <div
+                        v-if="(item.thumbnails ?? []).length > 0"
+                        class="mt-3 flex gap-2 overflow-x-auto pb-1"
+                    >
+                        <img
+                            v-for="thumb in item.thumbnails"
+                            :key="thumb.path"
+                            :src="thumb.url"
+                            :alt="`${item.title} thumbnail`"
+                            class="h-16 w-16 shrink-0 rounded-lg border border-border object-cover"
+                        />
+                    </div>
+
                     <div class="mt-3 flex flex-wrap gap-1.5">
                         <span
                             v-for="role in item.target_roles ?? []"
@@ -488,7 +588,7 @@ defineOptions({
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
     >
         <div
-            class="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-lg"
+            class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-lg"
         >
             <h2 class="text-base font-bold text-foreground">
                 {{ editing ? 'Edit Announcement' : 'New Announcement' }}
@@ -519,6 +619,89 @@ defineOptions({
                         class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                         required
                     />
+                </div>
+
+                <div>
+                    <div class="mb-1.5 flex items-center justify-between gap-2">
+                        <label
+                            class="block text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                            >Thumbnails</label
+                        >
+                        <span class="text-[11px] text-muted-foreground">
+                            {{ thumbnailSlotsUsed }}/{{ MAX_THUMBNAILS }} photos
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                        <div
+                            v-for="thumb in existingThumbnails"
+                            :key="thumb.path"
+                            class="group relative aspect-square overflow-hidden rounded-xl border border-border bg-muted"
+                        >
+                            <img
+                                :src="thumb.url"
+                                alt="Existing thumbnail"
+                                class="h-full w-full object-cover"
+                            />
+                            <button
+                                type="button"
+                                class="absolute top-1 right-1 inline-flex size-7 items-center justify-center rounded-lg bg-black/60 text-white opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
+                                title="Remove photo"
+                                @click="removeExistingThumbnail(thumb.path)"
+                            >
+                                <X class="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+
+                        <div
+                            v-for="(preview, index) in newPreviewUrls"
+                            :key="preview"
+                            class="group relative aspect-square overflow-hidden rounded-xl border border-dashed border-orange-300 bg-orange-50/40 dark:border-orange-800 dark:bg-orange-950/20"
+                        >
+                            <img
+                                :src="preview"
+                                alt="New thumbnail preview"
+                                class="h-full w-full object-cover"
+                            />
+                            <button
+                                type="button"
+                                class="absolute top-1 right-1 inline-flex size-7 items-center justify-center rounded-lg bg-black/60 text-white opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100"
+                                title="Remove photo"
+                                @click="removeNewThumbnail(index)"
+                            >
+                                <X class="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+
+                        <button
+                            v-if="remainingThumbnailSlots > 0"
+                            type="button"
+                            class="flex aspect-square min-h-11 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/40 text-muted-foreground transition hover:border-orange-400 hover:bg-orange-50/50 hover:text-orange-600 dark:hover:bg-orange-950/20"
+                            @click="thumbnailInput?.click()"
+                        >
+                            <ImagePlus class="h-5 w-5" />
+                            <span class="text-[10px] font-semibold">Add</span>
+                        </button>
+                    </div>
+
+                    <input
+                        ref="thumbnailInput"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        class="hidden"
+                        multiple
+                        @change="onThumbnailPick"
+                    />
+                    <p class="mt-1.5 text-[11px] text-muted-foreground">
+                        JPEG, PNG, or WebP · up to 2&nbsp;MB each · max
+                        {{ MAX_THUMBNAILS }} photos
+                    </p>
+                    <p
+                        v-if="form.errors.thumbnails"
+                        class="mt-1 text-xs text-destructive"
+                    >
+                        {{ form.errors.thumbnails }}
+                    </p>
                 </div>
 
                 <div class="grid gap-4 md:grid-cols-2">
@@ -607,7 +790,7 @@ defineOptions({
                     <button
                         type="button"
                         class="rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground"
-                        @click="showForm = false"
+                        @click="closeForm"
                     >
                         Cancel
                     </button>

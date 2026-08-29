@@ -6,6 +6,7 @@ use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Notifications\NewAnnouncementNotification;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -236,7 +237,7 @@ it('prevents deleting a paper past title_proposal step', function () {
     $this->assertDatabaseHas('research_papers', ['id' => $paper->id]);
 });
 
-it('shows student home with announcements, classes, and paper data', function () {
+it('shows student home with classes, paper data, and announcement insights', function () {
     $student = studentActor();
 
     $class = SchoolClass::factory()->create([
@@ -258,26 +259,31 @@ it('shows student home with announcements, classes, and paper data', function ()
         'current_step' => 'ric_review',
     ]);
 
-    Announcement::factory()->create([
+    $announcement = Announcement::factory()->create([
+        'title' => 'Student bulletin',
         'target_roles' => ['student'],
         'is_active' => true,
         'is_pinned' => true,
     ]);
+
+    $student->notifyNow(new NewAnnouncementNotification($announcement));
 
     $this->actingAs($student)
         ->get(route('student.home'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('student/Home')
-            ->has('announcements', 1)
+            ->missing('announcements')
+            ->missing('attention')
             ->has('classes', 1)
             ->where('paper.id', $paper->id)
             ->where('paper.is_returned', false)
-            ->has('attention.unread_notifications')
-            ->has('attention.unread_count')
             ->has('stepLabels')
             ->has('steps')
             ->where('hasClass', true)
+            ->where('insights.actions', fn ($actions) => collect($actions)->contains(
+                fn ($action) => ($action['id'] ?? null) === 'new-announcement'
+            ))
         );
 });
 

@@ -20,7 +20,7 @@ class DefenseCalendarController extends Controller
         [$start, $end] = DefenseCalendarEvents::monthStartEndInAppTimezone($year, $month);
 
         $papersQuery = ResearchPaper::query()
-            ->with(['user', 'schoolClass', 'panelDefenses']);
+            ->with(['user', 'schoolClass', 'panelDefenses', 'workflowVersion.steps']);
 
         DefenseCalendarEvents::addScheduleInMonthConstraint(
             $papersQuery,

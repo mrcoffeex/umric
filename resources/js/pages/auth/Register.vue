@@ -15,8 +15,8 @@ import TextLink from '@/components/TextLink.vue';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useBranding } from '@/composables/useBranding';
-import { google } from '@/routes/auth';
 import { login, privacy, terms } from '@/routes';
+import { google } from '@/routes/auth';
 import { store } from '@/routes/register';
 
 type Role = 'student' | 'faculty';
@@ -32,8 +32,7 @@ const termsError = computed(
 );
 
 const emailError = computed(
-    () =>
-        (page.props.errors as Record<string, string> | undefined)?.email,
+    () => (page.props.errors as Record<string, string> | undefined)?.email,
 );
 
 const registerTitle = computed(() => `Register - ${branding.value.name}`);
@@ -200,7 +199,11 @@ defineOptions({
 
     <!-- Step 1: account type -->
     <div v-if="step === 'role'" class="flex flex-col gap-3">
-        <InputError v-if="emailError" :message="emailError" class="text-center" />
+        <InputError
+            v-if="emailError"
+            :message="emailError"
+            class="text-center"
+        />
 
         <button
             type="button"
@@ -217,7 +220,8 @@ defineOptions({
                     class="block font-semibold text-gray-900 dark:text-gray-50"
                     >Student</span
                 >
-                <span class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
+                <span
+                    class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
                     >Submit and track research papers</span
                 >
             </span>
@@ -241,7 +245,8 @@ defineOptions({
                     class="block font-semibold text-gray-900 dark:text-gray-50"
                     >Faculty</span
                 >
-                <span class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
+                <span
+                    class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
                     >Advise classes and review research</span
                 >
             </span>
@@ -301,7 +306,8 @@ defineOptions({
                     class="block font-semibold text-gray-900 dark:text-gray-50"
                     >Continue with Google</span
                 >
-                <span class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
+                <span
+                    class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
                     >Faster sign-up with your Gmail account</span
                 >
             </span>
@@ -325,7 +331,8 @@ defineOptions({
                     class="block font-semibold text-gray-900 dark:text-gray-50"
                     >Continue with email</span
                 >
-                <span class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
+                <span
+                    class="mt-0.5 block text-sm text-gray-500 dark:text-gray-400"
                     >Create an account with email and password</span
                 >
             </span>

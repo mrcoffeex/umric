@@ -73,8 +73,8 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const restoreOpen = ref(false);
 const restoreTarget = ref<BackupRow | 'upload'>('upload');
 
-const createForm = useForm({});
-const deleteForm = useForm({});
+const createForm = useForm({ backup: '' });
+const deleteForm = useForm({ backup: '' });
 const scheduleForm = useForm({
     enabled: props.schedule.enabled,
     frequency: props.schedule.frequency,
@@ -106,6 +106,7 @@ const restoreForm = useForm({
     password: '',
     confirmation: false,
     file: null as File | null,
+    backup: '',
 });
 
 function createBackup() {
@@ -113,10 +114,13 @@ function createBackup() {
 }
 
 async function deleteBackup(backup: BackupRow) {
-    const ok = await confirm(`Delete ${backup.filename}? This cannot be undone.`, {
-        title: 'Delete backup',
-        confirmLabel: 'Delete',
-    });
+    const ok = await confirm(
+        `Delete ${backup.filename}? This cannot be undone.`,
+        {
+            title: 'Delete backup',
+            confirmLabel: 'Delete',
+        },
+    );
 
     if (!ok) {
         return;
@@ -173,7 +177,10 @@ function submitRestore() {
             password: data.password,
             confirmation: data.confirmation ? 1 : 0,
         }))
-        .post(BackupController.restore.url(restoreTarget.value.filename), options);
+        .post(
+            BackupController.restore.url(restoreTarget.value.filename),
+            options,
+        );
 }
 
 const restoreTitle = computed(() =>
@@ -187,7 +194,9 @@ const restoreTitle = computed(() =>
     <div class="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
         <Head title="Backup & Restore" />
 
-        <div class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
+        <div
+            class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6"
+        >
             <div class="mb-6 flex items-start gap-3">
                 <div
                     class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30"
@@ -353,7 +362,9 @@ const restoreTitle = computed(() =>
             </section>
         </div>
 
-        <section class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6">
+        <section
+            class="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6"
+        >
             <h2 class="text-base font-semibold tracking-tight">
                 Stored backups
             </h2>
@@ -447,7 +458,7 @@ const restoreTitle = computed(() =>
                             ref="fileInput"
                             type="file"
                             accept=".zip,application/zip"
-                            class="block w-full text-base md:text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium"
+                            class="block w-full text-base file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium md:text-sm"
                             @change="onRestoreFile"
                         />
                         <InputError :message="restoreForm.errors.file" />

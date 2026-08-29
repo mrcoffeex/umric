@@ -88,9 +88,7 @@ function submit() {
                         id="enabled"
                         :model-value="form.enabled"
                         class="mt-0.5"
-                        @update:model-value="
-                            (v) => (form.enabled = v === true)
-                        "
+                        @update:model-value="(v) => (form.enabled = v === true)"
                     />
                     <div class="space-y-1">
                         <Label for="enabled" class="cursor-pointer">
@@ -111,7 +109,7 @@ function submit() {
                         v-model="form.message"
                         rows="3"
                         maxlength="500"
-                        class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
+                        class="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="The system is temporarily under maintenance. Please try again later."
                     />
                     <p class="text-xs text-muted-foreground">

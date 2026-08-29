@@ -37,6 +37,7 @@ final class DefenseCalendarEvents
         $query->where(function (Builder $q) use ($start, $end) {
             $q->whereBetween('outline_defense_schedule', [$start, $end])
                 ->orWhereBetween('final_defense_schedule', [$start, $end])
+                ->orWhereNotNull('step_input_values')
                 ->orWhereHas('panelDefenses', function (Builder $pd) use ($start, $end) {
                     $pd->whereNotNull('schedule')
                         ->whereBetween('schedule', [$start, $end]);
@@ -78,6 +79,7 @@ final class DefenseCalendarEvents
 
             if (
                 $paper->outline_defense_schedule
+                && self::inputShowsOnCalendar($paper, 'outline_defense', 'schedule')
                 && self::isWithinViewedMonth($paper->outline_defense_schedule, $start, $end)
             ) {
                 $key = self::dedupeKey($paper->id, 'outline_defense', $paper->outline_defense_schedule);
@@ -88,12 +90,17 @@ final class DefenseCalendarEvents
 
             if (
                 $paper->final_defense_schedule
+                && self::inputShowsOnCalendar($paper, 'final_defense', 'schedule')
                 && self::isWithinViewedMonth($paper->final_defense_schedule, $start, $end)
             ) {
                 $key = self::dedupeKey($paper->id, 'final_defense', $paper->final_defense_schedule);
                 if (! isset($coveredByPanel[$key])) {
                     $events[] = self::eventFromPaper($paper, 'final_defense', $paper->final_defense_schedule, $includeStudent);
                 }
+            }
+
+            foreach (self::customCalendarEvents($paper, $start, $end, $includeStudent) as $event) {
+                $events[] = $event;
             }
         }
 
@@ -155,8 +162,14 @@ final class DefenseCalendarEvents
             'tracking_id' => $paper->tracking_id,
             'title' => $paper->title,
             'type' => $type,
+            'label' => match ($type) {
+                'outline_defense' => 'Outline',
+                'title_defense' => 'Title',
+                default => 'Final',
+            },
             'schedule' => $schedule->toIso8601String(),
             'step_status' => $step,
+            'is_done' => self::isDefenseDone($paper, $type),
             'school_class' => $paper->schoolClass ? [
                 'name' => $paper->schoolClass->name,
                 'section' => $paper->schoolClass->section,
@@ -194,8 +207,10 @@ final class DefenseCalendarEvents
             'tracking_id' => $paper->tracking_id,
             'title' => $paper->title,
             'type' => $type,
+            'label' => $type === 'outline_defense' ? 'Outline' : 'Final',
             'schedule' => $schedule->toIso8601String(),
             'step_status' => $type === 'outline_defense' ? $paper->step_outline_defense : $paper->step_final_defense,
+            'is_done' => self::isDefenseDone($paper, $type),
             'school_class' => $paper->schoolClass ? [
                 'name' => $paper->schoolClass->name,
                 'section' => $paper->schoolClass->section,
@@ -211,6 +226,140 @@ final class DefenseCalendarEvents
         }
 
         return $event;
+    }
+
+    /**
+     * Done when the paper is completed, the defense step passed, or the paper
+     * has already advanced past that defense in the workflow.
+     */
+    private static function isDefenseDone(ResearchPaper $paper, string $type): bool
+    {
+        if ($paper->isCompleted()) {
+            return true;
+        }
+
+        return match ($type) {
+            'outline_defense' => $paper->step_outline_defense === 'passed'
+                || self::hasAdvancedPast($paper, 'outline_defense'),
+            'final_defense' => $paper->step_final_defense === 'passed'
+                || self::hasAdvancedPast($paper, 'final_defense'),
+            'title_defense' => self::hasAdvancedPast($paper, 'title_proposal'),
+            default => false,
+        };
+    }
+
+    private static function hasAdvancedPast(ResearchPaper $paper, string $stepKey): bool
+    {
+        $steps = $paper->stepKeys();
+        $currentIdx = array_search($paper->current_step, $steps, true);
+        $targetIdx = array_search($stepKey, $steps, true);
+
+        if ($currentIdx === false || $targetIdx === false) {
+            return false;
+        }
+
+        return $currentIdx > $targetIdx;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private static function customCalendarEvents(
+        ResearchPaper $paper,
+        Carbon $start,
+        Carbon $end,
+        bool $includeStudent,
+    ): array {
+        $events = [];
+
+        foreach ($paper->stepConfigs() as $stepKey => $config) {
+            foreach ($config['inputs'] as $input) {
+                if (! ($input['show_on_calendar'] ?? false)) {
+                    continue;
+                }
+
+                if (
+                    ($stepKey === 'outline_defense' || $stepKey === 'final_defense')
+                    && $input['key'] === 'schedule'
+                ) {
+                    continue;
+                }
+
+                $schedule = self::scheduleForInput($paper, $stepKey, $input['key']);
+                if (! $schedule instanceof CarbonInterface || ! self::isWithinViewedMonth($schedule, $start, $end)) {
+                    continue;
+                }
+
+                $type = $stepKey;
+                $event = [
+                    'id' => $paper->id.'-'.$stepKey.'-'.$input['key'],
+                    'paper_id' => $paper->id,
+                    'tracking_id' => $paper->tracking_id,
+                    'title' => $paper->title,
+                    'type' => $type,
+                    'label' => $input['label'],
+                    'schedule' => $schedule->toIso8601String(),
+                    'step_status' => $paper->current_step === $stepKey
+                        ? $paper->current_step_status
+                        : $paper->customStepStatus($stepKey),
+                    'is_done' => $paper->isCompleted() || self::hasAdvancedPast($paper, $stepKey),
+                    'school_class' => $paper->schoolClass ? [
+                        'name' => $paper->schoolClass->name,
+                        'section' => $paper->schoolClass->section,
+                    ] : null,
+                    'panel_members' => [],
+                    'proponents' => self::extractProponentNames($paper->proponents),
+                ];
+
+                if ($includeStudent) {
+                    $event['student'] = $paper->user
+                        ? ['name' => $paper->user->name, 'email' => $paper->user->email]
+                        : null;
+                }
+
+                $events[] = $event;
+            }
+        }
+
+        return $events;
+    }
+
+    private static function inputShowsOnCalendar(ResearchPaper $paper, string $step, string $key): bool
+    {
+        foreach ($paper->stepConfig($step)['inputs'] as $input) {
+            if ($input['key'] === $key) {
+                return (bool) ($input['show_on_calendar'] ?? false);
+            }
+        }
+
+        return in_array($step, ['outline_defense', 'final_defense'], true) && $key === 'schedule';
+    }
+
+    private static function scheduleForInput(ResearchPaper $paper, string $step, string $key): ?CarbonInterface
+    {
+        if ($key === 'schedule' && $step === 'outline_defense') {
+            return $paper->outline_defense_schedule;
+        }
+
+        if ($key === 'schedule' && $step === 'final_defense') {
+            return $paper->final_defense_schedule;
+        }
+
+        $raw = $paper->step_input_values[$step][$key] ?? null;
+        if (! is_string($raw) && ! is_numeric($raw)) {
+            return null;
+        }
+
+        $value = trim((string) $raw);
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value, config('app.timezone'));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private static function extractProponentNames(mixed $proponents): array

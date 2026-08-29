@@ -93,7 +93,9 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
+const focusStepKey = computed(() =>
+    workflowFocusStepKey(props.paper, props.steps),
+);
 
 const sdgMap = computed(() =>
     Object.fromEntries(props.sdgs.map((s) => [s.id, s])),

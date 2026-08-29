@@ -54,3 +54,47 @@ it('allows staff to view activity logs index', function () {
             ->has('logs.links')
         );
 });
+
+it('includes logs without a subject for the frontend', function () {
+    $admin = makeActivityLogUser('admin');
+
+    activity()
+        ->causedBy($admin)
+        ->event('backed_up')
+        ->log('Created backup test.zip');
+
+    $this->actingAs($admin)
+        ->get(route('admin.activity-logs.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/ActivityLog/Index')
+            ->where(
+                'logs.data',
+                fn ($logs) => collect($logs)->contains(
+                    fn (array $log): bool => $log['event'] === 'backed_up'
+                        && $log['description'] === 'Created backup test.zip'
+                        && $log['subject_type'] === null
+                        && $log['subject_id'] === null
+                        && $log['subject_name'] === null
+                )
+            )
+        );
+});
+
+it('filters logs by causer ulid', function () {
+    $admin = makeActivityLogUser('admin');
+    $other = makeActivityLogUser('staff');
+
+    activity()->causedBy($admin)->event('updated')->log('Admin action');
+    activity()->causedBy($other)->event('updated')->log('Other action');
+
+    $this->actingAs($admin)
+        ->get(route('admin.activity-logs.index', ['causer' => $admin->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('admin/ActivityLog/Index')
+            ->has('logs.data', 1)
+            ->where('logs.data.0.causer', $admin->email)
+            ->where('logs.data.0.description', 'Admin action')
+        );
+});

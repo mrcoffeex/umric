@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
+use App\Models\ResearchPaper;
+use App\Models\Subject;
+use App\Models\User;
 use App\Support\CaseInsensitiveLike;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -26,7 +30,7 @@ class ActivityLogController extends Controller
         $baseQuery = Activity::query()
             ->with('causer', 'subject')
             ->when($event !== '', fn ($query) => $query->where('event', $event))
-            ->when($causer !== '', fn ($query) => $query->where('causer_id', (int) $causer))
+            ->when($causer !== '', fn ($query) => $query->where('causer_id', $causer))
             ->when($risk === 'high', fn ($query) => $query->whereIn('event', $highRiskEvents))
             ->when($risk === 'normal', fn ($query) => $query->whereNotIn('event', $highRiskEvents))
             ->when($dateFrom !== '', fn ($query) => $query->whereDate('created_at', '>=', $dateFrom))
@@ -48,7 +52,7 @@ class ActivityLogController extends Controller
             });
 
         $logs = (clone $baseQuery)
-            ->latest()
+            ->latest('id')
             ->paginate(50)
             ->withQueryString()
             ->through(function (Activity $activity) {
@@ -89,17 +93,14 @@ class ActivityLogController extends Controller
             ->filter()
             ->values();
 
-        $causers = Activity::query()
-            ->with('causer:id,name,email')
-            ->whereNotNull('causer_id')
-            ->distinct('causer_id')
-            ->get()
-            ->map(fn (Activity $activity) => $activity->causer)
-            ->filter()
-            ->unique('id')
-            ->sortBy('name')
-            ->values()
-            ->map(fn ($user) => [
+        $causers = User::query()
+            ->whereIn(
+                'id',
+                Activity::query()->whereNotNull('causer_id')->select('causer_id')
+            )
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -174,11 +175,11 @@ class ActivityLogController extends Controller
         }
 
         return match ($activity->subject_type) {
-            'App\Models\User' => $activity->subject->email ?? 'User #'.$activity->subject_id,
-            'App\Models\Department' => $activity->subject->code ?? $activity->subject->name,
-            'App\Models\Subject' => $activity->subject->code ?? $activity->subject->name,
-            'App\Models\ResearchPaper' => $activity->subject->tracking_id ?? 'Paper #'.$activity->subject_id,
-            default => $activity->subject->name ?? $activity->subject->id,
+            User::class => $activity->subject->email ?? 'User #'.$activity->subject_id,
+            Department::class => $activity->subject->code ?? $activity->subject->name,
+            Subject::class => $activity->subject->code ?? $activity->subject->name,
+            ResearchPaper::class => $activity->subject->tracking_id ?? 'Paper #'.$activity->subject_id,
+            default => $activity->subject->name ?? (string) $activity->subject->id,
         };
     }
 }

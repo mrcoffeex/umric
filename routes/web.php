@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\SchoolClassController;
 use App\Http\Controllers\Admin\SdgController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WorkflowController;
+use App\Http\Controllers\AnnouncementsController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ContactController;
@@ -83,6 +85,8 @@ Route::middleware(['auth'])->get('/maintenance', [MaintenanceController::class, 
 
 Route::middleware(['auth', 'verified', 'approved'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('announcements', [AnnouncementsController::class, 'index'])->name('announcements.index');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('notifications/feed', [NotificationController::class, 'feed'])->name('notifications.feed');
@@ -182,6 +186,9 @@ Route::middleware(['auth', 'verified', 'approved'])->group(function () {
 
         Route::get('branding', [BrandingController::class, 'index'])->name('branding.index');
         Route::put('branding', [BrandingController::class, 'update'])->name('branding.update');
+
+        Route::get('workflow-steps', [WorkflowController::class, 'index'])->name('workflow-steps.index');
+        Route::put('workflow-steps', [WorkflowController::class, 'update'])->name('workflow-steps.update');
     });
 
     // Faculty class management

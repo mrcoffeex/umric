@@ -67,7 +67,9 @@ const { target: sectionRef, isVisible } = useScrollReveal(0.1);
                             "
                         />
 
-                        <div class="relative z-10 flex flex-col items-center text-center">
+                        <div
+                            class="relative z-10 flex flex-col items-center text-center"
+                        >
                             <div
                                 class="relative mb-6 flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28"
                             >

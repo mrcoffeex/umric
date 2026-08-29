@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\Announcement;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
+use App\Services\DashboardInsightsBuilder;
+use App\Services\WorkflowCatalog;
 use App\Support\JsonContains;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class HomeController extends Controller
 {
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request, DashboardInsightsBuilder $insightsBuilder): Response
     {
         if (! $request->user()->isStudent()) {
             abort(403);
@@ -22,22 +22,17 @@ class HomeController extends Controller
 
         $user = $request->user();
 
-        $announcements = Announcement::active()
-            ->forRole('student')
-            ->orderByDesc('is_pinned')
-            ->latest('published_at')
-            ->take(3)
-            ->get();
-
         $classes = SchoolClass::query()
             ->whereHas('members', fn ($query) => $query->where('student_id', $user->id))
             ->with('subjects.program')
             ->get();
 
         $userId = $user->id;
+        $hasClass = $classes->isNotEmpty();
 
         $paper = ResearchPaper::query()
             ->with([
+                'workflowVersion.steps',
                 'trackingRecords' => fn ($query) => $query->latest('status_changed_at')->limit(1),
             ])
             ->where(function ($query) use ($userId) {
@@ -51,21 +46,7 @@ class HomeController extends Controller
             })
             ->first();
 
-        $recentNotifications = $user->unreadNotifications()
-            ->latest()
-            ->limit(5)
-            ->get()
-            ->map(fn (DatabaseNotification $notification) => [
-                'id' => $notification->id,
-                'category' => $notification->data['category'] ?? 'general',
-                'title' => $notification->data['title'] ?? 'Notification',
-                'body' => $notification->data['body'] ?? '',
-                'url' => $notification->data['url'] ?? null,
-                'created_at' => $notification->created_at?->toISOString(),
-            ]);
-
         return Inertia::render('student/Home', [
-            'announcements' => $announcements,
             'classes' => $classes,
             'paper' => $paper ? [
                 ...$paper->toArray(),
@@ -80,13 +61,14 @@ class HomeController extends Controller
                 ] : null,
                 'upcoming_defense' => $this->upcomingDefense($paper),
             ] : null,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
-            'steps' => ResearchPaper::STEPS,
-            'hasClass' => $classes->isNotEmpty(),
-            'attention' => [
-                'unread_notifications' => $recentNotifications,
-                'unread_count' => $user->unreadNotifications()->count(),
-            ],
+            'stepLabels' => app(WorkflowCatalog::class)->stepLabelsFor($paper),
+            'steps' => app(WorkflowCatalog::class)->stepKeysFor($paper),
+            'hasClass' => $hasClass,
+            'insights' => $insightsBuilder->forStudent(
+                $user,
+                $hasClass,
+                $paper,
+            ),
         ]);
     }
 

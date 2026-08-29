@@ -5,6 +5,7 @@ use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Services\WorkflowCatalog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -71,13 +72,13 @@ it('admin calendar shows outline and final defense events in the requested month
     $admin = makeCalendarAdmin();
     $student = makeCalendarStudent();
 
-    ResearchPaper::factory()->create([
+    $outlinePaper = ResearchPaper::factory()->create([
         'user_id' => $student->id,
         'outline_defense_schedule' => '2026-04-15 09:00:00',
         'final_defense_schedule' => null,
     ]);
 
-    ResearchPaper::factory()->create([
+    $finalPaper = ResearchPaper::factory()->create([
         'user_id' => $student->id,
         'final_defense_schedule' => '2026-04-20 14:00:00',
         'outline_defense_schedule' => null,
@@ -91,7 +92,43 @@ it('admin calendar shows outline and final defense events in the requested month
             ->where('year', 2026)
             ->has('events', 2)
             ->where('events.0.type', 'outline_defense')
+            ->where('events.0.paper_id', $outlinePaper->id)
+            ->where('events.0.is_done', false)
             ->where('events.1.type', 'final_defense')
+            ->where('events.1.paper_id', $finalPaper->id)
+            ->where('events.1.is_done', false)
+        );
+});
+
+it('marks calendar events done when the defense passed or paper is completed', function () {
+    $admin = makeCalendarAdmin();
+    $student = makeCalendarStudent();
+
+    $passedOutline = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'outline_defense_schedule' => '2026-04-12 09:00:00',
+        'final_defense_schedule' => null,
+        'step_outline_defense' => 'passed',
+        'current_step' => 'data_gathering',
+    ]);
+
+    $completedPaper = ResearchPaper::factory()->create([
+        'user_id' => $student->id,
+        'outline_defense_schedule' => null,
+        'final_defense_schedule' => '2026-04-18 14:00:00',
+        'step_final_defense' => 'pending',
+        'current_step' => 'completed',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.defense-calendar.index', ['month' => 4, 'year' => 2026]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('events', 2)
+            ->where('events.0.paper_id', $passedOutline->id)
+            ->where('events.0.is_done', true)
+            ->where('events.1.paper_id', $completedPaper->id)
+            ->where('events.1.is_done', true)
         );
 });
 
@@ -263,4 +300,81 @@ it('faculty calendar shows both outline and final events for enrolled students',
         ->get(route('faculty.defense-calendar.index', ['month' => 4, 'year' => 2026]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page->has('events', 2));
+});
+
+it('shows custom datetime inputs marked for the calendar', function () {
+    $admin = makeCalendarAdmin();
+    app(WorkflowCatalog::class)->publish([
+        ['key' => 'title_proposal', 'label' => 'Title Evaluation'],
+        [
+            'key' => 'ethics_review',
+            'label' => 'Ethics Review',
+            'config' => [
+                'statuses' => [
+                    ['value' => 'pending', 'label' => 'Pending', 'color' => 'muted', 'completes' => false],
+                    ['value' => 'cleared', 'label' => 'Cleared', 'color' => 'teal', 'completes' => true],
+                ],
+                'inputs' => [
+                    ['key' => 'hearing_at', 'label' => 'Hearing', 'type' => 'datetime', 'show_on_calendar' => true],
+                ],
+            ],
+        ],
+        ['key' => 'completed', 'label' => 'Completed'],
+    ], $admin);
+
+    $paper = ResearchPaper::factory()->create([
+        'user_id' => makeCalendarStudent()->id,
+        'current_step' => 'ethics_review',
+        'outline_defense_schedule' => null,
+        'final_defense_schedule' => null,
+        'step_input_values' => [
+            'ethics_review' => ['hearing_at' => '2026-04-16 10:00:00'],
+        ],
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.defense-calendar.index', ['month' => 4, 'year' => 2026]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('events', 1)
+            ->where('events.0.paper_id', $paper->id)
+            ->where('events.0.type', 'ethics_review')
+            ->where('events.0.label', 'Hearing')
+        );
+});
+
+it('hides datetime inputs that are not marked for the calendar', function () {
+    $admin = makeCalendarAdmin();
+    app(WorkflowCatalog::class)->publish([
+        ['key' => 'title_proposal', 'label' => 'Title Evaluation'],
+        [
+            'key' => 'ethics_review',
+            'label' => 'Ethics Review',
+            'config' => [
+                'statuses' => [
+                    ['value' => 'pending', 'label' => 'Pending', 'color' => 'muted', 'completes' => false],
+                    ['value' => 'cleared', 'label' => 'Cleared', 'color' => 'teal', 'completes' => true],
+                ],
+                'inputs' => [
+                    ['key' => 'hearing_at', 'label' => 'Hearing', 'type' => 'datetime', 'show_on_calendar' => false],
+                ],
+            ],
+        ],
+        ['key' => 'completed', 'label' => 'Completed'],
+    ], $admin);
+
+    ResearchPaper::factory()->create([
+        'user_id' => makeCalendarStudent()->id,
+        'current_step' => 'ethics_review',
+        'outline_defense_schedule' => null,
+        'final_defense_schedule' => null,
+        'step_input_values' => [
+            'ethics_review' => ['hearing_at' => '2026-04-16 10:00:00'],
+        ],
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.defense-calendar.index', ['month' => 4, 'year' => 2026]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('events', []));
 });

@@ -36,8 +36,7 @@ const branding = useBranding();
                 Maintenance mode
             </h2>
             <p class="text-sm text-gray-500 dark:text-gray-400">
-                {{ branding.name }} is temporarily unavailable for your
-                account.
+                {{ branding.name }} is temporarily unavailable for your account.
             </p>
         </div>
 

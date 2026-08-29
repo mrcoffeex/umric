@@ -30,7 +30,7 @@ class DefenseCalendarController extends Controller
         $facultyUserId = $request->user()->id;
         $facultyName = $request->user()->name;
 
-        $papers = ResearchPaper::with(['user', 'schoolClass', 'panelDefenses'])
+        $papers = ResearchPaper::with(['user', 'schoolClass', 'panelDefenses', 'workflowVersion.steps'])
             ->where(function ($q) use ($studentIds, $facultyUserId, $facultyName) {
                 $q->whereIn('user_id', $studentIds)
                     ->orWhere('adviser_id', $facultyUserId)

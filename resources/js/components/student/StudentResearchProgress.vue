@@ -47,9 +47,15 @@ const props = defineProps<{
 
 const showAllSteps = ref(false);
 
-const focusIndex = computed(() => firstPendingWorkflowStepIndex(props.paper));
-const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
-const progressPercent = computed(() => workflowProgressPercent(props.paper));
+const focusIndex = computed(() =>
+    firstPendingWorkflowStepIndex(props.paper, props.steps),
+);
+const focusStepKey = computed(() =>
+    workflowFocusStepKey(props.paper, props.steps),
+);
+const progressPercent = computed(() =>
+    workflowProgressPercent(props.paper, props.steps),
+);
 const stepCount = computed(() => Math.max(props.steps.length, 1));
 const currentStepNumber = computed(() =>
     focusIndex.value >= 0 ? focusIndex.value + 1 : 1,
@@ -160,7 +166,9 @@ function formatRelative(value?: string | null): string {
                         >
                             {{ paper.title }}
                         </Link>
-                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <div
+                            class="mt-2 flex flex-wrap items-center gap-2 text-xs"
+                        >
                             <code
                                 class="rounded-md bg-orange-50 px-2 py-1 font-mono text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
                             >

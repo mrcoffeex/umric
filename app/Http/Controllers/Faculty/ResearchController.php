@@ -10,6 +10,7 @@ use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
+use App\Services\WorkflowCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,7 @@ class ResearchController extends Controller
                 'step_final_manuscript' => $paper->step_final_manuscript,
                 'step_final_defense' => $paper->step_final_defense,
                 'step_hard_bound' => $paper->step_hard_bound,
+                'custom_step_statuses' => $paper->custom_step_statuses ?? [],
                 'outline_defense_schedule' => $paper->outline_defense_schedule?->toISOString(),
                 'final_defense_schedule' => $paper->final_defense_schedule?->toISOString(),
                 'grade' => $paper->grade,
@@ -83,8 +85,9 @@ class ResearchController extends Controller
             ->groupBy('current_step')
             ->pluck('cnt', 'current_step');
 
+        $workflows = app(WorkflowCatalog::class);
         $stepCounts = [];
-        foreach (ResearchPaper::STEPS as $step) {
+        foreach ($workflows->allKnownStepKeys() as $step) {
             $stepCounts[$step] = (int) ($stepCountsRaw[$step] ?? 0);
         }
 
@@ -100,7 +103,7 @@ class ResearchController extends Controller
             ],
             'papers' => $papers,
             'stepCounts' => $stepCounts,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
+            'stepLabels' => $workflows->allKnownLabels(),
             'sdgs' => Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']),
             'agendas' => Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'filters' => $request->only(['search', 'step']),
@@ -112,7 +115,7 @@ class ResearchController extends Controller
         $this->ensurePaperBelongsToClass($class, $paper);
         $this->ensureFacultyCanAccessPaper($request, $class, $paper);
 
-        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy', 'files']);
+        $paper->load(['workflowVersion.steps', 'user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy', 'files']);
 
         return Inertia::render('faculty/Research/Show', [
             'schoolClass' => [
@@ -146,6 +149,7 @@ class ResearchController extends Controller
                 'step_final_defense' => $paper->step_final_defense,
                 'final_defense_schedule' => $paper->final_defense_schedule?->toISOString(),
                 'step_hard_bound' => $paper->step_hard_bound,
+                'custom_step_statuses' => $paper->custom_step_statuses ?? [],
                 'submission_date' => $paper->submission_date?->toDateString(),
                 'created_at' => $paper->created_at->toISOString(),
                 'student' => $paper->user ? [
@@ -195,8 +199,9 @@ class ResearchController extends Controller
                 ] : null,
                 'created_at' => $record->created_at?->toISOString(),
             ])->values(),
-            'stepLabels' => ResearchPaper::STEP_LABELS,
-            'steps' => ResearchPaper::STEPS,
+            'stepLabels' => $paper->stepLabels(),
+            'steps' => $paper->stepKeys(),
+            'stepConfigs' => $paper->stepConfigs(),
             'sdgs' => Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']),
             'agendas' => Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'comments' => $paper->comments->map(fn (Comment $comment) => [
@@ -250,9 +255,8 @@ class ResearchController extends Controller
                     $metadata['schedule'] = $validated['schedule'];
                 }
 
-                if ($status === 'passed') {
-                    $updateData['current_step'] = 'data_gathering';
-                    $updateData['step_data_gathering'] = 'pending';
+                if ($paper->statusCompletesStep($step, $status)) {
+                    $updateData = array_merge($updateData, $this->advancePaperToNextStep($paper, $step));
                 }
                 break;
 
@@ -260,9 +264,8 @@ class ResearchController extends Controller
                 $oldStatus = $paper->step_data_gathering;
                 $updateData['step_data_gathering'] = $status;
 
-                if ($status === 'completed') {
-                    $updateData['current_step'] = 'rating';
-                    $updateData['step_rating'] = $paper->step_rating ?? 'pending';
+                if ($paper->statusCompletesStep($step, $status)) {
+                    $updateData = array_merge($updateData, $this->advancePaperToNextStep($paper, $step));
                 }
                 break;
 
@@ -275,9 +278,8 @@ class ResearchController extends Controller
                     $metadata['grade'] = $validated['grade'];
                 }
 
-                if ($status === 'rated') {
-                    $updateData['current_step'] = 'final_manuscript';
-                    $updateData['step_final_manuscript'] = $paper->step_final_manuscript ?? 'pending';
+                if ($paper->statusCompletesStep($step, $status)) {
+                    $updateData = array_merge($updateData, $this->advancePaperToNextStep($paper, $step));
                 }
                 break;
 
@@ -290,9 +292,8 @@ class ResearchController extends Controller
                     $metadata['schedule'] = $validated['schedule'];
                 }
 
-                if ($status === 'passed') {
-                    $updateData['current_step'] = 'hard_bound';
-                    $updateData['step_hard_bound'] = $paper->step_hard_bound ?? 'ongoing';
+                if ($paper->statusCompletesStep($step, $status)) {
+                    $updateData = array_merge($updateData, $this->advancePaperToNextStep($paper, $step));
                 }
                 break;
         }
@@ -315,7 +316,7 @@ class ResearchController extends Controller
         ResearchStatusUpdated::dispatch(
             $paper->fresh(),
             $step,
-            ResearchPaper::STEP_LABELS[$step] ?? ucfirst(str_replace('_', ' ', $step)),
+            $paper->labelForStep($step),
             $status,
             $validated['notes'] ?? null,
         );
@@ -340,11 +341,9 @@ class ResearchController extends Controller
 
         $oldStatus = $paper->step_ric_review;
 
-        $paper->update([
+        $paper->update(array_merge([
             'step_ric_review' => 'approved',
-            'current_step' => 'outline_defense',
-            'step_outline_defense' => 'pending',
-        ]);
+        ], $this->advancePaperToNextStep($paper, 'ric_review')));
 
         TrackingRecord::log(
             $paper->id,
@@ -359,7 +358,7 @@ class ResearchController extends Controller
         ResearchStatusUpdated::dispatch(
             $paper->fresh(),
             'ric_review',
-            ResearchPaper::STEP_LABELS['ric_review'] ?? 'RIC/Admin Review',
+            $paper->labelForStep('ric_review'),
             'approved',
             $validated['notes'] ?? null,
         );
@@ -418,5 +417,21 @@ class ResearchController extends Controller
         if (! $isMember) {
             abort(404);
         }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function advancePaperToNextStep(ResearchPaper $paper, string $fromStep): array
+    {
+        $next = $paper->nextStepKey($fromStep);
+        if ($next === null) {
+            return [];
+        }
+
+        return array_merge(
+            ['current_step' => $next],
+            $paper->updatesForEnteringStep($next),
+        );
     }
 }

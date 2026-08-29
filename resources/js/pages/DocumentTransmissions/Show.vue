@@ -800,9 +800,12 @@ function itemActivityDescription(act: ItemActivity): string {
                                 <span class="font-medium"
                                     >Stamp my signature on PDFs</span
                                 >
-                                <span class="mt-0.5 block text-muted-foreground">
+                                <span
+                                    class="mt-0.5 block text-muted-foreground"
+                                >
                                     Optional. Adds a small signature stamp to
-                                    the first page of each PDF you mark received.
+                                    the first page of each PDF you mark
+                                    received.
                                 </span>
                             </label>
                         </div>

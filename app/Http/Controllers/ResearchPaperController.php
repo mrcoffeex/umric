@@ -166,6 +166,7 @@ class ResearchPaperController extends Controller
         Gate::authorize('view', $paper);
 
         $paper->load([
+            'workflowVersion.steps',
             'category',
             'authors',
             'files',
@@ -178,8 +179,8 @@ class ResearchPaperController extends Controller
 
         return Inertia::render('Research/Show', [
             'paper' => $paper,
-            'steps' => ResearchPaper::STEPS,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
+            'steps' => $paper->stepKeys(),
+            'stepLabels' => $paper->stepLabels(),
             'sdgs' => Sdg::all(),
             'agendas' => Agenda::all(),
         ]);
@@ -269,6 +270,7 @@ class ResearchPaperController extends Controller
     {
         $paper = ResearchPaper::where('tracking_id', $trackingId)
             ->with([
+                'workflowVersion.steps',
                 'category',
                 'authors',
                 'citations',
@@ -282,8 +284,8 @@ class ResearchPaperController extends Controller
 
         return Inertia::render('Research/PublicTracking', [
             'paper' => $paper,
-            'steps' => ResearchPaper::STEPS,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
+            'steps' => $paper->stepKeys(),
+            'stepLabels' => $paper->stepLabels(),
         ]);
     }
 

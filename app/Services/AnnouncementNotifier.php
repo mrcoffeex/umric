@@ -23,7 +23,14 @@ class AnnouncementNotifier
 
         $query = User::query()
             ->whereNull('blocked_at')
-            ->whereHas('profile', fn ($q) => $q->whereIn('role', $roles));
+            ->whereHas('profile', function ($q) use ($roles): void {
+                $q->whereIn('role', $roles)
+                    ->where(function ($inner): void {
+                        // Pending faculty should not receive product notifications.
+                        $inner->where('role', '!=', 'faculty')
+                            ->orWhereNotNull('approved_at');
+                    });
+            });
 
         if ($announcement->created_by) {
             $query->whereKeyNot($announcement->created_by);

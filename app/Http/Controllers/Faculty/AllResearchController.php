@@ -9,6 +9,7 @@ use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\Sdg;
 use App\Models\TrackingRecord;
+use App\Services\WorkflowCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -149,8 +150,9 @@ class AllResearchController extends Controller
             ->groupBy('current_step')
             ->pluck('cnt', 'current_step');
 
+        $workflows = app(WorkflowCatalog::class);
         $stepCounts = [];
-        foreach (ResearchPaper::STEPS as $step) {
+        foreach ($workflows->allKnownStepKeys() as $step) {
             $stepCounts[$step] = (int) ($stepCountsRaw[$step] ?? 0);
         }
 
@@ -193,7 +195,7 @@ class AllResearchController extends Controller
             'sdgs' => $sdgs,
             'agendas' => $agendas,
             'stepCounts' => $stepCounts,
-            'stepLabels' => ResearchPaper::STEP_LABELS,
+            'stepLabels' => $workflows->allKnownLabels(),
             'filters' => $request->only(['search', 'step', 'sdg', 'agenda', 'class']),
         ]);
     }
@@ -225,7 +227,7 @@ class AllResearchController extends Controller
             }
         }
 
-        $paper->load(['user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy']);
+        $paper->load(['workflowVersion.steps', 'user.profile', 'schoolClass.subjects.program', 'adviser', 'statistician', 'trackingRecords.updatedBy', 'comments.user', 'panelDefenses.createdBy']);
 
         return Inertia::render('faculty/Research/Show', [
             'schoolClass' => $paper->schoolClass ? [
@@ -259,6 +261,7 @@ class AllResearchController extends Controller
                 'step_final_defense' => $paper->step_final_defense,
                 'final_defense_schedule' => $paper->final_defense_schedule?->toISOString(),
                 'step_hard_bound' => $paper->step_hard_bound,
+                'custom_step_statuses' => $paper->custom_step_statuses ?? [],
                 'submission_date' => $paper->submission_date?->toDateString(),
                 'created_at' => $paper->created_at->toISOString(),
                 'student' => $paper->user ? [
@@ -299,8 +302,9 @@ class AllResearchController extends Controller
                 ] : null,
                 'created_at' => $record->created_at?->toISOString(),
             ])->values(),
-            'stepLabels' => ResearchPaper::STEP_LABELS,
-            'steps' => ResearchPaper::STEPS,
+            'stepLabels' => $paper->stepLabels(),
+            'steps' => $paper->stepKeys(),
+            'stepConfigs' => $paper->stepConfigs(),
             'sdgs' => Sdg::where('is_active', true)->orderBy('number')->get(['id', 'number', 'name', 'color']),
             'agendas' => Agenda::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'comments' => $paper->comments->map(fn (Comment $comment) => [

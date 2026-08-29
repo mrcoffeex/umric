@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\WorkflowCatalog;
+use App\Support\WorkflowStepConfig;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +32,10 @@ class ResearchPaper extends Model
         'proponents',
         'tracking_id',
         'status',
+        'workflow_version_id',
         'current_step',
+        'custom_step_statuses',
+        'step_input_values',
         'step_ric_review',
         'step_plagiarism',
         'plagiarism_attempts',
@@ -62,6 +67,8 @@ class ResearchPaper extends Model
         'plagiarism_attempts' => 'integer',
         'grade' => 'decimal:2',
         'plagiarism_score' => 'decimal:2',
+        'custom_step_statuses' => 'array',
+        'step_input_values' => 'array',
     ];
 
     // Workflow constants
@@ -101,6 +108,14 @@ class ResearchPaper extends Model
             }
             if (empty($paper->submission_date)) {
                 $paper->submission_date = now();
+            }
+            if (empty($paper->workflow_version_id)) {
+                $catalog = app(WorkflowCatalog::class);
+                $current = $catalog->current();
+                $paper->workflow_version_id = $current->id;
+                if (empty($paper->current_step)) {
+                    $paper->current_step = $current->stepKeys()[0] ?? 'title_proposal';
+                }
             }
         });
     }
@@ -182,10 +197,166 @@ class ResearchPaper extends Model
         return $this->hasMany(Comment::class)->latest();
     }
 
+    public function workflowVersion(): BelongsTo
+    {
+        return $this->belongsTo(WorkflowVersion::class);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function stepKeys(): array
+    {
+        $this->loadMissing('workflowVersion.steps');
+
+        $keys = $this->workflowVersion?->stepKeys() ?? [];
+
+        return $keys !== [] ? $keys : self::STEPS;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function stepLabels(): array
+    {
+        $this->loadMissing('workflowVersion.steps');
+
+        $labels = $this->workflowVersion?->stepLabels() ?? [];
+
+        return $labels !== [] ? $labels : self::STEP_LABELS;
+    }
+
+    public function labelForStep(string $key): string
+    {
+        return $this->stepLabels()[$key] ?? self::STEP_LABELS[$key] ?? $key;
+    }
+
+    public function firstStepKey(): string
+    {
+        return $this->stepKeys()[0] ?? 'title_proposal';
+    }
+
+    public function nextStepKey(?string $from = null): ?string
+    {
+        $keys = $this->stepKeys();
+        $from ??= $this->current_step;
+        $index = array_search($from, $keys, true);
+
+        if ($index === false) {
+            return null;
+        }
+
+        return $keys[$index + 1] ?? null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function updatesForEnteringStep(string $key): array
+    {
+        return match ($key) {
+            'title_proposal' => [],
+            'ric_review' => ['step_ric_review' => $this->step_ric_review ?? 'pending'],
+            'outline_defense' => ['step_outline_defense' => $this->step_outline_defense ?? 'pending'],
+            'data_gathering' => ['step_data_gathering' => $this->step_data_gathering ?? 'pending'],
+            'rating' => ['step_rating' => $this->step_rating ?? 'pending'],
+            'final_manuscript' => ['step_final_manuscript' => $this->step_final_manuscript ?? 'pending'],
+            'final_defense' => ['step_final_defense' => $this->step_final_defense ?? 'pending'],
+            'hard_bound' => ['step_hard_bound' => $this->step_hard_bound ?? 'ongoing'],
+            'completed' => ['status' => 'published'],
+            default => [
+                'custom_step_statuses' => array_merge($this->custom_step_statuses ?? [], [
+                    $key => $this->customStepStatus($key) ?? 'pending',
+                ]),
+            ],
+        };
+    }
+
+    public function customStepStatus(string $key): ?string
+    {
+        $statuses = $this->custom_step_statuses ?? [];
+
+        return isset($statuses[$key]) ? (string) $statuses[$key] : null;
+    }
+
+    /**
+     * @return array{statuses: list<array{value: string, label: string, color: string, completes: bool}>, inputs: list<array{key: string, label: string, type: string, show_on_calendar: bool}>}
+     */
+    public function stepConfig(string $key): array
+    {
+        $this->loadMissing('workflowVersion.steps');
+
+        $step = $this->workflowVersion?->steps->firstWhere('key', $key);
+
+        return WorkflowStepConfig::normalize(
+            is_array($step?->config) ? $step->config : null,
+            $key,
+        );
+    }
+
+    /**
+     * @return array<string, array{statuses: list<array{value: string, label: string, color: string, completes: bool}>, inputs: list<array{key: string, label: string, type: string, show_on_calendar: bool}>}>
+     */
+    public function stepConfigs(): array
+    {
+        $configs = [];
+
+        foreach ($this->stepKeys() as $key) {
+            $configs[$key] = $this->stepConfig($key);
+        }
+
+        return $configs;
+    }
+
+    public function statusCompletesStep(string $step, string $status): bool
+    {
+        return WorkflowStepConfig::statusCompletes($this->stepConfig($step), $status);
+    }
+
+    /**
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    public function updatesForStepFields(string $step, array $fields): array
+    {
+        $updates = [];
+        $stored = $this->step_input_values ?? [];
+        $stepValues = is_array($stored[$step] ?? null) ? $stored[$step] : [];
+        $changedCustom = false;
+
+        foreach ($this->stepConfig($step)['inputs'] as $input) {
+            $key = $input['key'];
+            if (! array_key_exists($key, $fields)) {
+                continue;
+            }
+
+            $value = $fields[$key];
+            $normalized = $value === '' ? null : $value;
+
+            if ($key === 'grade') {
+                $updates['grade'] = $normalized;
+            } elseif ($key === 'schedule' && $step === 'outline_defense') {
+                $updates['outline_defense_schedule'] = $normalized;
+            } elseif ($key === 'schedule' && $step === 'final_defense') {
+                $updates['final_defense_schedule'] = $normalized;
+            } else {
+                $stepValues[$key] = $normalized;
+                $changedCustom = true;
+            }
+        }
+
+        if ($changedCustom) {
+            $stored[$step] = $stepValues;
+            $updates['step_input_values'] = $stored;
+        }
+
+        return $updates;
+    }
+
     // Workflow helpers
     public function getStepLabelAttribute(): string
     {
-        return self::STEP_LABELS[$this->current_step] ?? $this->current_step;
+        return $this->labelForStep($this->current_step);
     }
 
     public function getCurrentStepStatusAttribute(): ?string
@@ -199,7 +370,7 @@ class ResearchPaper extends Model
             'final_manuscript' => $this->step_final_manuscript,
             'final_defense' => $this->step_final_defense,
             'hard_bound' => $this->step_hard_bound,
-            default => null,
+            default => $this->customStepStatus($this->current_step),
         };
     }
 
@@ -275,26 +446,25 @@ class ResearchPaper extends Model
 
     public function canProceedToNextStep(): bool
     {
-        return match ($this->current_step) {
-            'title_proposal' => true,
-            'ric_review' => $this->step_ric_review === 'approved',
-            'outline_defense' => $this->step_outline_defense === 'passed',
-            'data_gathering' => $this->step_data_gathering === 'completed',
-            'rating' => $this->step_rating === 'rated',
-            'final_manuscript' => $this->step_final_manuscript === 'submitted',
-            'final_defense' => $this->step_final_defense === 'passed',
-            'hard_bound' => $this->step_hard_bound === 'submitted',
-            default => false,
-        };
+        if ($this->current_step === 'title_proposal') {
+            return true;
+        }
+
+        $status = $this->current_step_status;
+
+        return is_string($status) && $this->statusCompletesStep($this->current_step, $status);
     }
 
     public function advanceToNextStep(): void
     {
-        $index = array_search($this->current_step, self::STEPS);
-        if ($index !== false && isset(self::STEPS[$index + 1])) {
-            $this->current_step = self::STEPS[$index + 1];
-            $this->save();
+        $next = $this->nextStepKey();
+        if ($next === null) {
+            return;
         }
+
+        $this->fill($this->updatesForEnteringStep($next));
+        $this->current_step = $next;
+        $this->save();
     }
 
     // Scopes

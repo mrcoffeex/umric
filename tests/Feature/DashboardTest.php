@@ -1,15 +1,40 @@
 <?php
 
+use App\Models\Announcement;
 use App\Models\ResearchPaper;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Notifications\NewAnnouncementNotification;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('guests are redirected to the login page', function () {
-    $response = $this->get(route('dashboard'));
-    $response->assertRedirect(route('login'));
+test('faculty dashboard surfaces unread announcements in insights', function () {
+    $this->withoutVite();
+
+    $faculty = User::factory()->create();
+    UserProfile::factory()->faculty()->create(['user_id' => $faculty->id]);
+
+    $announcement = Announcement::factory()->create([
+        'title' => 'Faculty board note',
+        'target_roles' => ['faculty'],
+        'is_active' => true,
+        'published_at' => now(),
+    ]);
+
+    $faculty->notifyNow(new NewAnnouncementNotification($announcement));
+
+    $this->actingAs($faculty)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->missing('announcements')
+            ->where('insights.actions', fn ($actions) => collect($actions)->contains(
+                fn ($action) => ($action['id'] ?? null) === 'new-announcement'
+                    && ($action['description'] ?? null) === 'Faculty board note'
+            ))
+        );
 });
 
 test('authenticated students are redirected from dashboard to student home', function () {

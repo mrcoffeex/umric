@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
     CalendarDays,
+    Check,
     ChevronLeft,
     ChevronRight,
     Clock,
+    ExternalLink,
     ScrollText,
     Users,
 } from 'lucide-vue-next';
@@ -23,12 +25,14 @@ import { index as calendarIndex } from '@/routes/student/defense-calendar';
 
 interface DefenseEvent {
     id: string;
-    paper_id: number;
+    paper_id: string;
     tracking_id: string;
     title: string;
-    type: 'outline_defense' | 'final_defense' | 'title_defense';
+    type: string;
+    label?: string | null;
     schedule: string;
     step_status: string | null;
+    is_done: boolean;
     panel_members?: string[];
     proponents?: string[];
     school_class: { name: string; section: string | null } | null;
@@ -191,51 +195,65 @@ function isToday(day: number) {
     );
 }
 
-function eventClasses(
-    type: 'outline_defense' | 'final_defense' | 'title_defense',
-) {
+function eventClasses(type: string, isDone = false) {
+    const done = isDone ? 'ring-1 ring-emerald-500/40 opacity-90' : '';
+
     if (type === 'outline_defense') {
-        return 'bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800';
+        return `${done} bg-indigo-100 text-indigo-700 border-indigo-200 hover:bg-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800`;
     }
 
     if (type === 'title_defense') {
-        return 'bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800';
+        return `${done} bg-violet-100 text-violet-800 border-violet-200 hover:bg-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800`;
     }
 
-    return 'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800';
+    if (type === 'final_defense') {
+        return `${done} bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800`;
+    }
+
+    return `${done} bg-teal-100 text-teal-800 border-teal-200 hover:bg-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800`;
 }
 
-function eventLabel(
-    type: 'outline_defense' | 'final_defense' | 'title_defense',
-) {
-    if (type === 'outline_defense') {
+function eventLabel(event: DefenseEvent) {
+    if (event.label) {
+        return event.label;
+    }
+
+    if (event.type === 'outline_defense') {
         return 'Outline';
     }
 
-    if (type === 'title_defense') {
+    if (event.type === 'title_defense') {
         return 'Title';
     }
 
-    return 'Final';
+    if (event.type === 'final_defense') {
+        return 'Final';
+    }
+
+    return 'Event';
 }
 
-function defenseTypeLongLabel(
-    type: 'outline_defense' | 'final_defense' | 'title_defense' | undefined,
-) {
-    if (type === 'outline_defense') {
+function defenseTypeLongLabel(event: DefenseEvent | null | undefined) {
+    if (event?.label) {
+        return event.label;
+    }
+
+    if (event?.type === 'outline_defense') {
         return 'Outline Defense';
     }
 
-    if (type === 'title_defense') {
+    if (event?.type === 'title_defense') {
         return 'Title Evaluation';
     }
 
-    return 'Final Defense';
+    if (event?.type === 'final_defense') {
+        return 'Final Defense';
+    }
+
+    return 'Scheduled event';
 }
 
-function defenseTypeSheetBadgeClass(
-    type: 'outline_defense' | 'final_defense' | 'title_defense' | undefined,
-) {
+function defenseTypeSheetBadgeClass(type: string | undefined) {
     if (type === 'outline_defense') {
         return 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300';
     }
@@ -244,7 +262,11 @@ function defenseTypeSheetBadgeClass(
         return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950/30 dark:text-violet-300';
     }
 
-    return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300';
+    if (type === 'final_defense') {
+        return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/30 dark:text-orange-300';
+    }
+
+    return 'border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-800 dark:bg-teal-950/30 dark:text-teal-300';
 }
 
 function statusBadgeClass(status: string | null) {
@@ -386,16 +408,23 @@ function statusBadgeClass(status: string | null) {
                                 maxVisibleDayEvents,
                             )"
                             :key="event.id"
-                            class="mb-0.5 w-full cursor-pointer truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-medium transition-colors"
-                            :class="eventClasses(event.type)"
+                            class="mb-0.5 flex w-full cursor-pointer items-center gap-0.5 truncate rounded border px-1.5 py-0.5 text-left text-[11px] font-medium transition-colors"
+                            :class="eventClasses(event.type, event.is_done)"
                             @click="openEvent(event)"
                         >
-                            <span class="font-bold">{{
-                                eventLabel(event.type)
-                            }}</span>
-                            <span class="ml-1 opacity-80">{{
-                                formatTime(event.schedule)
-                            }}</span>
+                            <Check
+                                v-if="event.is_done"
+                                class="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400"
+                                aria-hidden="true"
+                            />
+                            <span class="min-w-0 truncate">
+                                <span class="font-bold">{{
+                                    eventLabel(event)
+                                }}</span>
+                                <span class="ml-1 opacity-80">{{
+                                    formatTime(event.schedule)
+                                }}</span>
+                            </span>
                         </button>
                         <button
                             v-if="
@@ -463,20 +492,27 @@ function statusBadgeClass(status: string | null) {
                         v-for="event in overflowEvents"
                         :key="event.id"
                         type="button"
-                        class="w-full cursor-pointer rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors"
-                        :class="eventClasses(event.type)"
+                        class="flex w-full cursor-pointer items-start gap-2 rounded-lg border px-3 py-2.5 text-left text-sm font-medium transition-colors"
+                        :class="eventClasses(event.type, event.is_done)"
                         @click="pickOverflowEvent(event)"
                     >
-                        <span class="font-bold">{{
-                            eventLabel(event.type)
-                        }}</span>
-                        <span class="ml-2 opacity-80">{{
-                            formatTime(event.schedule)
-                        }}</span>
-                        <span
-                            class="mt-0.5 block truncate text-xs font-normal opacity-90"
-                        >
-                            {{ event.title }}
+                        <Check
+                            v-if="event.is_done"
+                            class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                            aria-hidden="true"
+                        />
+                        <span class="min-w-0 flex-1">
+                            <span class="font-bold">{{
+                                eventLabel(event)
+                            }}</span>
+                            <span class="ml-2 opacity-80">{{
+                                formatTime(event.schedule)
+                            }}</span>
+                            <span
+                                class="mt-0.5 block truncate text-xs font-normal opacity-90"
+                            >
+                                {{ event.title }}
+                            </span>
                         </span>
                     </button>
                 </div>
@@ -493,10 +529,18 @@ function statusBadgeClass(status: string | null) {
                                 defenseTypeSheetBadgeClass(selectedEvent?.type)
                             "
                         >
-                            {{ defenseTypeLongLabel(selectedEvent?.type) }}
+                            {{ defenseTypeLongLabel(selectedEvent) }}
                         </span>
                         <Badge
-                            v-if="selectedEvent?.step_status"
+                            v-if="selectedEvent?.is_done"
+                            variant="outline"
+                            class="border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        >
+                            <Check class="mr-1 h-3 w-3" />
+                            Done
+                        </Badge>
+                        <Badge
+                            v-else-if="selectedEvent?.step_status"
                             variant="outline"
                             class="text-[10px]"
                             :class="statusBadgeClass(selectedEvent.step_status)"
@@ -619,6 +663,19 @@ function statusBadgeClass(status: string | null) {
                             {{ selectedEvent.tracking_id }}
                         </p>
                     </div>
+
+                    <Button as-child class="w-full">
+                        <Link
+                            :href="
+                                student.research.show.url(
+                                    selectedEvent.paper_id,
+                                )
+                            "
+                        >
+                            <ExternalLink class="mr-2 h-4 w-4" />
+                            View paper details
+                        </Link>
+                    </Button>
                 </div>
             </SheetContent>
         </Sheet>

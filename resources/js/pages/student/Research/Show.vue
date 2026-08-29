@@ -2,7 +2,6 @@
 import { Head, Link, setLayoutProps, useForm, usePage } from '@inertiajs/vue3';
 import {
     BookCheck,
-    Check,
     MessageSquare,
     CheckCircle2,
     ClipboardCopy,
@@ -22,6 +21,7 @@ import {
 } from 'lucide-vue-next';
 import QrcodeVue from 'qrcode.vue';
 import { computed, ref } from 'vue';
+import ResearchStepTiles from '@/components/research/ResearchStepTiles.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     firstPendingWorkflowStepIndex,
@@ -29,8 +29,8 @@ import {
     workflowProgressPercent,
     workflowFocusStepKey,
 } from '@/lib/research-workflow-ui';
-import type { WorkflowStepKey } from '@/lib/research-workflow-ui';
 import { getStepBadgeClass } from '@/lib/step-colors';
+import type { WorkflowStepSetup } from '@/lib/workflow-step-config';
 import student from '@/routes/student';
 
 interface StepRecord {
@@ -79,6 +79,7 @@ interface Paper {
     step_final_defense?: string | null;
     final_defense_schedule?: string | null;
     step_hard_bound?: string | null;
+    custom_step_statuses?: Record<string, string | null> | null;
     user_id?: string | null;
     adviser?: { id: string; name: string } | null;
     statistician?: { id: string; name: string } | null;
@@ -105,6 +106,7 @@ interface Props {
     trackingLog?: StepRecord[];
     stepLabels: Record<string, string>;
     steps: string[];
+    stepConfigs?: Record<string, WorkflowStepSetup>;
     sdgs: Array<{ id: string; name: string; number?: number }>;
     agendas: Array<{ id: string; name: string }>;
     panelDefenses?: PanelDefenseRecord[];
@@ -305,12 +307,16 @@ const trackingUrl = computed(() => {
 
 /** First step that is still waiting (pending) — drives “current” and progress. */
 const workflowFocusIndex = computed(() =>
-    firstPendingWorkflowStepIndex(props.paper),
+    firstPendingWorkflowStepIndex(props.paper, props.steps, props.stepConfigs),
 );
 
-const focusStepKey = computed(() => workflowFocusStepKey(props.paper));
+const focusStepKey = computed(() =>
+    workflowFocusStepKey(props.paper, props.steps, props.stepConfigs),
+);
 
-const progressPercent = computed(() => workflowProgressPercent(props.paper));
+const progressPercent = computed(() =>
+    workflowProgressPercent(props.paper, props.steps, props.stepConfigs),
+);
 
 const proponents = computed(() => {
     if (!props.paper.proponents) {
@@ -341,13 +347,18 @@ const timeline = computed(() => {
 const stepDetails = computed(() => {
     const p = props.paper;
 
-    return [
+    const catalog = [
         {
             key: 'title_proposal',
             icon: Send,
             status: 'Submitted',
             statusType: 'success' as const,
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'title_proposal',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'ric_review',
@@ -359,6 +370,11 @@ const stepDetails = computed(() => {
                 ['rejected', 'returned'],
             ),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'ric_review',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'outline_defense',
@@ -372,6 +388,11 @@ const stepDetails = computed(() => {
             info: p.outline_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.outline_defense_schedule)}`
                 : null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'outline_defense',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'data_gathering',
@@ -379,6 +400,11 @@ const stepDetails = computed(() => {
             status: statusLabel(p.step_data_gathering),
             statusType: statusType(p.step_data_gathering, ['completed'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'data_gathering',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'rating',
@@ -389,6 +415,7 @@ const stepDetails = computed(() => {
                     : statusLabel(p.step_rating),
             statusType: statusType(p.step_rating, ['rated'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(p, 'rating', props.stepConfigs),
         },
         {
             key: 'final_manuscript',
@@ -396,6 +423,11 @@ const stepDetails = computed(() => {
             status: statusLabel(p.step_final_manuscript),
             statusType: statusType(p.step_final_manuscript, ['submitted'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'final_manuscript',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'final_defense',
@@ -409,6 +441,11 @@ const stepDetails = computed(() => {
             info: p.final_defense_schedule
                 ? `Scheduled: ${formatDateTime(p.final_defense_schedule)}`
                 : null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'final_defense',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'hard_bound',
@@ -416,6 +453,11 @@ const stepDetails = computed(() => {
             status: statusLabel(p.step_hard_bound),
             statusType: statusType(p.step_hard_bound, ['submitted'], []),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'hard_bound',
+                props.stepConfigs,
+            ),
         },
         {
             key: 'completed',
@@ -426,8 +468,32 @@ const stepDetails = computed(() => {
                     ? ('success' as const)
                     : ('neutral' as const),
             info: null,
+            completed: isWorkflowStepSatisfied(
+                p,
+                'completed',
+                props.stepConfigs,
+            ),
         },
     ];
+
+    const byKey = Object.fromEntries(catalog.map((step) => [step.key, step]));
+
+    return props.steps.map((key) => {
+        if (byKey[key]) {
+            return byKey[key];
+        }
+
+        const customStatus = p.custom_step_statuses?.[key] ?? null;
+
+        return {
+            key,
+            icon: CheckCircle2,
+            status: statusLabel(customStatus),
+            statusType: statusType(customStatus, ['completed'], []),
+            info: null,
+            completed: isWorkflowStepSatisfied(p, key, props.stepConfigs),
+        };
+    });
 });
 
 function statusLabel(value?: string | null): string {
@@ -457,15 +523,6 @@ function statusType(
 
     return 'warning';
 }
-
-const statusTypeClasses: Record<string, string> = {
-    success:
-        'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300',
-    warning:
-        'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
-    danger: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
-    neutral: 'bg-muted text-muted-foreground',
-};
 
 function fileUrl(file: PaperFile): string {
     return file.disk === 's3' ? (file.url ?? '') : `/storage/${file.file_path}`;
@@ -511,18 +568,6 @@ function formatDate(value?: string | null): string {
 
 function stepLabel(step: string): string {
     return props.stepLabels[step] ?? step;
-}
-
-function isCompletedStepForKey(key: string): boolean {
-    return isWorkflowStepSatisfied(props.paper, key as WorkflowStepKey);
-}
-
-function isCurrentStep(idx: number): boolean {
-    return idx === workflowFocusIndex.value;
-}
-
-function isFutureStep(idx: number): boolean {
-    return idx > workflowFocusIndex.value;
 }
 
 function timeAgo(value: string): string {
@@ -717,112 +762,13 @@ setLayoutProps({
                         </TabsTrigger>
                     </TabsList>
                     <TabsContent value="steps" class="mt-0">
-                        <section
-                            class="rounded-2xl border border-border bg-card p-5"
-                        >
-                            <h2
-                                class="mb-4 text-base font-bold text-foreground"
-                            >
-                                Step management
-                            </h2>
-
-                            <div class="space-y-3">
-                                <div
-                                    v-for="(detail, idx) in stepDetails"
-                                    :key="detail.key"
-                                    :class="[
-                                        'relative overflow-hidden rounded-xl border p-4 transition-all',
-                                        isCurrentStep(idx)
-                                            ? 'border-orange-300 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20'
-                                            : isCompletedStepForKey(detail.key)
-                                              ? 'border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/10'
-                                              : 'border-border bg-card',
-                                    ]"
-                                >
-                                    <!-- Current step indicator -->
-                                    <div
-                                        v-if="isCurrentStep(idx)"
-                                        class="absolute top-0 right-0 rounded-bl-lg bg-orange-500 px-2 py-0.5 text-[10px] font-bold text-white uppercase"
-                                    >
-                                        Current
-                                    </div>
-
-                                    <div class="flex items-start gap-3">
-                                        <!-- Step icon -->
-                                        <div
-                                            :class="[
-                                                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                                                isCompletedStepForKey(
-                                                    detail.key,
-                                                )
-                                                    ? 'bg-green-100 text-green-600 dark:bg-green-950/40 dark:text-green-400'
-                                                    : isCurrentStep(idx)
-                                                      ? 'bg-orange-100 text-orange-600 dark:bg-orange-950/40 dark:text-orange-400'
-                                                      : 'bg-muted text-muted-foreground',
-                                            ]"
-                                        >
-                                            <Check
-                                                v-if="
-                                                    isCompletedStepForKey(
-                                                        detail.key,
-                                                    )
-                                                "
-                                                class="h-4 w-4"
-                                            />
-                                            <component
-                                                :is="detail.icon"
-                                                v-else
-                                                class="h-4 w-4"
-                                            />
-                                        </div>
-
-                                        <div class="min-w-0 flex-1">
-                                            <div
-                                                class="flex flex-wrap items-center gap-2"
-                                            >
-                                                <span
-                                                    class="text-sm font-bold text-foreground"
-                                                    >{{
-                                                        stepLabel(detail.key)
-                                                    }}</span
-                                                >
-                                                <span
-                                                    v-if="!isFutureStep(idx)"
-                                                    :class="[
-                                                        'rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                                                        statusTypeClasses[
-                                                            detail.statusType
-                                                        ],
-                                                    ]"
-                                                >
-                                                    {{ detail.status }}
-                                                </span>
-                                            </div>
-
-                                            <p
-                                                v-if="
-                                                    detail.info &&
-                                                    !isFutureStep(idx)
-                                                "
-                                                class="mt-1 text-xs text-muted-foreground"
-                                            >
-                                                {{ detail.info }}
-                                            </p>
-
-                                            <p
-                                                v-if="isFutureStep(idx)"
-                                                class="mt-1 text-xs text-muted-foreground"
-                                            >
-                                                Waiting for previous steps to
-                                                complete.
-                                            </p>
-
-                                            <!-- Defense document uploads live in the Files tab when the rule allows -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
+                        <ResearchStepTiles
+                            id="research-show-steps"
+                            :steps="stepDetails"
+                            :step-labels="stepLabels"
+                            :focus-index="workflowFocusIndex"
+                            description="Follow each stage of your research pipeline."
+                        />
                     </TabsContent>
 
                     <TabsContent value="comments" class="mt-0">

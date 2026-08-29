@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Spinner } from '@/components/ui/spinner';
 import { useBranding } from '@/composables/useBranding';
-import { google } from '@/routes/auth';
 import { register } from '@/routes';
+import { google } from '@/routes/auth';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
 
