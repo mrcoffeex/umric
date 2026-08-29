@@ -49,6 +49,12 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
+        if (! function_exists('fake')) {
+            $this->command?->error('DemoSeeder needs fakerphp/faker. On the server run: composer require fakerphp/faker');
+
+            return;
+        }
+
         $this->facultyCount = max(1, (int) env('DEMO_FACULTY_COUNT', 10));
         $this->classesPerFaculty = max(1, (int) env('DEMO_CLASSES_PER_FACULTY', 3));
         $this->studentCount = max(1, (int) env('DEMO_STUDENT_COUNT', 1000));
