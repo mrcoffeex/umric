@@ -44,8 +44,9 @@ createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'Welcome':
-            case name === 'Research/PublicTracking':
                 return null;
+            case name === 'Research/PublicTracking':
+                return PublicInfoLayout;
             case name === 'Documentation':
             case name === 'Faq':
             case name === 'Terms':

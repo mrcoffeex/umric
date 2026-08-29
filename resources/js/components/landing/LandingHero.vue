@@ -147,7 +147,8 @@ const pipelineSteps = [
                 </div>
 
                 <form
-                    class="border border-black/8 bg-white p-2 shadow-sm"
+                    id="track-paper"
+                    class="scroll-mt-24 border border-black/8 bg-white p-2 shadow-sm"
                     @submit.prevent="searchPaper"
                 >
                     <div

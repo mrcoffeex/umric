@@ -286,6 +286,7 @@ class ResearchPaperController extends Controller
             'paper' => $paper,
             'steps' => $paper->stepKeys(),
             'stepLabels' => $paper->stepLabels(),
+            'stepConfigs' => $paper->stepConfigs(),
         ]);
     }
 

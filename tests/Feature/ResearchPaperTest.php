@@ -187,7 +187,13 @@ test('public tracking page is accessible without auth', function () {
 
     $this->get(route('papers.publicTracking', $paper->tracking_id))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->component('Research/PublicTracking'));
+        ->assertInertia(fn ($page) => $page
+            ->component('Research/PublicTracking')
+            ->has('steps')
+            ->has('stepLabels')
+            ->has('stepConfigs')
+            ->where('paper.tracking_id', $paper->tracking_id)
+        );
 });
 
 test('public tracking returns 404 for invalid tracking id', function () {
